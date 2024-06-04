@@ -17,10 +17,18 @@ import (
 )
 
 func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
-	lastMessage := textRequest.Messages[len(textRequest.Messages)-1]
 	return &Request{
+		Message:     textRequest.Messages,
 		MaxTokens:   textRequest.MaxTokens,
-		Prompt:      lastMessage.StringContent(),
+		Stream:      textRequest.Stream,
+		Temperature: textRequest.Temperature,
+	}
+}
+
+func ConvertCompletionsRequest(textRequest model.GeneralOpenAIRequest) *Request {
+	return &Request{
+		Prompt:      textRequest.Prompt.(string),
+		MaxTokens:   textRequest.MaxTokens,
 		Stream:      textRequest.Stream,
 		Temperature: textRequest.Temperature,
 	}

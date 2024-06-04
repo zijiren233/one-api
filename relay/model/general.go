@@ -19,6 +19,7 @@ type GeneralOpenAIRequest struct {
 	TopK             int             `json:"top_k,omitempty"`
 	Tools            []Tool          `json:"tools,omitempty"`
 	ToolChoice       any             `json:"tool_choice,omitempty"`
+	Stop             []string        `json:"stop"`
 	FunctionCall     any             `json:"function_call,omitempty"`
 	Functions        any             `json:"functions,omitempty"`
 	User             string          `json:"user,omitempty"`
