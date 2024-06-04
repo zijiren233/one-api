@@ -3,7 +3,7 @@ package cloudflare
 import "github.com/songquanpeng/one-api/relay/model"
 
 type Request struct {
-	Message     []model.Message `json:"message,omitempty"`
+	Messages    []model.Message `json:"messages,omitempty"`
 	Lora        string          `json:"lora,omitempty"`
 	MaxTokens   int             `json:"max_tokens,omitempty"`
 	Prompt      string          `json:"prompt,omitempty"`

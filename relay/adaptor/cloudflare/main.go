@@ -18,7 +18,7 @@ import (
 
 func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
 	return &Request{
-		Message:     textRequest.Messages,
+		Messages:    textRequest.Messages,
 		MaxTokens:   textRequest.MaxTokens,
 		Stream:      textRequest.Stream,
 		Temperature: textRequest.Temperature,
@@ -78,53 +78,41 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 		return 0, nil, nil
 	})
 
-	dataChan := make(chan string)
-	stopChan := make(chan bool)
-	go func() {
-		for scanner.Scan() {
-			data := scanner.Text()
-			if len(data) < len("data: ") {
-				continue
-			}
-			data = strings.TrimPrefix(data, "data: ")
-			dataChan <- data
-		}
-		stopChan <- true
-	}()
 	common.SetEventStreamHeaders(c)
 	id := helper.GetResponseID(c)
 	responseModel := c.GetString("original_model")
 	var responseText string
-	c.Stream(func(w io.Writer) bool {
-		select {
-		case data := <-dataChan:
-			// some implementations may add \r at the end of data
-			data = strings.TrimSuffix(data, "\r")
-			var cloudflareResponse StreamResponse
-			err := json.Unmarshal([]byte(data), &cloudflareResponse)
-			if err != nil {
-				logger.SysError("error unmarshalling stream response: " + err.Error())
-				return true
-			}
-			response := StreamResponseCloudflare2OpenAI(&cloudflareResponse)
-			if response == nil {
-				return true
-			}
-			responseText += cloudflareResponse.Response
-			response.Id = id
-			response.Model = responseModel
-			jsonStr, err := json.Marshal(response)
-			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
-				return true
-			}
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonStr)})
-			return true
-		case <-stopChan:
-			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
-			return false
+	for scanner.Scan() {
+		data := scanner.Text()
+		if len(data) < len("data: ") {
+			continue
 		}
-	})
+		data = strings.TrimPrefix(strings.TrimSuffix(data, "\r"), "data: ")
+		if data == "[DONE]" {
+			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
+			break
+		}
+		var cloudflareResponse StreamResponse
+		err := json.Unmarshal([]byte(data), &cloudflareResponse)
+		if err != nil {
+			logger.SysError("error unmarshalling stream response: " + err.Error())
+			continue
+		}
+		response := StreamResponseCloudflare2OpenAI(&cloudflareResponse)
+		if response == nil {
+			continue
+		}
+		responseText += cloudflareResponse.Response
+		response.Id = id
+		response.Model = responseModel
+		jsonStr, err := json.Marshal(response)
+		if err != nil {
+			logger.SysError("error marshalling stream response: " + err.Error())
+			continue
+		}
+		c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonStr)})
+		c.Writer.Flush()
+	}
 	_ = resp.Body.Close()
 	usage := openai.ResponseText2Usage(responseText, responseModel, promptTokens)
 	return nil, usage
