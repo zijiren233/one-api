@@ -26,3 +26,12 @@ type Response struct {
 type StreamResponse struct {
 	Response string `json:"response"`
 }
+
+type ImageRequest struct {
+	Prompt   string  `json:"prompt"`
+	Image    any     `json:"image,omitempty"`
+	Mask     any     `json:"mask,omitempty"`
+	NumSteps int     `json:"num_steps,omitempty"`
+	Strength float64 `json:"strength,omitempty"`
+	Guidance float64 `json:"guidance,omitempty"`
+}

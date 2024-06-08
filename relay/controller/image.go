@@ -23,7 +23,7 @@ import (
 
 func isWithinRange(element string, value int) bool {
 	if _, ok := billingratio.ImageGenerationAmounts[element]; !ok {
-		return false
+		return value <= 1
 	}
 	min := billingratio.ImageGenerationAmounts[element][0]
 	max := billingratio.ImageGenerationAmounts[element][1]

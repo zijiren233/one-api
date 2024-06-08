@@ -69,14 +69,6 @@ func getTextToSpeechRequest(c *gin.Context) (*relaymodel.TextToSpeechRequest, er
 	return ttsRequest, nil
 }
 
-func isValidImageSize(model string, size string) bool {
-	if model == "cogview-3" {
-		return true
-	}
-	_, ok := billingratio.ImageSizeRatios[model][size]
-	return ok
-}
-
 func getImageSizeRatio(model string, size string) float64 {
 	ratio, ok := billingratio.ImageSizeRatios[model][size]
 	if !ok {
@@ -86,16 +78,11 @@ func getImageSizeRatio(model string, size string) float64 {
 }
 
 func validateImageRequest(imageRequest *relaymodel.ImageRequest, meta *meta.Meta) *relaymodel.ErrorWithStatusCode {
-	// model validation
-	hasValidSize := isValidImageSize(imageRequest.Model, imageRequest.Size)
-	if !hasValidSize {
-		return openai.ErrorWrapper(errors.New("size not supported for this image model"), "size_not_supported", http.StatusBadRequest)
-	}
 	// check prompt length
 	if imageRequest.Prompt == "" {
 		return openai.ErrorWrapper(errors.New("prompt is required"), "prompt_missing", http.StatusBadRequest)
 	}
-	if len(imageRequest.Prompt) > billingratio.ImagePromptLengthLimitations[imageRequest.Model] {
+	if limit, ok := billingratio.ImagePromptLengthLimitations[imageRequest.Model]; ok && len(imageRequest.Prompt) > limit {
 		return openai.ErrorWrapper(errors.New("prompt is too long"), "prompt_too_long", http.StatusBadRequest)
 	}
 	// Number of generated images validation

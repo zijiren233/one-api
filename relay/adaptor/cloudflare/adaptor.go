@@ -65,7 +65,12 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 	if meta.IsStream {
 		err, usage = StreamHandler(c, resp, meta.PromptTokens, meta.ActualModelName)
 	} else {
-		err, usage = Handler(c, resp, meta.PromptTokens, meta.ActualModelName)
+		switch meta.Mode {
+		case relaymode.ImagesGenerations:
+			err, usage = ImageHandler(c, resp)
+		default:
+			err, usage = Handler(c, resp, meta.PromptTokens, meta.ActualModelName)
+		}
 	}
 	return
 }
