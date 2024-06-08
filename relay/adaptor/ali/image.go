@@ -5,21 +5,27 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/songquanpeng/one-api/common/helper"
-	"github.com/songquanpeng/one-api/common/logger"
-	"github.com/songquanpeng/one-api/relay/adaptor/openai"
-	"github.com/songquanpeng/one-api/relay/model"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/songquanpeng/one-api/common/ctxkey"
+	"github.com/songquanpeng/one-api/common/helper"
+	"github.com/songquanpeng/one-api/common/logger"
+	"github.com/songquanpeng/one-api/relay/adaptor/openai"
+	"github.com/songquanpeng/one-api/relay/model"
 )
 
 func ImageHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
 	apiKey := c.Request.Header.Get("Authorization")
 	apiKey = strings.TrimPrefix(apiKey, "Bearer ")
-	responseFormat := c.GetString("response_format")
+
+	var responseFormat string
+	if req, exists := c.Get(ctxkey.ConvertedRequest); exists {
+		responseFormat = req.(*ImageRequest).ResponseFormat
+	}
 
 	var aliTaskResponse TaskResponse
 	responseBody, err := io.ReadAll(resp.Body)
