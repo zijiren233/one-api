@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
@@ -16,9 +20,6 @@ import (
 	"github.com/songquanpeng/one-api/relay/meta"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
 	"github.com/songquanpeng/one-api/relay/relaymode"
-	"math"
-	"net/http"
-	"strings"
 )
 
 func getAndValidateTextRequest(c *gin.Context, relayMode int) (*relaymodel.GeneralOpenAIRequest, error) {
@@ -56,6 +57,16 @@ func getImageRequest(c *gin.Context, relayMode int) (*relaymodel.ImageRequest, e
 		imageRequest.Model = "dall-e-2"
 	}
 	return imageRequest, nil
+}
+
+func getTextToSpeechRequest(c *gin.Context) (*relaymodel.TextToSpeechRequest, error) {
+	ttsRequest := &relaymodel.TextToSpeechRequest{}
+	err := common.UnmarshalBodyReusable(c, ttsRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return ttsRequest, nil
 }
 
 func isValidImageSize(model string, size string) bool {

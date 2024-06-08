@@ -3,13 +3,14 @@ package palm
 import (
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/relay/adaptor"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
-	"io"
-	"net/http"
 )
 
 type Adaptor struct {
@@ -37,6 +38,13 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 }
 
 func (a *Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) {
+	if request == nil {
+		return nil, errors.New("request is nil")
+	}
+	return request, nil
+}
+
+func (a *Adaptor) ConvertTextToSpeechRequest(request *model.TextToSpeechRequest) (any, error) {
 	if request == nil {
 		return nil, errors.New("request is nil")
 	}

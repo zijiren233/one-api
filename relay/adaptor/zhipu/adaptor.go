@@ -3,16 +3,17 @@ package zhipu
 import (
 	"errors"
 	"fmt"
+	"io"
+	"math"
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/relay/adaptor"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
 	"github.com/songquanpeng/one-api/relay/relaymode"
-	"io"
-	"math"
-	"net/http"
-	"strings"
 )
 
 type Adaptor struct {
@@ -90,6 +91,13 @@ func (a *Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) 
 		UserId: request.User,
 	}
 	return newRequest, nil
+}
+
+func (a *Adaptor) ConvertTextToSpeechRequest(request *model.TextToSpeechRequest) (any, error) {
+	if request == nil {
+		return nil, errors.New("request is nil")
+	}
+	return request, nil
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Reader) (*http.Response, error) {

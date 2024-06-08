@@ -3,6 +3,10 @@ package openai
 import (
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/relay/adaptor"
 	"github.com/songquanpeng/one-api/relay/adaptor/minimax"
@@ -10,9 +14,6 @@ import (
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
 	"github.com/songquanpeng/one-api/relay/relaymode"
-	"io"
-	"net/http"
-	"strings"
 )
 
 type Adaptor struct {
@@ -30,6 +31,14 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 			// https://learn.microsoft.com/en-us/azure/ai-services/openai/dall-e-quickstart?tabs=dalle3%2Ccommand-line&pivots=rest-api
 			// https://{resource_name}.openai.azure.com/openai/deployments/dall-e-3/images/generations?api-version=2024-03-01-preview
 			fullRequestURL := fmt.Sprintf("%s/openai/deployments/%s/images/generations?api-version=%s", meta.BaseURL, meta.ActualModelName, meta.Config.APIVersion)
+			return fullRequestURL, nil
+		} else if meta.Mode == relaymode.AudioTranscription {
+			// https://learn.microsoft.com/en-us/azure/ai-services/openai/whisper-quickstart?tabs=command-line#rest-api
+			fullRequestURL := fmt.Sprintf("%s/openai/deployments/%s/audio/transcriptions?api-version=%s", meta.BaseURL, meta.ActualModelName, meta.Config.APIVersion)
+			return fullRequestURL, nil
+		} else if meta.Mode == relaymode.AudioSpeech {
+			// https://learn.microsoft.com/en-us/azure/ai-services/openai/text-to-speech-quickstart?tabs=command-line#rest-api
+			fullRequestURL := fmt.Sprintf("%s/openai/deployments/%s/audio/speech?api-version=%s", meta.BaseURL, meta.ActualModelName, meta.Config.APIVersion)
 			return fullRequestURL, nil
 		}
 
@@ -54,6 +63,9 @@ func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *me
 	adaptor.SetupCommonRequestHeader(c, req, meta)
 	if meta.ChannelType == channeltype.Azure {
 		req.Header.Set("api-key", meta.APIKey)
+		if meta.Mode == relaymode.AudioTranscription || meta.Mode == relaymode.AudioSpeech {
+			req.ContentLength = c.Request.ContentLength
+		}
 		return nil
 	}
 	req.Header.Set("Authorization", "Bearer "+meta.APIKey)
@@ -72,6 +84,13 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 }
 
 func (a *Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) {
+	if request == nil {
+		return nil, errors.New("request is nil")
+	}
+	return request, nil
+}
+
+func (a *Adaptor) ConvertTextToSpeechRequest(request *model.TextToSpeechRequest) (any, error) {
 	if request == nil {
 		return nil, errors.New("request is nil")
 	}
@@ -97,6 +116,8 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 		switch meta.Mode {
 		case relaymode.ImagesGenerations:
 			err, _ = ImageHandler(c, resp)
+		case relaymode.AudioSpeech:
+			err, _ = TextToSpeechHandler(c, resp)
 		default:
 			err, usage = Handler(c, resp, meta.PromptTokens, meta.ActualModelName)
 		}
