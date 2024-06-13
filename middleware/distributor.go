@@ -2,13 +2,14 @@ package middleware
 
 import (
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay/channeltype"
-	"net/http"
-	"strconv"
 )
 
 type ModelRequest struct {
@@ -67,26 +68,28 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	c.Set(ctxkey.BaseURL, channel.GetBaseURL())
 	cfg, _ := channel.LoadConfig()
 	// this is for backward compatibility
-	switch channel.Type {
-	case channeltype.Azure:
-		if cfg.APIVersion == "" {
-			cfg.APIVersion = channel.Other
-		}
-	case channeltype.Xunfei:
-		if cfg.APIVersion == "" {
-			cfg.APIVersion = channel.Other
-		}
-	case channeltype.Gemini:
-		if cfg.APIVersion == "" {
-			cfg.APIVersion = channel.Other
-		}
-	case channeltype.AIProxyLibrary:
-		if cfg.LibraryID == "" {
-			cfg.LibraryID = channel.Other
-		}
-	case channeltype.Ali:
-		if cfg.Plugin == "" {
-			cfg.Plugin = channel.Other
+	if channel.Other != nil {
+		switch channel.Type {
+		case channeltype.Azure:
+			if cfg.APIVersion == "" {
+				cfg.APIVersion = *channel.Other
+			}
+		case channeltype.Xunfei:
+			if cfg.APIVersion == "" {
+				cfg.APIVersion = *channel.Other
+			}
+		case channeltype.Gemini:
+			if cfg.APIVersion == "" {
+				cfg.APIVersion = *channel.Other
+			}
+		case channeltype.AIProxyLibrary:
+			if cfg.LibraryID == "" {
+				cfg.LibraryID = *channel.Other
+			}
+		case channeltype.Ali:
+			if cfg.Plugin == "" {
+				cfg.Plugin = *channel.Other
+			}
 		}
 	}
 	c.Set(ctxkey.Config, cfg)
