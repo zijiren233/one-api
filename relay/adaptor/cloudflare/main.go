@@ -10,20 +10,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/model"
 )
-
-func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
-	return &Request{
-		Messages:    textRequest.Messages,
-		MaxTokens:   textRequest.MaxTokens,
-		Stream:      textRequest.Stream,
-		Temperature: textRequest.Temperature,
-	}
-}
 
 func ConvertCompletionsRequest(textRequest model.GeneralOpenAIRequest) *Request {
 	return &Request{
@@ -32,35 +24,6 @@ func ConvertCompletionsRequest(textRequest model.GeneralOpenAIRequest) *Request 
 		Stream:      textRequest.Stream,
 		Temperature: textRequest.Temperature,
 	}
-}
-
-func ResponseCloudflare2OpenAI(cloudflareResponse *Response) *openai.TextResponse {
-	choice := openai.TextResponseChoice{
-		Index: 0,
-		Message: model.Message{
-			Role:    "assistant",
-			Content: cloudflareResponse.Result.Response,
-		},
-		FinishReason: "stop",
-	}
-	fullTextResponse := openai.TextResponse{
-		Object:  "chat.completion",
-		Created: helper.GetTimestamp(),
-		Choices: []openai.TextResponseChoice{choice},
-	}
-	return &fullTextResponse
-}
-
-func StreamResponseCloudflare2OpenAI(cloudflareResponse *StreamResponse) *openai.ChatCompletionsStreamResponse {
-	var choice openai.ChatCompletionsStreamResponseChoice
-	choice.Delta.Content = cloudflareResponse.Response
-	choice.Delta.Role = "assistant"
-	openaiResponse := openai.ChatCompletionsStreamResponse{
-		Object:  "chat.completion.chunk",
-		Choices: []openai.ChatCompletionsStreamResponseChoice{choice},
-		Created: helper.GetTimestamp(),
-	}
-	return &openaiResponse
 }
 
 func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *model.Usage) {
@@ -80,7 +43,7 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 
 	common.SetEventStreamHeaders(c)
 	id := helper.GetResponseID(c)
-	responseModel := c.GetString("original_model")
+	responseModel := c.GetString(ctxkey.OriginalModel)
 	var responseText string
 	for scanner.Scan() {
 		data := scanner.Text()
@@ -92,19 +55,18 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
 			break
 		}
-		var cloudflareResponse StreamResponse
-		err := json.Unmarshal([]byte(data), &cloudflareResponse)
+		var response openai.ChatCompletionsStreamResponse
+		err := json.Unmarshal([]byte(data), &resp)
 		if err != nil {
 			logger.SysError("error unmarshalling stream response: " + err.Error())
 			continue
 		}
-		response := StreamResponseCloudflare2OpenAI(&cloudflareResponse)
-		if response == nil {
-			continue
+		for _, v := range response.Choices {
+			v.Delta.Role = "assistant"
+			responseText += v.Delta.Content.(string)
 		}
-		responseText += cloudflareResponse.Response
 		response.Id = id
-		response.Model = responseModel
+		response.Model = modelName
 		jsonStr, err := json.Marshal(response)
 		if err != nil {
 			logger.SysError("error marshalling stream response: " + err.Error())
@@ -127,17 +89,20 @@ func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName st
 	if err != nil {
 		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
 	}
-	var cloudflareResponse Response
-	err = json.Unmarshal(responseBody, &cloudflareResponse)
+	var response openai.TextResponse
+	err = json.Unmarshal(responseBody, &response)
 	if err != nil {
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
 	}
-	fullTextResponse := ResponseCloudflare2OpenAI(&cloudflareResponse)
-	fullTextResponse.Model = modelName
-	usage := openai.ResponseText2Usage(cloudflareResponse.Result.Response, modelName, promptTokens)
-	fullTextResponse.Usage = *usage
-	fullTextResponse.Id = helper.GetResponseID(c)
-	jsonResponse, err := json.Marshal(fullTextResponse)
+	response.Model = modelName
+	var responseText string
+	for _, v := range response.Choices {
+		responseText += v.Message.Content.(string)
+	}
+	usage := openai.ResponseText2Usage(responseText, modelName, promptTokens)
+	response.Usage = *usage
+	response.Id = helper.GetResponseID(c)
+	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		return openai.ErrorWrapper(err, "marshal_response_body_failed", http.StatusInternalServerError), nil
 	}
