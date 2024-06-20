@@ -214,61 +214,55 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		}
 		return 0, nil, nil
 	})
-	dataChan := make(chan string)
-	stopChan := make(chan bool)
-	go func() {
-		for scanner.Scan() {
-			data := scanner.Text()
-			if len(data) < 5 { // ignore blank line or wrong format
-				continue
-			}
-			if data[:5] != "data:" {
-				continue
-			}
-			data = data[5:]
-			dataChan <- data
-		}
-		stopChan <- true
-	}()
+
 	common.SetEventStreamHeaders(c)
-	//lastResponseText := ""
-	c.Stream(func(w io.Writer) bool {
-		select {
-		case data := <-dataChan:
-			var aliResponse ChatResponse
-			err := json.Unmarshal([]byte(data), &aliResponse)
-			if err != nil {
-				logger.SysError("error unmarshalling stream response: " + err.Error())
-				return true
-			}
-			if aliResponse.Usage.OutputTokens != 0 {
-				usage.PromptTokens = aliResponse.Usage.InputTokens
-				usage.CompletionTokens = aliResponse.Usage.OutputTokens
-				usage.TotalTokens = aliResponse.Usage.InputTokens + aliResponse.Usage.OutputTokens
-			}
-			response := streamResponseAli2OpenAI(&aliResponse)
-			if response == nil {
-				return true
-			}
-			//response.Choices[0].Delta.Content = strings.TrimPrefix(response.Choices[0].Delta.Content, lastResponseText)
-			//lastResponseText = aliResponse.Output.Text
-			jsonResponse, err := json.Marshal(response)
-			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
-				return true
-			}
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonResponse)})
-			return true
-		case <-stopChan:
-			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
-			return false
+
+	for scanner.Scan() {
+		data := scanner.Text()
+		if len(data) < 5 || data[:5] != "data:" {
+			continue
 		}
-	})
+		data = data[5:]
+
+		var aliResponse ChatResponse
+		err := json.Unmarshal([]byte(data), &aliResponse)
+		if err != nil {
+			logger.SysError("error unmarshalling stream response: " + err.Error())
+			continue // 跳过错误
+		}
+
+		if aliResponse.Usage.OutputTokens != 0 {
+			usage.PromptTokens = aliResponse.Usage.InputTokens
+			usage.CompletionTokens = aliResponse.Usage.OutputTokens
+			usage.TotalTokens = aliResponse.Usage.InputTokens + aliResponse.Usage.OutputTokens
+		}
+
+		response := streamResponseAli2OpenAI(&aliResponse)
+		if response == nil {
+			continue
+		}
+
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			logger.SysError("error marshalling stream response: " + err.Error())
+			continue // 跳过错误
+		}
+
+		renderStream(c, string(jsonResponse))
+	}
+
+	renderStream(c, "[DONE]")
+
 	err := resp.Body.Close()
 	if err != nil {
 		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
 	}
 	return nil, &usage
+}
+
+func renderStream(c *gin.Context, data string) {
+	c.Render(-1, common.CustomEvent{Data: "data: " + data})
+	c.Writer.Flush()
 }
 
 func Handler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {

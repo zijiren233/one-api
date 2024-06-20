@@ -169,65 +169,63 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		}
 		return 0, nil, nil
 	})
-	dataChan := make(chan string)
-	stopChan := make(chan bool)
-	go func() {
-		for scanner.Scan() {
-			data := scanner.Text()
-			if len(data) < 6 {
-				continue
-			}
-			if !strings.HasPrefix(data, "data:") {
-				continue
-			}
-			data = strings.TrimPrefix(data, "data:")
-			dataChan <- data
-		}
-		stopChan <- true
-	}()
+
 	common.SetEventStreamHeaders(c)
+
 	var usage model.Usage
 	var modelName string
 	var id string
-	c.Stream(func(w io.Writer) bool {
-		select {
-		case data := <-dataChan:
-			// some implementations may add \r at the end of data
-			data = strings.TrimSpace(data)
-			var claudeResponse StreamResponse
-			err := json.Unmarshal([]byte(data), &claudeResponse)
-			if err != nil {
-				logger.SysError("error unmarshalling stream response: " + err.Error())
-				return true
-			}
-			response, meta := StreamResponseClaude2OpenAI(&claudeResponse)
-			if meta != nil {
-				usage.PromptTokens += meta.Usage.InputTokens
-				usage.CompletionTokens += meta.Usage.OutputTokens
-				modelName = meta.Model
-				id = fmt.Sprintf("chatcmpl-%s", meta.Id)
-				return true
-			}
-			if response == nil {
-				return true
-			}
-			response.Id = id
-			response.Model = modelName
-			response.Created = createdTime
-			jsonStr, err := json.Marshal(response)
-			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
-				return true
-			}
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonStr)})
-			return true
-		case <-stopChan:
-			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
-			return false
+
+	for scanner.Scan() {
+		data := scanner.Text()
+		if len(data) < 6 || !strings.HasPrefix(data, "data:") {
+			continue
 		}
-	})
+		data = strings.TrimPrefix(data, "data:")
+		data = strings.TrimSpace(data)
+
+		var claudeResponse StreamResponse
+		err := json.Unmarshal([]byte(data), &claudeResponse)
+		if err != nil {
+			logger.SysError("error unmarshalling stream response: " + err.Error())
+			continue // 跳过错误数据
+		}
+
+		response, meta := StreamResponseClaude2OpenAI(&claudeResponse)
+		if meta != nil {
+			usage.PromptTokens += meta.Usage.InputTokens
+			usage.CompletionTokens += meta.Usage.OutputTokens
+			modelName = meta.Model
+			id = fmt.Sprintf("chatcmpl-%s", meta.Id)
+			continue // 处理完 meta 信息后直接进入下一轮循环
+		}
+
+		if response == nil {
+			continue
+		}
+
+		response.Id = id
+		response.Model = modelName
+		response.Created = createdTime
+
+		jsonStr, err := json.Marshal(response)
+		if err != nil {
+			logger.SysError("error marshalling stream response: " + err.Error())
+			continue // 跳过错误数据
+		}
+
+		renderStream(c, string(jsonStr))
+	}
+
+	renderStream(c, "[DONE]")
+
 	_ = resp.Body.Close()
 	return nil, &usage
+}
+
+func renderStream(c *gin.Context, data string) {
+	c.Render(-1, common.CustomEvent{Data: "data: " + data})
+	c.Writer.Flush()
 }
 
 func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *model.Usage) {

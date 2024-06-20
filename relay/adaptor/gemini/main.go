@@ -287,53 +287,52 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		}
 		return 0, nil, nil
 	})
-	dataChan := make(chan string)
-	stopChan := make(chan bool)
-	go func() {
-		for scanner.Scan() {
-			data := scanner.Text()
-			data = strings.TrimSpace(data)
-			if !strings.HasPrefix(data, "data: ") {
-				continue
-			}
-			data = strings.TrimPrefix(data, "data: ")
-			data = strings.TrimSuffix(data, "\"")
-			dataChan <- data
-		}
-		stopChan <- true
-	}()
+
 	common.SetEventStreamHeaders(c)
-	c.Stream(func(w io.Writer) bool {
-		select {
-		case data := <-dataChan:
-			var geminiResponse ChatResponse
-			err := json.Unmarshal([]byte(data), &geminiResponse)
-			if err != nil {
-				logger.SysError("error unmarshalling stream response: " + err.Error())
-				return true
-			}
-			response := streamResponseGeminiChat2OpenAI(&geminiResponse)
-			if response == nil {
-				return true
-			}
-			responseText += response.Choices[0].Delta.StringContent()
-			jsonResponse, err := json.Marshal(response)
-			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
-				return true
-			}
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonResponse)})
-			return true
-		case <-stopChan:
-			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
-			return false
+
+	for scanner.Scan() {
+		data := scanner.Text()
+		data = strings.TrimSpace(data)
+		if !strings.HasPrefix(data, "data: ") {
+			continue
 		}
-	})
+		data = strings.TrimPrefix(data, "data: ")
+		data = strings.TrimSuffix(data, "\"")
+
+		var geminiResponse ChatResponse
+		err := json.Unmarshal([]byte(data), &geminiResponse)
+		if err != nil {
+			logger.SysError("error unmarshalling stream response: " + err.Error())
+			continue // 跳过错误
+		}
+
+		response := streamResponseGeminiChat2OpenAI(&geminiResponse)
+		if response == nil {
+			continue
+		}
+		responseText += response.Choices[0].Delta.StringContent()
+
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			logger.SysError("error marshalling stream response: " + err.Error())
+			continue // 跳过错误
+		}
+
+		renderStream(c, string(jsonResponse))
+	}
+
+	renderStream(c, "[DONE]")
+
 	err := resp.Body.Close()
 	if err != nil {
 		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), ""
 	}
 	return nil, responseText
+}
+
+func renderStream(c *gin.Context, data string) {
+	c.Render(-1, common.CustomEvent{Data: "data: " + data})
+	c.Writer.Flush()
 }
 
 func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *model.Usage) {

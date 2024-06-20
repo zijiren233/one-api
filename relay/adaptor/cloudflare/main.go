@@ -63,7 +63,7 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 		}
 		for _, v := range response.Choices {
 			v.Delta.Role = "assistant"
-			responseText += v.Delta.Content.(string)
+			responseText += v.Delta.StringContent()
 		}
 		response.Id = id
 		response.Model = modelName

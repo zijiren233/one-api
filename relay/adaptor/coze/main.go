@@ -4,6 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/conv"
@@ -12,9 +16,6 @@ import (
 	"github.com/songquanpeng/one-api/relay/adaptor/coze/constant/messagetype"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/model"
-	"io"
-	"net/http"
-	"strings"
 )
 
 // https://www.coze.com/open
@@ -121,58 +122,55 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		}
 		return 0, nil, nil
 	})
-	dataChan := make(chan string)
-	stopChan := make(chan bool)
-	go func() {
-		for scanner.Scan() {
-			data := scanner.Text()
-			if len(data) < 5 {
-				continue
-			}
-			if !strings.HasPrefix(data, "data:") {
-				continue
-			}
-			data = strings.TrimPrefix(data, "data:")
-			dataChan <- data
-		}
-		stopChan <- true
-	}()
+
 	common.SetEventStreamHeaders(c)
 	var modelName string
-	c.Stream(func(w io.Writer) bool {
-		select {
-		case data := <-dataChan:
-			// some implementations may add \r at the end of data
-			data = strings.TrimSuffix(data, "\r")
-			var cozeResponse StreamResponse
-			err := json.Unmarshal([]byte(data), &cozeResponse)
-			if err != nil {
-				logger.SysError("error unmarshalling stream response: " + err.Error())
-				return true
-			}
-			response, _ := StreamResponseCoze2OpenAI(&cozeResponse)
-			if response == nil {
-				return true
-			}
-			for _, choice := range response.Choices {
-				responseText += conv.AsString(choice.Delta.Content)
-			}
-			response.Model = modelName
-			response.Created = createdTime
-			jsonStr, err := json.Marshal(response)
-			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
-				return true
-			}
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonStr)})
-			return true
-		case <-stopChan:
-			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
-			return false
+
+	for scanner.Scan() {
+		data := scanner.Text()
+		if len(data) < 5 || !strings.HasPrefix(data, "data:") {
+			continue
 		}
-	})
+		data = strings.TrimPrefix(data, "data:")
+		data = strings.TrimSuffix(data, "\r")
+
+		var cozeResponse StreamResponse
+		err := json.Unmarshal([]byte(data), &cozeResponse)
+		if err != nil {
+			logger.SysError("error unmarshalling stream response: " + err.Error())
+			continue
+		}
+
+		response, _ := StreamResponseCoze2OpenAI(&cozeResponse)
+		if response == nil {
+			continue
+		}
+
+		for _, choice := range response.Choices {
+			responseText += conv.AsString(choice.Delta.Content)
+		}
+
+		response.Model = modelName
+		response.Created = createdTime
+
+		jsonStr, err := json.Marshal(response)
+		if err != nil {
+			logger.SysError("error marshalling stream response: " + err.Error())
+			continue
+		}
+
+		renderStream(c, string(jsonStr))
+	}
+
+	renderStream(c, "[DONE]")
+
 	_ = resp.Body.Close()
 	return nil, &responseText
+}
+
+func renderStream(c *gin.Context, data string) {
+	c.Render(-1, common.CustomEvent{Data: "data: " + data})
+	c.Writer.Flush()
 }
 
 func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *string) {

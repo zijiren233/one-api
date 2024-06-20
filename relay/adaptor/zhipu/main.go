@@ -3,6 +3,12 @@ package zhipu
 import (
 	"bufio"
 	"encoding/json"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/songquanpeng/one-api/common"
@@ -11,11 +17,6 @@ import (
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/constant"
 	"github.com/songquanpeng/one-api/relay/model"
-	"io"
-	"net/http"
-	"strings"
-	"sync"
-	"time"
 )
 
 // https://open.bigmodel.cn/doc/api#chatglm_std
@@ -147,7 +148,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		if atEOF && len(data) == 0 {
 			return 0, nil, nil
 		}
-		if i := strings.Index(string(data), "\n\n"); i >= 0 && strings.Index(string(data), ":") >= 0 {
+		if i := strings.Index(string(data), "\n\n"); i >= 0 && strings.Contains(string(data), ":") {
 			return i + 2, data[0:i], nil
 		}
 		if atEOF {
@@ -155,67 +156,56 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		}
 		return 0, nil, nil
 	})
-	dataChan := make(chan string)
-	metaChan := make(chan string)
-	stopChan := make(chan bool)
-	go func() {
-		for scanner.Scan() {
-			data := scanner.Text()
-			lines := strings.Split(data, "\n")
-			for i, line := range lines {
-				if len(line) < 5 {
+
+	common.SetEventStreamHeaders(c)
+
+	for scanner.Scan() {
+		data := scanner.Text()
+		lines := strings.Split(data, "\n")
+		for _, line := range lines {
+			if len(line) < 5 {
+				continue
+			}
+
+			if line[:5] == "data:" {
+				responseData := streamResponseZhipu2OpenAI(line[5:])
+				jsonResponse, err := json.Marshal(responseData)
+				if err != nil {
+					logger.SysError("error marshalling stream response: " + err.Error())
 					continue
 				}
-				if line[:5] == "data:" {
-					dataChan <- line[5:]
-					if i != len(lines)-1 {
-						dataChan <- "\n"
-					}
-				} else if line[:5] == "meta:" {
-					metaChan <- line[5:]
+				renderStream(c, string(jsonResponse))
+			} else if line[:5] == "meta:" {
+				var zhipuResponse StreamMetaResponse
+				err := json.Unmarshal([]byte(line[5:]), &zhipuResponse)
+				if err != nil {
+					logger.SysError("error unmarshalling stream response: " + err.Error())
+					continue
 				}
+				responseMeta, zhipuUsage := streamMetaResponseZhipu2OpenAI(&zhipuResponse)
+				jsonResponse, err := json.Marshal(responseMeta)
+				if err != nil {
+					logger.SysError("error marshalling stream response: " + err.Error())
+					continue
+				}
+				usage = zhipuUsage
+				renderStream(c, string(jsonResponse))
 			}
 		}
-		stopChan <- true
-	}()
-	common.SetEventStreamHeaders(c)
-	c.Stream(func(w io.Writer) bool {
-		select {
-		case data := <-dataChan:
-			response := streamResponseZhipu2OpenAI(data)
-			jsonResponse, err := json.Marshal(response)
-			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
-				return true
-			}
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonResponse)})
-			return true
-		case data := <-metaChan:
-			var zhipuResponse StreamMetaResponse
-			err := json.Unmarshal([]byte(data), &zhipuResponse)
-			if err != nil {
-				logger.SysError("error unmarshalling stream response: " + err.Error())
-				return true
-			}
-			response, zhipuUsage := streamMetaResponseZhipu2OpenAI(&zhipuResponse)
-			jsonResponse, err := json.Marshal(response)
-			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
-				return true
-			}
-			usage = zhipuUsage
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonResponse)})
-			return true
-		case <-stopChan:
-			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
-			return false
-		}
-	})
+	}
+
+	renderStream(c, "[DONE]")
+
 	err := resp.Body.Close()
 	if err != nil {
 		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
 	}
 	return nil, usage
+}
+
+func renderStream(c *gin.Context, data string) {
+	c.Render(-1, common.CustomEvent{Data: "data: " + data})
+	c.Writer.Flush()
 }
 
 func Handler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {

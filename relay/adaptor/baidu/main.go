@@ -5,6 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/client"
@@ -12,11 +18,6 @@ import (
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/constant"
 	"github.com/songquanpeng/one-api/relay/model"
-	"io"
-	"net/http"
-	"strings"
-	"sync"
-	"time"
 )
 
 // https://cloud.baidu.com/doc/WENXINWORKSHOP/s/flfmc9do2
@@ -149,52 +150,51 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		}
 		return 0, nil, nil
 	})
-	dataChan := make(chan string)
-	stopChan := make(chan bool)
-	go func() {
-		for scanner.Scan() {
-			data := scanner.Text()
-			if len(data) < 6 { // ignore blank line or wrong format
-				continue
-			}
-			data = data[6:]
-			dataChan <- data
-		}
-		stopChan <- true
-	}()
+
 	common.SetEventStreamHeaders(c)
-	c.Stream(func(w io.Writer) bool {
-		select {
-		case data := <-dataChan:
-			var baiduResponse ChatStreamResponse
-			err := json.Unmarshal([]byte(data), &baiduResponse)
-			if err != nil {
-				logger.SysError("error unmarshalling stream response: " + err.Error())
-				return true
-			}
-			if baiduResponse.Usage.TotalTokens != 0 {
-				usage.TotalTokens = baiduResponse.Usage.TotalTokens
-				usage.PromptTokens = baiduResponse.Usage.PromptTokens
-				usage.CompletionTokens = baiduResponse.Usage.TotalTokens - baiduResponse.Usage.PromptTokens
-			}
-			response := streamResponseBaidu2OpenAI(&baiduResponse)
-			jsonResponse, err := json.Marshal(response)
-			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
-				return true
-			}
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonResponse)})
-			return true
-		case <-stopChan:
-			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
-			return false
+
+	for scanner.Scan() {
+		data := scanner.Text()
+		if len(data) < 6 {
+			continue
 		}
-	})
+		data = data[6:]
+
+		var baiduResponse ChatStreamResponse
+		err := json.Unmarshal([]byte(data), &baiduResponse)
+		if err != nil {
+			logger.SysError("error unmarshalling stream response: " + err.Error())
+			continue
+		}
+
+		if baiduResponse.Usage.TotalTokens != 0 {
+			usage.TotalTokens = baiduResponse.Usage.TotalTokens
+			usage.PromptTokens = baiduResponse.Usage.PromptTokens
+			usage.CompletionTokens = baiduResponse.Usage.TotalTokens - baiduResponse.Usage.PromptTokens
+		}
+
+		response := streamResponseBaidu2OpenAI(&baiduResponse)
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			logger.SysError("error marshalling stream response: " + err.Error())
+			continue
+		}
+
+		renderStream(c, string(jsonResponse))
+	}
+
+	renderStream(c, "[DONE]")
+
 	err := resp.Body.Close()
 	if err != nil {
 		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
 	}
 	return nil, &usage
+}
+
+func renderStream(c *gin.Context, data string) {
+	c.Render(-1, common.CustomEvent{Data: "data: " + data})
+	c.Writer.Flush()
 }
 
 func Handler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
