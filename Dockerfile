@@ -1,4 +1,4 @@
-FROM --platform=local node:16 as builder
+FROM --platform=$BUILDPLATFORM node:16 as builder
 
 WORKDIR /web
 COPY ./VERSION .
