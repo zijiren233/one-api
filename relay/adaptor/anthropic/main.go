@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/songquanpeng/one-api/common/render"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
@@ -80,7 +81,11 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
 		claudeRequest.ToolChoice = claudeToolChoice
 	}
 	if claudeRequest.MaxTokens == 0 {
-		claudeRequest.MaxTokens = 4096
+		if strings.HasPrefix(textRequest.Model, "claude-3-5-sonnet") {
+			claudeRequest.MaxTokens = 8192
+		} else {
+			claudeRequest.MaxTokens = 4096
+		}
 	}
 	// legacy model name mapping
 	if claudeRequest.Model == "claude-instant-1" {
