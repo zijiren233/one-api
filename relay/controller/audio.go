@@ -35,7 +35,6 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	tokenId := c.GetInt(ctxkey.TokenId)
 	channelType := c.GetInt(ctxkey.Channel)
 	channelId := c.GetInt(ctxkey.ChannelId)
-	userId := c.GetInt(ctxkey.Id)
 	group := c.GetString(ctxkey.Group)
 	tokenName := c.GetString(ctxkey.TokenName)
 
@@ -54,9 +53,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 	}
 
-	modelRatio := billingratio.GetModelRatio(audioModel, channelType)
-	groupRatio := billingratio.GetGroupRatio(group)
-	ratio := modelRatio * groupRatio
+	ratio := billingratio.GetModelRatio(audioModel, channelType)
 	var quota int64
 	var preConsumedQuota int64
 	switch relayMode {
@@ -66,22 +63,22 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	default:
 		preConsumedQuota = int64(float64(config.PreConsumedQuota) * ratio)
 	}
-	userQuota, err := model.CacheGetUserQuota(ctx, userId)
+	groupQuota, err := model.CacheGetGroupQuota(ctx, group)
 	if err != nil {
-		return openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
+		return openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
 	}
 
-	// Check if user quota is enough
-	if userQuota-preConsumedQuota < 0 {
-		return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+	// Check if group quota is enough
+	if groupQuota-preConsumedQuota < 0 {
+		return openai.ErrorWrapper(errors.New("group quota is not enough"), "insufficient_group_quota", http.StatusForbidden)
 	}
-	err = model.CacheDecreaseUserQuota(userId, preConsumedQuota)
+	err = model.CacheDecreaseGroupQuota(group, preConsumedQuota)
 	if err != nil {
-		return openai.ErrorWrapper(err, "decrease_user_quota_failed", http.StatusInternalServerError)
+		return openai.ErrorWrapper(err, "decrease_group_quota_failed", http.StatusInternalServerError)
 	}
-	if userQuota > 100*preConsumedQuota {
+	if groupQuota > 100*preConsumedQuota {
 		// in this case, we do not pre-consume quota
-		// because the user has enough quota
+		// because the group has enough quota
 		preConsumedQuota = 0
 	}
 	if preConsumedQuota > 0 {
@@ -223,7 +220,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	succeed = true
 	quotaDelta := quota - preConsumedQuota
 	defer func(ctx context.Context) {
-		go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, userId, channelId, modelRatio, groupRatio, audioModel, tokenName)
+		go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, group, channelId, ratio, audioModel, tokenName)
 	}(c.Request.Context())
 
 	for k, v := range resp.Header {

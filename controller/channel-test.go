@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +18,6 @@ import (
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
-	"github.com/songquanpeng/one-api/common/message"
 	"github.com/songquanpeng/one-api/middleware"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/monitor"
@@ -47,6 +46,18 @@ func buildTestRequest(model string) *relaymodel.GeneralOpenAIRequest {
 }
 
 func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIRequest) (err error, openaiErr *relaymodel.Error) {
+	if len(channel.Models) == 0 {
+		return errors.New("no models"), nil
+	}
+	modelName := request.Model
+	if modelName == "" {
+		modelName = channel.Models[0]
+	} else if !slices.Contains(channel.Models, modelName) {
+		return fmt.Errorf("model %s not supported", modelName), nil
+	}
+	if v, ok := channel.ModelMapping[modelName]; ok {
+		modelName = v
+	}
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = &http.Request{
@@ -58,9 +69,8 @@ func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIReques
 	c.Request.Header.Set("Authorization", "Bearer "+channel.Key)
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Set(ctxkey.Channel, channel.Type)
-	c.Set(ctxkey.BaseURL, channel.GetBaseURL())
-	cfg, _ := channel.LoadConfig()
-	c.Set(ctxkey.Config, cfg)
+	c.Set(ctxkey.BaseURL, channel.BaseURL)
+	c.Set(ctxkey.Config, channel.Config)
 	middleware.SetupContextForSelectedChannel(c, channel, "")
 	meta := meta.GetByContext(c)
 	apiType := channeltype.ToAPIType(channel.Type)
@@ -69,17 +79,6 @@ func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIReques
 		return fmt.Errorf("invalid api type: %d, adaptor is nil", apiType), nil
 	}
 	adaptor.Init(meta)
-	modelName := request.Model
-	modelMap := channel.GetModelMapping()
-	if modelName == "" || !strings.Contains(channel.Models, modelName) {
-		modelNames := strings.Split(channel.Models, ",")
-		if len(modelNames) > 0 {
-			modelName = modelNames[0]
-		}
-		if modelMap != nil && modelMap[modelName] != "" {
-			modelName = modelMap[modelName]
-		}
-	}
 	meta.OriginModelName, meta.ActualModelName = request.Model, modelName
 	request.Model = modelName
 	convertedRequest, err := adaptor.ConvertRequest(c, relaymode.ChatCompletions, request)
@@ -164,13 +163,12 @@ func TestChannel(c *gin.Context) {
 	return
 }
 
-var testAllChannelsLock sync.Mutex
-var testAllChannelsRunning bool = false
+var (
+	testAllChannelsLock    sync.Mutex
+	testAllChannelsRunning bool = false
+)
 
 func testChannels(notify bool, scope string) error {
-	if config.RootUserEmail == "" {
-		config.RootUserEmail = model.GetRootUserEmail()
-	}
 	testAllChannelsLock.Lock()
 	if testAllChannelsRunning {
 		testAllChannelsLock.Unlock()
@@ -182,7 +180,7 @@ func testChannels(notify bool, scope string) error {
 	if err != nil {
 		return err
 	}
-	var disableThreshold = int64(config.ChannelDisableThreshold * 1000)
+	disableThreshold := int64(config.ChannelDisableThreshold * 1000)
 	if disableThreshold == 0 {
 		disableThreshold = 10000000 // a impossible value
 	}
@@ -197,29 +195,21 @@ func testChannels(notify bool, scope string) error {
 			if isChannelEnabled && milliseconds > disableThreshold {
 				err = fmt.Errorf("响应时间 %.2fs 超过阈值 %.2fs", float64(milliseconds)/1000.0, float64(disableThreshold)/1000.0)
 				if config.AutomaticDisableChannelEnabled {
-					monitor.DisableChannel(channel.Id, channel.Name, err.Error())
-				} else {
-					_ = message.Notify(message.ByAll, fmt.Sprintf("渠道 %s （%d）测试超时", channel.Name, channel.Id), "", err.Error())
+					model.DisableChannelById(channel.Id)
 				}
 			}
 			if isChannelEnabled && monitor.ShouldDisableChannel(openaiErr, -1) {
-				monitor.DisableChannel(channel.Id, channel.Name, err.Error())
+				model.DisableChannelById(channel.Id)
 			}
 			if !isChannelEnabled && monitor.ShouldEnableChannel(err, openaiErr) {
-				monitor.EnableChannel(channel.Id, channel.Name)
+				model.EnableChannelById(channel.Id)
 			}
 			channel.UpdateResponseTime(milliseconds)
-			time.Sleep(config.RequestInterval)
+			time.Sleep(time.Second * 1)
 		}
 		testAllChannelsLock.Lock()
 		testAllChannelsRunning = false
 		testAllChannelsLock.Unlock()
-		if notify {
-			err := message.Notify(message.ByAll, "渠道测试完成", "", "渠道测试完成，如果没有收到禁用通知，说明所有渠道都正常")
-			if err != nil {
-				logger.SysError(fmt.Sprintf("failed to send email: %s", err.Error()))
-			}
-		}
 	}()
 	return nil
 }

@@ -2,6 +2,9 @@ package controller
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/model"
@@ -11,8 +14,6 @@ import (
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
-	"net/http"
-	"strings"
 )
 
 // https://platform.openai.com/docs/api-reference/models/list
@@ -42,9 +43,11 @@ type OpenAIModels struct {
 	Parent     *string                 `json:"parent"`
 }
 
-var models []OpenAIModels
-var modelsMap map[string]OpenAIModels
-var channelId2Models map[int][]string
+var (
+	models           []OpenAIModels
+	modelsMap        map[string]OpenAIModels
+	channelId2Models map[int][]string
+)
 
 func init() {
 	var permission []OpenAIModelPermission
@@ -130,14 +133,11 @@ func ListAllModels(c *gin.Context) {
 }
 
 func ListModels(c *gin.Context) {
-	ctx := c.Request.Context()
 	var availableModels []string
 	if c.GetString(ctxkey.AvailableModels) != "" {
 		availableModels = strings.Split(c.GetString(ctxkey.AvailableModels), ",")
 	} else {
-		userId := c.GetInt(ctxkey.Id)
-		userGroup, _ := model.CacheGetUserGroup(userId)
-		availableModels, _ = model.CacheGetGroupModels(ctx, userGroup)
+		availableModels = model.CacheGetAllModels()
 	}
 	modelSet := make(map[string]bool)
 	for _, availableModel := range availableModels {
@@ -186,28 +186,10 @@ func RetrieveModel(c *gin.Context) {
 }
 
 func GetUserAvailableModels(c *gin.Context) {
-	ctx := c.Request.Context()
-	id := c.GetInt(ctxkey.Id)
-	userGroup, err := model.CacheGetUserGroup(id)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
-	models, err := model.CacheGetGroupModels(ctx, userGroup)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    models,
+		"data":    model.CacheGetAllModels(),
 	})
 	return
 }

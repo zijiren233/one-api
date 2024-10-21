@@ -3,66 +3,25 @@ package model
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/env"
-	"github.com/songquanpeng/one-api/common/helper"
+	_ "github.com/songquanpeng/one-api/common/fastJSONSerializer"
 	"github.com/songquanpeng/one-api/common/logger"
-	"github.com/songquanpeng/one-api/common/random"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"os"
-	"strings"
-	"time"
 )
 
-var DB *gorm.DB
-var LOG_DB *gorm.DB
-
-func CreateRootAccountIfNeed() error {
-	var user User
-	//if user.Status != util.UserStatusEnabled {
-	if err := DB.First(&user).Error; err != nil {
-		logger.SysLog("no user exists, creating a root user for you: username is root, password is 123456")
-		hashedPassword, err := common.Password2Hash("123456")
-		if err != nil {
-			return err
-		}
-		accessToken := random.GetUUID()
-		if config.InitialRootAccessToken != "" {
-			accessToken = config.InitialRootAccessToken
-		}
-		rootUser := User{
-			Username:    "root",
-			Password:    hashedPassword,
-			Role:        RoleRootUser,
-			Status:      UserStatusEnabled,
-			DisplayName: "Root User",
-			AccessToken: accessToken,
-			Quota:       500000000000000,
-		}
-		DB.Create(&rootUser)
-		if config.InitialRootToken != "" {
-			logger.SysLog("creating initial root token as requested")
-			token := Token{
-				Id:             1,
-				UserId:         rootUser.Id,
-				Key:            config.InitialRootToken,
-				Status:         TokenStatusEnabled,
-				Name:           "Initial Root Token",
-				CreatedTime:    helper.GetTimestamp(),
-				AccessedTime:   helper.GetTimestamp(),
-				ExpiredTime:    -1,
-				RemainQuota:    500000000000000,
-				UnlimitedQuota: true,
-			}
-			DB.Create(&token)
-		}
-	}
-	return nil
-}
+var (
+	DB     *gorm.DB
+	LOG_DB *gorm.DB
+)
 
 func chooseDB(envName string) (*gorm.DB, error) {
 	dsn := os.Getenv(envName)
@@ -118,7 +77,7 @@ func InitDB() {
 
 	sqlDB := setDBConns(DB)
 
-	if !config.IsMasterNode {
+	if !config.AutoMigrateDB {
 		return
 	}
 
@@ -135,29 +94,14 @@ func InitDB() {
 }
 
 func migrateDB() error {
-	var err error
-	if err = DB.AutoMigrate(&Channel{}); err != nil {
-		return err
-	}
-	if err = DB.AutoMigrate(&Token{}); err != nil {
-		return err
-	}
-	if err = DB.AutoMigrate(&User{}); err != nil {
-		return err
-	}
-	if err = DB.AutoMigrate(&Option{}); err != nil {
-		return err
-	}
-	if err = DB.AutoMigrate(&Redemption{}); err != nil {
-		return err
-	}
-	if err = DB.AutoMigrate(&Ability{}); err != nil {
-		return err
-	}
-	if err = DB.AutoMigrate(&Log{}); err != nil {
-		return err
-	}
-	if err = DB.AutoMigrate(&Channel{}); err != nil {
+	err := DB.AutoMigrate(
+		&Channel{},
+		&Token{},
+		&Group{},
+		&Option{},
+		&Log{},
+	)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -179,7 +123,7 @@ func InitLogDB() {
 
 	setDBConns(LOG_DB)
 
-	if !config.IsMasterNode {
+	if !config.AutoMigrateDB {
 		return
 	}
 

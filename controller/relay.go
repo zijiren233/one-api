@@ -50,7 +50,6 @@ func Relay(c *gin.Context) {
 		logger.Debugf(ctx, "request body: %s", string(requestBody))
 	}
 	channelId := c.GetInt(ctxkey.ChannelId)
-	userId := c.GetInt(ctxkey.Id)
 	bizErr := relayHelper(c, relayMode)
 	if bizErr == nil {
 		monitor.Emit(channelId, true)
@@ -60,7 +59,7 @@ func Relay(c *gin.Context) {
 	channelName := c.GetString(ctxkey.ChannelName)
 	group := c.GetString(ctxkey.Group)
 	originalModel := c.GetString(ctxkey.OriginalModel)
-	go processChannelRelayError(ctx, userId, channelId, channelName, bizErr)
+	go processChannelRelayError(ctx, group, channelId, channelName, bizErr)
 	requestId := c.GetString(helper.RequestIdKey)
 	retryTimes := config.RetryTimes
 	if !shouldRetry(c, bizErr.StatusCode) {
@@ -68,7 +67,7 @@ func Relay(c *gin.Context) {
 		retryTimes = 0
 	}
 	for i := retryTimes; i > 0; i-- {
-		channel, err := dbmodel.CacheGetRandomSatisfiedChannel(group, originalModel, i != retryTimes)
+		channel, err := dbmodel.CacheGetRandomSatisfiedChannel(originalModel, i != retryTimes)
 		if err != nil {
 			logger.Errorf(ctx, "CacheGetRandomSatisfiedChannel failed: %+v", err)
 			break
@@ -88,7 +87,7 @@ func Relay(c *gin.Context) {
 		lastFailedChannelId = channelId
 		channelName := c.GetString(ctxkey.ChannelName)
 		// BUG: bizErr is in race condition
-		go processChannelRelayError(ctx, userId, channelId, channelName, bizErr)
+		go processChannelRelayError(ctx, group, channelId, channelName, bizErr)
 	}
 	if bizErr != nil {
 		if bizErr.StatusCode == http.StatusTooManyRequests {
@@ -122,11 +121,11 @@ func shouldRetry(c *gin.Context, statusCode int) bool {
 	return true
 }
 
-func processChannelRelayError(ctx context.Context, userId int, channelId int, channelName string, err *model.ErrorWithStatusCode) {
-	logger.Errorf(ctx, "relay error (channel id %d, user id: %d): %s", channelId, userId, err.Message)
+func processChannelRelayError(ctx context.Context, group string, channelId int, channelName string, err *model.ErrorWithStatusCode) {
+	logger.Errorf(ctx, "relay error (channel id %d, group: %s): %s", channelId, group, err.Message)
 	// https://platform.openai.com/docs/guides/error-codes/api-errors
 	if monitor.ShouldDisableChannel(&err.Error, err.StatusCode) {
-		monitor.DisableChannel(channelId, channelName, err.Message)
+		dbmodel.DisableChannelById(channelId)
 	} else {
 		monitor.Emit(channelId, false)
 	}

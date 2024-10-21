@@ -167,15 +167,13 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		requestBody = bytes.NewBuffer(jsonStr)
 	}
 
-	modelRatio := billingratio.GetModelRatio(imageModel, meta.ChannelType)
-	groupRatio := billingratio.GetGroupRatio(meta.Group)
-	ratio := modelRatio * groupRatio
-	userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
+	ratio := billingratio.GetModelRatio(imageModel, meta.ChannelType)
+	groupQuota, err := model.CacheGetGroupQuota(ctx, meta.Group)
 
 	quota := int64(ratio*imageCostRatio*1000) * int64(imageRequest.N)
 
-	if userQuota-quota < 0 {
-		return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+	if groupQuota-quota < 0 {
+		return openai.ErrorWrapper(errors.New("group quota is not enough"), "insufficient_group_quota", http.StatusForbidden)
 	}
 
 	// do request
@@ -194,15 +192,15 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			logger.SysError("error consuming token remain quota: " + err.Error())
 		}
-		err = model.CacheUpdateUserQuota(ctx, meta.UserId)
+		err = model.CacheUpdateGroupQuota(ctx, meta.Group)
 		if err != nil {
-			logger.SysError("error update user quota cache: " + err.Error())
+			logger.SysError("error update group quota cache: " + err.Error())
 		}
 		if quota != 0 {
 			tokenName := c.GetString(ctxkey.TokenName)
-			logContent := fmt.Sprintf("模型倍率 %.2f，分组倍率 %.2f", modelRatio, groupRatio)
-			model.RecordConsumeLog(ctx, meta.UserId, meta.ChannelId, 0, 0, imageRequest.Model, tokenName, quota, logContent)
-			model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
+			logContent := fmt.Sprintf("模型倍率 %.2f", ratio)
+			model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, 0, 0, imageRequest.Model, tokenName, quota, logContent)
+			model.UpdateGroupUsedQuotaAndRequestCount(meta.Group, quota, 1)
 			channelId := c.GetInt(ctxkey.ChannelId)
 			model.UpdateChannelUsedQuota(channelId, quota)
 		}

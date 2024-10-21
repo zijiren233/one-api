@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/songquanpeng/one-api/common/client"
-	"github.com/songquanpeng/one-api/common/config"
-	"github.com/songquanpeng/one-api/common/logger"
-	"github.com/songquanpeng/one-api/model"
-	"github.com/songquanpeng/one-api/monitor"
-	"github.com/songquanpeng/one-api/relay/channeltype"
 	"io"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/songquanpeng/one-api/common/client"
+	"github.com/songquanpeng/one-api/common/logger"
+	"github.com/songquanpeng/one-api/model"
+	"github.com/songquanpeng/one-api/relay/channeltype"
 
 	"github.com/gin-gonic/gin"
 )
@@ -46,7 +45,7 @@ type OpenAICreditGrants struct {
 
 type OpenAIUsageResponse struct {
 	Object string `json:"object"`
-	//DailyCosts []OpenAIUsageDailyCost `json:"daily_costs"`
+	// DailyCosts []OpenAIUsageDailyCost `json:"daily_costs"`
 	TotalUsage float64 `json:"total_usage"` // unit: 0.01 dollar
 }
 
@@ -74,7 +73,7 @@ type API2GPTUsageResponse struct {
 }
 
 type APGC2DGPTUsageResponse struct {
-	//Grants         interface{} `json:"grants"`
+	// Grants         interface{} `json:"grants"`
 	Object         string  `json:"object"`
 	TotalAvailable float64 `json:"total_available"`
 	TotalGranted   float64 `json:"total_granted"`
@@ -135,9 +134,8 @@ func GetResponseBody(method, url string, channel *model.Channel, headers http.He
 }
 
 func updateChannelCloseAIBalance(channel *model.Channel) (float64, error) {
-	url := fmt.Sprintf("%s/dashboard/billing/credit_grants", channel.GetBaseURL())
+	url := fmt.Sprintf("%s/dashboard/billing/credit_grants", channel.BaseURL)
 	body, err := GetResponseBody("GET", url, channel, GetAuthHeader(channel.Key))
-
 	if err != nil {
 		return 0, err
 	}
@@ -195,7 +193,6 @@ func updateChannelAIProxyBalance(channel *model.Channel) (float64, error) {
 func updateChannelAPI2GPTBalance(channel *model.Channel) (float64, error) {
 	url := "https://api.api2gpt.com/dashboard/billing/credit_grants"
 	body, err := GetResponseBody("GET", url, channel, GetAuthHeader(channel.Key))
-
 	if err != nil {
 		return 0, err
 	}
@@ -247,18 +244,16 @@ func updateChannelSiliconFlowBalance(channel *model.Channel) (float64, error) {
 
 func updateChannelBalance(channel *model.Channel) (float64, error) {
 	baseURL := channeltype.ChannelBaseURLs[channel.Type]
-	if channel.GetBaseURL() == "" {
-		channel.BaseURL = &baseURL
+	if channel.BaseURL == "" {
+		channel.BaseURL = baseURL
 	}
 	switch channel.Type {
 	case channeltype.OpenAI:
-		if channel.GetBaseURL() != "" {
-			baseURL = channel.GetBaseURL()
-		}
+		baseURL = channel.BaseURL
 	case channeltype.Azure:
 		return 0, errors.New("尚未实现")
 	case channeltype.Custom:
-		baseURL = channel.GetBaseURL()
+		baseURL = channel.BaseURL
 	case channeltype.CloseAI:
 		return updateChannelCloseAIBalance(channel)
 	case channeltype.OpenAISB:
@@ -358,10 +353,10 @@ func updateAllChannelsBalance() error {
 		} else {
 			// err is nil & balance <= 0 means quota is used up
 			if balance <= 0 {
-				monitor.DisableChannel(channel.Id, channel.Name, "余额不足")
+				model.DisableChannelById(channel.Id)
 			}
 		}
-		time.Sleep(config.RequestInterval)
+		time.Sleep(time.Second)
 	}
 	return nil
 }

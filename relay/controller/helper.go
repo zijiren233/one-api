@@ -64,22 +64,22 @@ func getPreConsumedQuota(textRequest *relaymodel.GeneralOpenAIRequest, promptTok
 func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, ratio float64, meta *meta.Meta) (int64, *relaymodel.ErrorWithStatusCode) {
 	preConsumedQuota := getPreConsumedQuota(textRequest, promptTokens, ratio)
 
-	userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
+	groupQuota, err := model.CacheGetGroupQuota(ctx, meta.Group)
 	if err != nil {
-		return preConsumedQuota, openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
+		return preConsumedQuota, openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
 	}
-	if userQuota-preConsumedQuota < 0 {
-		return preConsumedQuota, openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+	if groupQuota-preConsumedQuota < 0 {
+		return preConsumedQuota, openai.ErrorWrapper(errors.New("group quota is not enough"), "insufficient_group_quota", http.StatusForbidden)
 	}
-	err = model.CacheDecreaseUserQuota(meta.UserId, preConsumedQuota)
+	err = model.CacheDecreaseGroupQuota(meta.Group, preConsumedQuota)
 	if err != nil {
-		return preConsumedQuota, openai.ErrorWrapper(err, "decrease_user_quota_failed", http.StatusInternalServerError)
+		return preConsumedQuota, openai.ErrorWrapper(err, "decrease_group_quota_failed", http.StatusInternalServerError)
 	}
-	if userQuota > 100*preConsumedQuota {
+	if groupQuota > 100*preConsumedQuota {
 		// in this case, we do not pre-consume quota
-		// because the user has enough quota
+		// because the group has enough quota
 		preConsumedQuota = 0
-		logger.Info(ctx, fmt.Sprintf("user %d has enough quota %d, trusted and no need to pre-consume", meta.UserId, userQuota))
+		logger.Info(ctx, fmt.Sprintf("group %s has enough quota %d, trusted and no need to pre-consume", meta.Group, groupQuota))
 	}
 	if preConsumedQuota > 0 {
 		err := model.PreConsumeTokenQuota(meta.TokenId, preConsumedQuota)
@@ -90,7 +90,7 @@ func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIR
 	return preConsumedQuota, nil
 }
 
-func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, ratio float64, preConsumedQuota int64, modelRatio float64, groupRatio float64) {
+func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, ratio float64, preConsumedQuota int64, modelRatio float64) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		return
@@ -114,13 +114,13 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	if err != nil {
 		logger.Error(ctx, "error consuming token remain quota: "+err.Error())
 	}
-	err = model.CacheUpdateUserQuota(ctx, meta.UserId)
+	err = model.CacheUpdateGroupQuota(ctx, meta.Group)
 	if err != nil {
-		logger.Error(ctx, "error update user quota cache: "+err.Error())
+		logger.Error(ctx, "error update group quota cache: "+err.Error())
 	}
-	logContent := fmt.Sprintf("模型倍率 %.2f，分组倍率 %.2f，补全倍率 %.2f", modelRatio, groupRatio, completionRatio)
-	model.RecordConsumeLog(ctx, meta.UserId, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenName, quota, logContent)
-	model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
+	logContent := fmt.Sprintf("模型倍率 %.2f，补全倍率 %.2f", ratio, completionRatio)
+	model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenName, quota, logContent)
+	model.UpdateGroupUsedQuotaAndRequestCount(meta.Group, quota, 1)
 	model.UpdateChannelUsedQuota(meta.ChannelId, quota)
 }
 

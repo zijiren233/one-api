@@ -2,9 +2,6 @@ package ctxkey
 
 const (
 	Config            = "config"
-	Id                = "id"
-	Username          = "username"
-	Role              = "role"
 	Status            = "status"
 	Channel           = "channel"
 	ChannelId         = "channel_id"

@@ -1,13 +1,16 @@
 package model
 
 import (
-	"encoding/json"
-	"fmt"
+	"time"
 
-	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/logger"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
+
+const (
+	ErrChannelNotFound = "channel"
 )
 
 const (
@@ -18,25 +21,24 @@ const (
 )
 
 type Channel struct {
-	Id                 int     `json:"id"`
-	Type               int     `json:"type" gorm:"default:0"`
-	Key                string  `json:"key" gorm:"type:text"`
-	Status             int     `json:"status" gorm:"default:1"`
-	Name               string  `json:"name" gorm:"index"`
-	Weight             *uint   `json:"weight" gorm:"default:0"`
-	CreatedTime        int64   `json:"created_time" gorm:"bigint"`
-	TestTime           int64   `json:"test_time" gorm:"bigint"`
-	ResponseTime       int     `json:"response_time"` // in milliseconds
-	BaseURL            *string `json:"base_url" gorm:"column:base_url;default:''"`
-	Other              *string `json:"other"`   // DEPRECATED: please save config to field Config
-	Balance            float64 `json:"balance"` // in USD
-	BalanceUpdatedTime int64   `json:"balance_updated_time" gorm:"bigint"`
-	Models             string  `json:"models"`
-	Group              string  `json:"group" gorm:"type:varchar(32);default:'default'"`
-	UsedQuota          int64   `json:"used_quota" gorm:"bigint;default:0"`
-	ModelMapping       *string `json:"model_mapping" gorm:"type:varchar(1024);default:''"`
-	Priority           *int64  `json:"priority" gorm:"bigint;default:0"`
-	Config             string  `json:"config"`
+	Id               int               `json:"id"`
+	Type             int               `json:"type" gorm:"default:0"`
+	Key              string            `json:"key" gorm:"type:text"`
+	Status           int               `json:"status" gorm:"default:1"`
+	Name             string            `json:"name" gorm:"index"`
+	Weight           uint32            `json:"weight"`
+	CreatedAt        time.Time         `json:"created_at"`
+	TestAt           time.Time         `json:"test_at"`
+	ResponseDuration int64             `gorm:"bigint" json:"response_duration"` // in milliseconds
+	BaseURL          string            `json:"base_url"`
+	Other            string            `json:"other"`   // DEPRECATED: please save config to field Config
+	Balance          float64           `json:"balance"` // in USD
+	BalanceUpdatedAt time.Time         `json:"balance_updated_at"`
+	Models           []string          `gorm:"serializer:json;type:text" json:"models"`
+	UsedQuota        int64             `gorm:"bigint" json:"used_quota"`
+	ModelMapping     map[string]string `gorm:"serializer:fastjson;type:text" json:"model_mapping"`
+	Priority         int32             `json:"priority"`
+	Config           ChannelConfig     `gorm:"serializer:json;type:text" json:"config"`
 }
 
 type ChannelConfig struct {
@@ -72,7 +74,7 @@ func SearchChannels(keyword string) (channels []*Channel, err error) {
 
 func GetChannelById(id int, selectAll bool) (*Channel, error) {
 	channel := Channel{Id: id}
-	var err error = nil
+	var err error
 	if selectAll {
 		err = DB.First(&channel, "id = ?", id).Error
 	} else {
@@ -82,72 +84,18 @@ func GetChannelById(id int, selectAll bool) (*Channel, error) {
 }
 
 func BatchInsertChannels(channels []Channel) error {
-	var err error
-	err = DB.Create(&channels).Error
-	if err != nil {
-		return err
-	}
-	for _, channel_ := range channels {
-		err = channel_.AddAbilities()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return DB.Create(&channels).Error
 }
 
-func (channel *Channel) GetPriority() int64 {
-	if channel.Priority == nil {
-		return 0
-	}
-	return *channel.Priority
-}
-
-func (channel *Channel) GetBaseURL() string {
-	if channel.BaseURL == nil {
-		return ""
-	}
-	return *channel.BaseURL
-}
-
-func (channel *Channel) GetModelMapping() map[string]string {
-	if channel.ModelMapping == nil || *channel.ModelMapping == "" || *channel.ModelMapping == "{}" {
-		return nil
-	}
-	modelMapping := make(map[string]string)
-	err := json.Unmarshal([]byte(*channel.ModelMapping), &modelMapping)
-	if err != nil {
-		logger.SysError(fmt.Sprintf("failed to unmarshal model mapping for channel %d, error: %s", channel.Id, err.Error()))
-		return nil
-	}
-	return modelMapping
-}
-
-func (channel *Channel) Insert() error {
-	var err error
-	err = DB.Create(channel).Error
-	if err != nil {
-		return err
-	}
-	err = channel.AddAbilities()
-	return err
-}
-
-func (channel *Channel) Update() error {
-	var err error
-	err = DB.Model(channel).Updates(channel).Error
-	if err != nil {
-		return err
-	}
-	DB.Model(channel).First(channel, "id = ?", channel.Id)
-	err = channel.UpdateAbilities()
-	return err
+func UpdateChannel(channel *Channel) error {
+	result := DB.Model(channel).Clauses(clause.Returning{}).Updates(channel)
+	return HandleUpdateResult(result, ErrChannelNotFound)
 }
 
 func (channel *Channel) UpdateResponseTime(responseTime int64) {
-	err := DB.Model(channel).Select("response_time", "test_time").Updates(Channel{
-		TestTime:     helper.GetTimestamp(),
-		ResponseTime: int(responseTime),
+	err := DB.Model(channel).Select("test_at", "response_duration").Updates(Channel{
+		TestAt:           time.Now(),
+		ResponseDuration: responseTime,
 	}).Error
 	if err != nil {
 		logger.SysError("failed to update response time: " + err.Error())
@@ -155,69 +103,39 @@ func (channel *Channel) UpdateResponseTime(responseTime int64) {
 }
 
 func (channel *Channel) UpdateBalance(balance float64) {
-	err := DB.Model(channel).Select("balance_updated_time", "balance").Updates(Channel{
-		BalanceUpdatedTime: helper.GetTimestamp(),
-		Balance:            balance,
+	err := DB.Model(channel).Select("balance_updated_at", "balance").Updates(Channel{
+		BalanceUpdatedAt: time.Now(),
+		Balance:          balance,
 	}).Error
 	if err != nil {
 		logger.SysError("failed to update balance: " + err.Error())
 	}
 }
 
-func (channel *Channel) Delete() error {
-	var err error
-	err = DB.Delete(channel).Error
-	if err != nil {
-		return err
-	}
-	err = channel.DeleteAbilities()
-	return err
+func DeleteChannelById(id int) error {
+	result := DB.Delete(&Channel{Id: id})
+	return HandleUpdateResult(result, ErrChannelNotFound)
 }
 
-func (channel *Channel) LoadConfig() (ChannelConfig, error) {
-	var cfg ChannelConfig
-	if channel.Config == "" {
-		return cfg, nil
-	}
-	err := json.Unmarshal([]byte(channel.Config), &cfg)
-	if err != nil {
-		return cfg, err
-	}
-	return cfg, nil
+func UpdateChannelStatusById(id int, status int) error {
+	result := DB.Model(&Channel{}).Where("id = ?", id).Update("status", status)
+	return HandleUpdateResult(result, ErrChannelNotFound)
 }
 
-func UpdateChannelStatusById(id int, status int) {
-	err := UpdateAbilityStatus(id, status == ChannelStatusEnabled)
-	if err != nil {
-		logger.SysError("failed to update ability status: " + err.Error())
-	}
-	err = DB.Model(&Channel{}).Where("id = ?", id).Update("status", status).Error
-	if err != nil {
-		logger.SysError("failed to update channel status: " + err.Error())
-	}
+func DisableChannelById(id int) error {
+	return UpdateChannelStatusById(id, ChannelStatusAutoDisabled)
 }
 
-func UpdateChannelUsedQuota(id int, quota int64) {
-	if config.BatchUpdateEnabled {
-		addNewRecord(BatchUpdateTypeChannelUsedQuota, id, quota)
-		return
-	}
-	updateChannelUsedQuota(id, quota)
+func EnableChannelById(id int) error {
+	return UpdateChannelStatusById(id, ChannelStatusEnabled)
 }
 
-func updateChannelUsedQuota(id int, quota int64) {
-	err := DB.Model(&Channel{}).Where("id = ?", id).Update("used_quota", gorm.Expr("used_quota + ?", quota)).Error
-	if err != nil {
-		logger.SysError("failed to update channel used quota: " + err.Error())
-	}
+func UpdateChannelUsedQuota(id int, quota int64) error {
+	result := DB.Model(&Channel{}).Where("id = ?", id).Update("used_quota", gorm.Expr("used_quota + ?", quota))
+	return HandleUpdateResult(result, ErrChannelNotFound)
 }
 
-func DeleteChannelByStatus(status int64) (int64, error) {
-	result := DB.Where("status = ?", status).Delete(&Channel{})
-	return result.RowsAffected, result.Error
-}
-
-func DeleteDisabledChannel() (int64, error) {
+func DeleteDisabledChannel() error {
 	result := DB.Where("status = ? or status = ?", ChannelStatusAutoDisabled, ChannelStatusManuallyDisabled).Delete(&Channel{})
-	return result.RowsAffected, result.Error
+	return HandleUpdateResult(result, ErrChannelNotFound)
 }

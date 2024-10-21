@@ -1,12 +1,13 @@
 package meta
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/relaymode"
-	"strings"
 )
 
 type Meta struct {
@@ -15,7 +16,6 @@ type Meta struct {
 	ChannelId    int
 	TokenId      int
 	TokenName    string
-	UserId       int
 	Group        string
 	ModelMapping map[string]string
 	// BaseURL is the proxy url set in the channel config
@@ -39,7 +39,6 @@ func GetByContext(c *gin.Context) *Meta {
 		ChannelId:       c.GetInt(ctxkey.ChannelId),
 		TokenId:         c.GetInt(ctxkey.TokenId),
 		TokenName:       c.GetString(ctxkey.TokenName),
-		UserId:          c.GetInt(ctxkey.Id),
 		Group:           c.GetString(ctxkey.Group),
 		ModelMapping:    c.GetStringMapString(ctxkey.ModelMapping),
 		OriginModelName: c.GetString(ctxkey.RequestModel),

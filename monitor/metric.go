@@ -2,11 +2,14 @@ package monitor
 
 import (
 	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/model"
 )
 
-var store = make(map[int][]bool)
-var metricSuccessChan = make(chan int, config.MetricSuccessChanSize)
-var metricFailChan = make(chan int, config.MetricFailChanSize)
+var (
+	store             = make(map[int][]bool)
+	metricSuccessChan = make(chan int, config.MetricSuccessChanSize)
+	metricFailChan    = make(chan int, config.MetricFailChanSize)
+)
 
 func consumeSuccess(channelId int) {
 	if len(store[channelId]) > config.MetricQueueSize {
@@ -50,9 +53,9 @@ func metricFailConsumer() {
 	for {
 		select {
 		case channelId := <-metricFailChan:
-			disable, successRate := consumeFail(channelId)
+			disable, _ := consumeFail(channelId)
 			if disable {
-				go MetricDisableChannel(channelId, successRate)
+				model.DisableChannelById(channelId)
 			}
 		}
 	}
