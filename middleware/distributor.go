@@ -27,7 +27,7 @@ func Distribute(c *gin.Context) {
 			abortWithMessage(c, http.StatusBadRequest, "无效的渠道 Id")
 			return
 		}
-		channel, err = model.GetChannelById(id, true)
+		channel, err = model.GetChannelById(id, false)
 		if err != nil {
 			abortWithMessage(c, http.StatusBadRequest, "无效的渠道 Id")
 			return
