@@ -35,7 +35,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	meta.OriginModelName = textRequest.Model
 	textRequest.Model, _ = getMappedModelName(textRequest.Model, meta.ModelMapping)
 	meta.ActualModelName = textRequest.Model
-	// get model ratio & group ratio
+	// get model ratio
 	ratio := billingratio.GetModelRatio(textRequest.Model, meta.ChannelType)
 	// pre-consume quota
 	promptTokens := getPromptTokens(textRequest, meta.Mode)
@@ -77,7 +77,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return respErr
 	}
 	// post-consume quota
-	go postConsumeQuota(ctx, usage, meta, textRequest, ratio, preConsumedQuota, ratio)
+	go postConsumeQuota(ctx, usage, meta, textRequest, ratio, preConsumedQuota)
 	return nil
 }
 

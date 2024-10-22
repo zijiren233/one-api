@@ -14,6 +14,7 @@ import (
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"
+	quotaIf "github.com/songquanpeng/one-api/common/quota"
 	"github.com/songquanpeng/one-api/common/random"
 )
 
@@ -68,7 +69,7 @@ func fetchAndUpdateGroupQuota(ctx context.Context, id string) (quota int64, err 
 
 func CacheGetGroupQuota(ctx context.Context, id string) (quota int64, err error) {
 	if !common.RedisEnabled {
-		return GetGroupQuota(id)
+		return quotaIf.DefaultMockGroupQuota.GetGroupQuota(id)
 	}
 	quotaString, err := common.RedisGet(fmt.Sprintf("group_quota:%s", id))
 	if err != nil {

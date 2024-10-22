@@ -93,18 +93,6 @@ func DeleteGroupById(id string) (err error) {
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
-func GetGroupQuota(id string) (int64, error) {
-	var quota int64
-	err := DB.Model(&Group{}).Where("id = ?", id).Select("quota").Find(&quota).Error
-	return quota, HandleNotFound(err, ErrGroupNotFound)
-}
-
-func GetGroupUsedQuota(id string) (int64, error) {
-	var quota int64
-	err := DB.Model(&Group{}).Where("id = ?", id).Select("used_quota").Find(&quota).Error
-	return quota, HandleNotFound(err, ErrGroupNotFound)
-}
-
 func UpdateGroupUsedQuotaAndRequestCount(id string, quota int64, count int) error {
 	result := DB.Model(&Group{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"used_quota":    gorm.Expr("used_quota + ?", quota),
@@ -138,9 +126,9 @@ func IsGroupEnabled(id string) (bool, error) {
 		return false, errors.New("group id is empty")
 	}
 	var group Group
-	err := DB.Where("id = ?", id).Select("status").Find(&group).Error
+	err := DB.Where("id = ?", id).Select("status").First(&group).Error
 	if err != nil {
-		return false, err
+		return false, HandleNotFound(err, ErrGroupNotFound)
 	}
 	return group.Status == GroupStatusEnabled, nil
 }

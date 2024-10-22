@@ -35,7 +35,8 @@ func PostConsumeQuota(ctx context.Context, tokenId int, quotaDelta int64, totalQ
 		logContent := fmt.Sprintf("模型倍率 %.2f", modelRatio)
 		model.RecordConsumeLog(ctx, group, channelId, int(totalQuota), 0, modelName, tokenName, totalQuota, logContent)
 		model.UpdateGroupUsedQuotaAndRequestCount(group, totalQuota, 1)
-		model.UpdateChannelUsedQuota(channelId, totalQuota)
+		model.UpdateTokenUsedQuota(tokenId, totalQuota, 1)
+		model.UpdateChannelUsedQuota(channelId, totalQuota, 1)
 	}
 	if totalQuota <= 0 {
 		logger.Error(ctx, fmt.Sprintf("totalQuota consumed is %d, something is wrong", totalQuota))

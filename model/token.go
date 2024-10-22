@@ -9,6 +9,7 @@ import (
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"
+	quotaIf "github.com/songquanpeng/one-api/common/quota"
 	"gorm.io/gorm"
 )
 
@@ -36,7 +37,8 @@ type Token struct {
 	ExpiredAt      time.Time `json:"expired_at"`
 	UnlimitedQuota bool      `json:"unlimited_quota"`
 	Quota          int64     `gorm:"bigint" json:"quota"`
-	UsedQuota      int64     `gorm:"bigint" json:"used_quota"`                // used quota
+	UsedQuota      int64     `gorm:"bigint" json:"used_quota"` // used quota
+	RequestCount   int       `gorm:"type:int" json:"request_count"`
 	Models         []string  `gorm:"serializer:json;type:text" json:"models"` // allowed models
 	Subnet         string    `json:"subnet"`                                  // allowed subnet
 	QPM            int64     `gorm:"bigint" json:"qpm"`
@@ -310,12 +312,12 @@ func UpdateToken(token *Token) error {
 	return DB.Save(token).Error
 }
 
-func UpdateTokenUsedQuota(id int, quota int64) (err error) {
+func UpdateTokenUsedQuota(id int, quota int64, requestCount int) (err error) {
 	err = DB.Model(&Token{}).Where("id = ?", id).Updates(
 		map[string]interface{}{
-			"remain_quota": gorm.Expr("remain_quota - ?", quota),
-			"used_quota":   gorm.Expr("used_quota + ?", quota),
-			"accessed_at":  time.Now(),
+			"used_quota":    gorm.Expr("used_quota + ?", quota),
+			"request_count": gorm.Expr("request_count + ?", requestCount),
+			"accessed_at":   time.Now(),
 		},
 	).Error
 	return err
@@ -332,7 +334,7 @@ func PreConsumeTokenQuota(tokenId int, quota int64) (err error) {
 	if !token.UnlimitedQuota && token.Quota <= token.UsedQuota {
 		return errors.New("令牌额度不足")
 	}
-	userQuota, err := GetGroupQuota(token.GroupId)
+	userQuota, err := quotaIf.DefaultMockGroupQuota.GetGroupQuota(token.GroupId)
 	if err != nil {
 		return err
 	}

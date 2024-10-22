@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -34,6 +35,8 @@ func InitOptionMap() {
 	config.OptionMap["CompletionRatio"] = billingratio.CompletionRatio2JSONString()
 	config.OptionMap["QuotaPerUnit"] = strconv.FormatFloat(config.QuotaPerUnit, 'f', -1, 64)
 	config.OptionMap["RetryTimes"] = strconv.Itoa(config.RetryTimes)
+	config.OptionMap["DefaultChannelModels"] = "{}"
+	config.OptionMap["DefaultChannelModelMapping"] = "{}"
 	config.OptionMapRWMutex.Unlock()
 	loadOptionsFromDatabase()
 }
@@ -67,12 +70,10 @@ func UpdateOption(key string, value string) error {
 		Key: key,
 	}
 	// https://gorm.io/docs/update.html#Save-All-Fields
-	DB.FirstOrCreate(&option, Option{Key: key})
-	option.Value = value
-	// Save is a combination function.
-	// If save value does not contain primary key, it will execute Create,
-	// otherwise it will execute Update (with all fields).
-	DB.Save(&option)
+	err := DB.Assign(Option{Key: key, Value: value}).FirstOrCreate(&option).Error
+	if err != nil {
+		return err
+	}
 	// Update OptionMap
 	return updateOptionMap(key, value)
 }
@@ -93,6 +94,20 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 	}
 	switch key {
+	case "DefaultChannelModels":
+		var newModules map[int][]string
+		err := json.Unmarshal([]byte(value), &newModules)
+		if err != nil {
+			return err
+		}
+		config.DefaultChannelModels = newModules
+	case "DefaultChannelModelMapping":
+		var newMapping map[int]map[string]string
+		err := json.Unmarshal([]byte(value), &newMapping)
+		if err != nil {
+			return err
+		}
+		config.DefaultChannelModelMapping = newMapping
 	case "QuotaRemindThreshold":
 		config.QuotaRemindThreshold, _ = strconv.ParseInt(value, 10, 64)
 	case "PreConsumedQuota":

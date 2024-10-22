@@ -248,12 +248,18 @@ func AddToken(c *gin.Context) {
 		return
 	}
 
+	var expiredAt time.Time
+	if token.ExpiredAt == 0 {
+		expiredAt = time.Time{}
+	} else {
+		expiredAt = time.UnixMilli(token.ExpiredAt)
+	}
+
 	cleanToken := &model.Token{
 		GroupId:        group,
 		Name:           token.Name,
 		Key:            random.GenerateKey(),
-		ExpiredAt:      time.UnixMilli(token.ExpiredAt),
-		AccessedAt:     time.UnixMilli(0),
+		ExpiredAt:      expiredAt,
 		UnlimitedQuota: token.UnlimitedQuota,
 		Quota:          token.Quota,
 		Models:         token.Models,

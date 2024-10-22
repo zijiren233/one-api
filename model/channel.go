@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/logger"
 	"gorm.io/gorm"
@@ -38,9 +39,20 @@ type Channel struct {
 	BalanceUpdatedAt time.Time         `json:"balance_updated_at"`
 	Models           []string          `gorm:"serializer:json;type:text" json:"models"`
 	UsedQuota        int64             `gorm:"bigint" json:"used_quota"`
+	RequestCount     int               `gorm:"type:int" json:"request_count"`
 	ModelMapping     map[string]string `gorm:"serializer:fastjson;type:text" json:"model_mapping"`
 	Priority         int32             `json:"priority"`
 	Config           ChannelConfig     `gorm:"serializer:json;type:text" json:"config"`
+}
+
+func (c *Channel) AfterFind(tx *gorm.DB) (err error) {
+	if len(c.Models) == 0 {
+		c.Models = config.DefaultChannelModels[c.Type]
+	}
+	if len(c.ModelMapping) == 0 {
+		c.ModelMapping = config.DefaultChannelModelMapping[c.Type]
+	}
+	return nil
 }
 
 func (c *Channel) MarshalJSON() ([]byte, error) {
@@ -184,8 +196,11 @@ func EnableChannelById(id int) error {
 	return UpdateChannelStatusById(id, ChannelStatusEnabled)
 }
 
-func UpdateChannelUsedQuota(id int, quota int64) error {
-	result := DB.Model(&Channel{}).Where("id = ?", id).Update("used_quota", gorm.Expr("used_quota + ?", quota))
+func UpdateChannelUsedQuota(id int, quota int64, requestCount int) error {
+	result := DB.Model(&Channel{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"used_quota":    gorm.Expr("used_quota + ?", quota),
+		"request_count": gorm.Expr("request_count + ?", requestCount),
+	})
 	return HandleUpdateResult(result, ErrChannelNotFound)
 }
 

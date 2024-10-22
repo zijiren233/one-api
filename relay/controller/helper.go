@@ -90,7 +90,7 @@ func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIR
 	return preConsumedQuota, nil
 }
 
-func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, ratio float64, preConsumedQuota int64, modelRatio float64) {
+func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, ratio float64, preConsumedQuota int64) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		return
@@ -121,7 +121,8 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	logContent := fmt.Sprintf("模型倍率 %.2f，补全倍率 %.2f", ratio, completionRatio)
 	model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenName, quota, logContent)
 	model.UpdateGroupUsedQuotaAndRequestCount(meta.Group, quota, 1)
-	model.UpdateChannelUsedQuota(meta.ChannelId, quota)
+	model.UpdateTokenUsedQuota(meta.TokenId, quota, 1)
+	model.UpdateChannelUsedQuota(meta.ChannelId, quota, 1)
 }
 
 func getMappedModelName(modelName string, mapping map[string]string) (string, bool) {

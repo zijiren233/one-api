@@ -201,8 +201,8 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			logContent := fmt.Sprintf("模型倍率 %.2f", ratio)
 			model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, 0, 0, imageRequest.Model, tokenName, quota, logContent)
 			model.UpdateGroupUsedQuotaAndRequestCount(meta.Group, quota, 1)
-			channelId := c.GetInt(ctxkey.ChannelId)
-			model.UpdateChannelUsedQuota(channelId, quota)
+			model.UpdateTokenUsedQuota(meta.TokenId, quota, 1)
+			model.UpdateChannelUsedQuota(meta.ChannelId, quota, 1)
 		}
 	}(c.Request.Context())
 

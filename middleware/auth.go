@@ -68,7 +68,7 @@ func TokenAuth(c *gin.Context) {
 			return
 		}
 	}
-	c.Set(ctxkey.Group, token.Group)
+	c.Set(ctxkey.Group, token.GroupId)
 	c.Set(ctxkey.TokenId, token.Id)
 	c.Set(ctxkey.TokenName, token.Name)
 	if len(parts) > 1 {

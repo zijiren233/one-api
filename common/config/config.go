@@ -77,3 +77,8 @@ var (
 )
 
 var AdminKey = env.String("ADMIN_KEY", "")
+
+var (
+	DefaultChannelModels       map[int][]string
+	DefaultChannelModelMapping map[int]map[string]string
+)
