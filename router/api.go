@@ -59,13 +59,13 @@ func SetApiRouter(router *gin.Engine) {
 		}
 		tokenRoute := apiRouter.Group("/token")
 		{
-			tokenRoute.GET("/search/:group", controller.SearchGroupTokens)
-			tokenRoute.GET("/group/:group", controller.GetGroupTokens)
-			tokenRoute.GET("/group/:group/:id", controller.GetGroupToken)
-			tokenRoute.POST("/group/:group", controller.AddToken)
-			tokenRoute.PUT("/group/:group/:id", controller.UpdateGroupToken)
-			tokenRoute.POST("/group/:group/:id", controller.UpdateGroupTokenStatus)
-			tokenRoute.DELETE("/group/:group/:id", controller.DeleteGroupToken)
+			tokenRoute.GET("/:group/search", controller.SearchGroupTokens)
+			tokenRoute.GET("/:group", controller.GetGroupTokens)
+			tokenRoute.GET("/:group/:id", controller.GetGroupToken)
+			tokenRoute.POST("/:group", controller.AddToken)
+			tokenRoute.PUT("/:group/:id", controller.UpdateGroupToken)
+			tokenRoute.POST("/:group/:id", controller.UpdateGroupTokenStatus)
+			tokenRoute.DELETE("/:group/:id", controller.DeleteGroupToken)
 		}
 		logsRoute := apiRouter.Group("/logs")
 		{
