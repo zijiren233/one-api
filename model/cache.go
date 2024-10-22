@@ -132,6 +132,7 @@ func CacheIsGroupEnabled(ctx context.Context, id string) (bool, error) {
 var (
 	model2channels  map[string][]*Channel
 	allModels       []string
+	type2Models     map[int][]string
 	channelSyncLock sync.RWMutex
 )
 
@@ -139,6 +140,16 @@ func CacheGetAllModels() []string {
 	channelSyncLock.RLock()
 	defer channelSyncLock.RUnlock()
 	return allModels
+}
+
+func CacheGetType2Models() map[int][]string {
+	channelSyncLock.RLock()
+	defer channelSyncLock.RUnlock()
+	return type2Models
+}
+
+func CacheGetModelsByType(channelType int) []string {
+	return CacheGetType2Models()[channelType]
 }
 
 func InitChannelCache() {
@@ -167,9 +178,25 @@ func InitChannelCache() {
 		models = append(models, model)
 	}
 
+	newType2ModelsMap := make(map[int]map[string]struct{})
+	for _, channel := range channels {
+		newType2ModelsMap[channel.Type] = make(map[string]struct{})
+		for _, model := range channel.Models {
+			newType2ModelsMap[channel.Type][model] = struct{}{}
+		}
+	}
+	newType2Models := make(map[int][]string)
+	for k, v := range newType2ModelsMap {
+		newType2Models[k] = make([]string, 0, len(v))
+		for model := range v {
+			newType2Models[k] = append(newType2Models[k], model)
+		}
+	}
+
 	channelSyncLock.Lock()
 	model2channels = newModel2channels
 	allModels = models
+	type2Models = newType2Models
 	channelSyncLock.Unlock()
 	logger.SysLog("channels synced from database")
 }

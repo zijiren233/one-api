@@ -14,7 +14,8 @@ func SetApiRouter(router *gin.Engine) {
 	apiRouter.Use(middleware.GlobalAPIRateLimit())
 	{
 		apiRouter.GET("/status", controller.GetStatus)
-		apiRouter.GET("/models", controller.DashboardListModels)
+		apiRouter.GET("/models", controller.BuiltinModels)
+		apiRouter.GET("/models/enabled", controller.EnabledType2Models)
 
 		groupsRoute := apiRouter.Group("/groups")
 		{

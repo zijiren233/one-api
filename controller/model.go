@@ -117,11 +117,19 @@ func init() {
 	}
 }
 
-func DashboardListModels(c *gin.Context) {
+func BuiltinModels(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 		"data":    channelId2Models,
+	})
+}
+
+func EnabledType2Models(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    model.CacheGetType2Models(),
 	})
 }
 
