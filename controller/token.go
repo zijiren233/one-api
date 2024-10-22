@@ -13,8 +13,7 @@ import (
 	"github.com/songquanpeng/one-api/model"
 )
 
-func GetAllTokens(c *gin.Context) {
-	group := c.GetString(ctxkey.Group)
+func GetTokens(c *gin.Context) {
 	p, _ := strconv.Atoi(c.Query("p"))
 	if p < 0 {
 		p = 0
@@ -23,9 +22,39 @@ func GetAllTokens(c *gin.Context) {
 	if perPage <= 0 {
 		perPage = 10
 	}
-
+	group := c.Query("group")
 	order := c.Query("order")
-	tokens, total, err := model.GetAllGroupTokens(group, p*perPage, perPage, order)
+	tokens, total, err := model.GetTokens(p*perPage, perPage, order, group)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"tokens": tokens,
+			"total":  total,
+		},
+	})
+	return
+}
+
+func GetGroupTokens(c *gin.Context) {
+	p, _ := strconv.Atoi(c.Query("p"))
+	if p < 0 {
+		p = 0
+	}
+	perPage, _ := strconv.Atoi(c.Query("per_page"))
+	if perPage <= 0 {
+		perPage = 10
+	}
+	group := c.Param("group")
+	order := c.Query("order")
+	tokens, total, err := model.GetGroupTokens(group, p*perPage, perPage, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -45,7 +74,6 @@ func GetAllTokens(c *gin.Context) {
 }
 
 func SearchTokens(c *gin.Context) {
-	group := c.GetString(ctxkey.Group)
 	keyword := c.Query("keyword")
 	p, _ := strconv.Atoi(c.Query("p"))
 	if p < 0 {
@@ -55,6 +83,37 @@ func SearchTokens(c *gin.Context) {
 	if perPage <= 0 {
 		perPage = 10
 	}
+	order := c.Query("order")
+	tokens, total, err := model.SearchTokens(keyword, p*perPage, perPage, order)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"tokens": tokens,
+			"total":  total,
+		},
+	})
+	return
+}
+
+func SearchGroupTokens(c *gin.Context) {
+	keyword := c.Query("keyword")
+	p, _ := strconv.Atoi(c.Query("p"))
+	if p < 0 {
+		p = 0
+	}
+	perPage, _ := strconv.Atoi(c.Query("per_page"))
+	if perPage <= 0 {
+		perPage = 10
+	}
+	group := c.Param("group")
 	order := c.Query("order")
 	tokens, total, err := model.SearchGroupTokens(group, keyword, p*perPage, perPage, order)
 	if err != nil {
@@ -77,7 +136,6 @@ func SearchTokens(c *gin.Context) {
 
 func GetToken(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
-	group := c.GetString(ctxkey.Group)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -85,7 +143,33 @@ func GetToken(c *gin.Context) {
 		})
 		return
 	}
-	token, err := model.GetTokenByIdAndGroupId(id, group)
+	token, err := model.GetTokenById(id)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    token,
+	})
+	return
+}
+
+func GetGroupToken(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	group := c.Param("group")
+	token, err := model.GetGroupTokenById(group, id)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -104,7 +188,7 @@ func GetToken(c *gin.Context) {
 func GetTokenStatus(c *gin.Context) {
 	tokenId := c.GetInt(ctxkey.TokenId)
 	group := c.GetString(ctxkey.Group)
-	token, err := model.GetTokenByIdAndGroupId(tokenId, group)
+	token, err := model.GetGroupTokenById(group, tokenId)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -113,15 +197,15 @@ func GetTokenStatus(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"object":          "credit_summary",
-		"total_granted":   token.RemainQuota,
-		"total_used":      0, // not supported currently
-		"total_available": token.RemainQuota,
-		"expires_at":      token.ExpiredAt,
+		"object":     "credit_summary",
+		"quota":      token.Quota,
+		"used":       token.UsedQuota,
+		"qpm":        token.QPM,
+		"expires_at": token.ExpiredAt,
 	})
 }
 
-func validateToken(c *gin.Context, token model.Token) error {
+func validateToken(token AddTokenRequest) error {
 	if len(token.Name) > 30 {
 		return fmt.Errorf("令牌名称过长")
 	}
@@ -134,8 +218,19 @@ func validateToken(c *gin.Context, token model.Token) error {
 	return nil
 }
 
+type AddTokenRequest struct {
+	Name           string   `json:"name"`
+	ExpiredAt      int64    `json:"expired_at"`
+	UnlimitedQuota bool     `json:"unlimited_quota"`
+	Quota          int64    `json:"quota"`
+	Models         []string `json:"models"`
+	Subnet         string   `json:"subnet"`
+	QPM            int64    `json:"qpm"`
+}
+
 func AddToken(c *gin.Context) {
-	token := model.Token{}
+	group := c.Param("group")
+	token := AddTokenRequest{}
 	err := c.ShouldBindJSON(&token)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -144,7 +239,7 @@ func AddToken(c *gin.Context) {
 		})
 		return
 	}
-	err = validateToken(c, token)
+	err = validateToken(token)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -153,18 +248,19 @@ func AddToken(c *gin.Context) {
 		return
 	}
 
-	cleanToken := model.Token{
-		Group:          c.GetString(ctxkey.Group),
+	cleanToken := &model.Token{
+		Group:          group,
 		Name:           token.Name,
 		Key:            random.GenerateKey(),
-		CreatedAt:      time.Now(),
-		ExpiredAt:      token.ExpiredAt,
-		RemainQuota:    token.RemainQuota,
+		ExpiredAt:      time.UnixMilli(token.ExpiredAt),
+		AccessedAt:     time.UnixMilli(0),
 		UnlimitedQuota: token.UnlimitedQuota,
+		Quota:          token.Quota,
 		Models:         token.Models,
 		Subnet:         token.Subnet,
+		QPM:            token.QPM,
 	}
-	err = model.InsertToken(&cleanToken)
+	err = model.InsertToken(cleanToken)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -181,9 +277,40 @@ func AddToken(c *gin.Context) {
 }
 
 func DeleteToken(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
-	group := c.GetString(ctxkey.Group)
-	err := model.DeleteTokenByIdAndGroupId(id, group)
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	err = model.DeleteTokenById(id)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
+	return
+}
+
+func DeleteGroupToken(c *gin.Context) {
+	group := c.Param("group")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	err = model.DeleteTokenByIdAndGroupId(id, group)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -199,10 +326,7 @@ func DeleteToken(c *gin.Context) {
 }
 
 func UpdateToken(c *gin.Context) {
-	group := c.GetString(ctxkey.Group)
-	statusOnly := c.Query("status_only")
-	token := model.Token{}
-	err := c.ShouldBindJSON(&token)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -210,7 +334,16 @@ func UpdateToken(c *gin.Context) {
 		})
 		return
 	}
-	err = validateToken(c, token)
+	token := AddTokenRequest{}
+	err = c.ShouldBindJSON(&token)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	err = validateToken(token)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -218,7 +351,118 @@ func UpdateToken(c *gin.Context) {
 		})
 		return
 	}
-	cleanToken, err := model.GetTokenByIdAndGroupId(token.Id, group)
+	cleanToken, err := model.GetTokenById(id)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	cleanToken.Name = token.Name
+	cleanToken.ExpiredAt = time.UnixMilli(token.ExpiredAt)
+	cleanToken.Quota = token.Quota
+	cleanToken.UnlimitedQuota = token.UnlimitedQuota
+	cleanToken.Models = token.Models
+	cleanToken.Subnet = token.Subnet
+	cleanToken.QPM = token.QPM
+	err = model.UpdateToken(cleanToken)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    cleanToken,
+	})
+	return
+}
+
+func UpdateGroupToken(c *gin.Context) {
+	group := c.Param("group")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	token := AddTokenRequest{}
+	err = c.ShouldBindJSON(&token)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	err = validateToken(token)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("参数错误：%s", err.Error()),
+		})
+		return
+	}
+	cleanToken, err := model.GetGroupTokenById(group, id)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	cleanToken.Name = token.Name
+	cleanToken.ExpiredAt = time.UnixMilli(token.ExpiredAt)
+	cleanToken.Quota = token.Quota
+	cleanToken.UnlimitedQuota = token.UnlimitedQuota
+	cleanToken.Models = token.Models
+	cleanToken.Subnet = token.Subnet
+	cleanToken.QPM = token.QPM
+	err = model.UpdateToken(cleanToken)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    cleanToken,
+	})
+	return
+}
+
+type UpdateTokenStatusRequest struct {
+	Status int `json:"status"`
+}
+
+func UpdateTokenStatus(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	token := UpdateTokenStatusRequest{}
+	err = c.ShouldBindJSON(&token)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	cleanToken, err := model.GetTokenById(id)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -234,7 +478,7 @@ func UpdateToken(c *gin.Context) {
 			})
 			return
 		}
-		if cleanToken.Status == model.TokenStatusExhausted && cleanToken.RemainQuota <= 0 && !cleanToken.UnlimitedQuota {
+		if cleanToken.Status == model.TokenStatusExhausted && !cleanToken.UnlimitedQuota && cleanToken.UsedQuota >= cleanToken.Quota {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度",
@@ -242,18 +486,7 @@ func UpdateToken(c *gin.Context) {
 			return
 		}
 	}
-	if statusOnly != "" {
-		cleanToken.Status = token.Status
-	} else {
-		// If you add more fields, please also update token.Update()
-		cleanToken.Name = token.Name
-		cleanToken.ExpiredAt = token.ExpiredAt
-		cleanToken.RemainQuota = token.RemainQuota
-		cleanToken.UnlimitedQuota = token.UnlimitedQuota
-		cleanToken.Models = token.Models
-		cleanToken.Subnet = token.Subnet
-	}
-	err = model.UpdateToken(cleanToken)
+	err = model.UpdateTokenStatus(id, token.Status)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -264,7 +497,68 @@ func UpdateToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    cleanToken,
+	})
+	return
+}
+
+type UpdateGroupTokenStatusRequest struct {
+	UpdateTokenStatusRequest
+}
+
+func UpdateGroupTokenStatus(c *gin.Context) {
+	group := c.Param("group")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	token := UpdateTokenStatusRequest{}
+	err = c.ShouldBindJSON(&token)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	cleanToken, err := model.GetGroupTokenById(group, id)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	if token.Status == model.TokenStatusEnabled {
+		if cleanToken.Status == model.TokenStatusExpired && cleanToken.ExpiredAt.Before(time.Now()) {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "令牌已过期，无法启用，请先修改令牌过期时间，或者设置为永不过期",
+			})
+			return
+		}
+		if cleanToken.Status == model.TokenStatusExhausted && !cleanToken.UnlimitedQuota && cleanToken.UsedQuota >= cleanToken.Quota {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度",
+			})
+			return
+		}
+	}
+	err = model.UpdateGroupTokenStatus(group, id, token.Status)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
 	})
 	return
 }

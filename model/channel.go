@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/songquanpeng/one-api/common"
@@ -23,11 +24,12 @@ const (
 
 type Channel struct {
 	Id               int               `json:"id"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
 	Type             int               `json:"type" gorm:"default:0"`
 	Key              string            `json:"key" gorm:"type:text"`
 	Status           int               `json:"status" gorm:"default:1"`
 	Name             string            `json:"name" gorm:"index"`
-	CreatedAt        time.Time         `json:"created_at"`
 	TestAt           time.Time         `json:"test_at"`
 	ResponseDuration int64             `gorm:"bigint" json:"response_duration"` // in milliseconds
 	BaseURL          string            `json:"base_url"`
@@ -39,6 +41,19 @@ type Channel struct {
 	ModelMapping     map[string]string `gorm:"serializer:fastjson;type:text" json:"model_mapping"`
 	Priority         int32             `json:"priority"`
 	Config           ChannelConfig     `gorm:"serializer:json;type:text" json:"config"`
+}
+
+func (c *Channel) MarshalJSON() ([]byte, error) {
+	type Alias Channel
+	return json.Marshal(&struct {
+		Alias
+		CreatedAt int64 `json:"created_at"`
+		UpdatedAt int64 `json:"updated_at"`
+	}{
+		Alias:     (Alias)(*c),
+		CreatedAt: c.CreatedAt.UnixMilli(),
+		UpdatedAt: c.UpdatedAt.UnixMilli(),
+	})
 }
 
 type ChannelConfig struct {

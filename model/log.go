@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -63,7 +64,7 @@ func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTo
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenName string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
+func GetLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenName string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{})
 	if logType != LogTypeUnknown {
 		tx = tx.Where("type = ?", logType)
@@ -72,7 +73,7 @@ func GetAllLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, m
 		tx = tx.Where("model_name = ?", modelName)
 	}
 	if group != "" {
-		tx = tx.Where("group = ?", group)
+		tx = tx.Where("`group` = ?", group)
 	}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)
@@ -97,8 +98,8 @@ func GetAllLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, m
 	return logs, total, err
 }
 
-func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, tokenName string, startIdx int, num int) (logs []*Log, total int64, err error) {
-	tx := LOG_DB.Model(&Log{}).Where("group = ?", group)
+func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, tokenName string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
+	tx := LOG_DB.Model(&Log{}).Where("`group` = ?", group)
 	if logType != LogTypeUnknown {
 		tx = tx.Where("type = ?", logType)
 	}
@@ -114,6 +115,9 @@ func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimest
 	if !endTimestamp.IsZero() {
 		tx = tx.Where("created_at <= ?", endTimestamp)
 	}
+	if channel != 0 {
+		tx = tx.Where("channel_id = ?", channel)
+	}
 	err = tx.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
@@ -125,13 +129,13 @@ func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimest
 	return logs, total, err
 }
 
-func SearchAllLogs(keyword string, page int, perPage int) (logs []*Log, total int64, err error) {
+func SearchLogs(keyword string, page int, perPage int) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{})
 	if keyword != "" {
 		if common.UsingPostgreSQL {
-			tx = tx.Where("type = ? or content ILIKE ?", keyword, keyword+"%")
+			tx = tx.Where("type = ? or content ILIKE ? or `group` ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
 		} else {
-			tx = tx.Where("type = ? or content LIKE ?", keyword, keyword+"%")
+			tx = tx.Where("type = ? or content LIKE ? or `group` LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
 		}
 	}
 	err = tx.Count(&total).Error
@@ -146,13 +150,14 @@ func SearchAllLogs(keyword string, page int, perPage int) (logs []*Log, total in
 }
 
 func SearchGroupLogs(group string, keyword string, page int, perPage int) (logs []*Log, total int64, err error) {
+	if group == "" {
+		return nil, 0, errors.New("group is empty")
+	}
 	tx := LOG_DB.Model(&Log{})
-	if group != "" {
-		if common.UsingPostgreSQL {
-			tx = tx.Where("group ILIKE ?", "%"+group+"%")
-		} else {
-			tx = tx.Where("group LIKE ?", "%"+group+"%")
-		}
+	if common.UsingPostgreSQL {
+		tx = tx.Where("`group` = ?", group)
+	} else {
+		tx = tx.Where("`group` = ?", group)
 	}
 	if keyword != "" {
 		if common.UsingPostgreSQL {
@@ -179,7 +184,7 @@ func SumUsedQuota(logType int, startTimestamp time.Time, endTimestamp time.Time,
 	}
 	tx := LOG_DB.Table("logs").Select(fmt.Sprintf("%s(sum(quota),0)", ifnull))
 	if group != "" {
-		tx = tx.Where("group = ?", group)
+		tx = tx.Where("`group` = ?", group)
 	}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)
@@ -207,7 +212,7 @@ func SumUsedToken(logType int, startTimestamp time.Time, endTimestamp time.Time,
 	}
 	tx := LOG_DB.Table("logs").Select(fmt.Sprintf("%s(sum(prompt_tokens),0) + %s(sum(completion_tokens),0)", ifnull, ifnull))
 	if group != "" {
-		tx = tx.Where("group = ?", group)
+		tx = tx.Where("`group` = ?", group)
 	}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)

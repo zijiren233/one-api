@@ -214,8 +214,8 @@ func UpdateChannel(c *gin.Context) {
 				Other:        ch.Other,
 				Models:       ch.Models,
 				ModelMapping: ch.ModelMapping,
-				Config:       ch.Config,
 				Priority:     ch.Priority,
+				Config:       ch.Config,
 			},
 		},
 	})

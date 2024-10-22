@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -25,26 +26,48 @@ const (
 type Token struct {
 	Id             int       `gorm:"primaryKey" json:"id"`
 	Group          string    `gorm:"index" json:"group"`
-	Key            string    `json:"key" gorm:"type:char(48);uniqueIndex"`
-	Status         int       `json:"status" gorm:"default:1"`
-	Name           string    `json:"name" gorm:"index" `
+	Key            string    `gorm:"type:char(48);uniqueIndex" json:"key"`
+	Status         int       `gorm:"default:1" json:"status"`
+	Name           string    `gorm:"index" json:"name"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	AccessedAt     time.Time `json:"accessed_at"`
 	ExpiredAt      time.Time `json:"expired_at"`
-	RemainQuota    int64     `json:"remain_quota" gorm:"bigint;default:0"`
-	UnlimitedQuota bool      `json:"unlimited_quota" gorm:"default:false"`
-	UsedQuota      int64     `json:"used_quota" gorm:"bigint;default:0"` // used quota
-	Models         string    `json:"models" gorm:"type:text"`            // allowed models
-	Subnet         string    `json:"subnet" gorm:"default:''"`           // allowed subnet
+	UnlimitedQuota bool      `json:"unlimited_quota"`
+	Quota          int64     `gorm:"bigint" json:"quota"`
+	UsedQuota      int64     `gorm:"bigint" json:"used_quota"`                // used quota
+	Models         []string  `gorm:"serializer:json;type:text" json:"models"` // allowed models
+	Subnet         string    `json:"subnet"`                                  // allowed subnet
+	QPM            int64     `gorm:"bigint" json:"qpm"`
+}
+
+func (t *Token) MarshalJSON() ([]byte, error) {
+	type Alias Token
+	return json.Marshal(&struct {
+		Alias
+		CreatedAt  int64 `json:"created_at"`
+		UpdatedAt  int64 `json:"updated_at"`
+		AccessedAt int64 `json:"accessed_at"`
+		ExpiredAt  int64 `json:"expired_at"`
+	}{
+		Alias:      (Alias)(*t),
+		CreatedAt:  t.CreatedAt.UnixMilli(),
+		UpdatedAt:  t.UpdatedAt.UnixMilli(),
+		AccessedAt: t.AccessedAt.UnixMilli(),
+		ExpiredAt:  t.ExpiredAt.UnixMilli(),
+	})
 }
 
 func InsertToken(token *Token) error {
 	return DB.Create(token).Error
 }
 
-func GetAllGroupTokens(group string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
-	tx := DB.Model(&Token{}).Where("group = ?", group)
+func GetTokens(startIdx int, num int, order string, group string) (tokens []*Token, total int64, err error) {
+	tx := DB.Model(&Token{})
+
+	if group != "" {
+		tx = tx.Where("`group` = ?", group)
+	}
 
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -66,14 +89,68 @@ func GetAllGroupTokens(group string, startIdx int, num int, order string) (token
 	return tokens, total, err
 }
 
-func SearchGroupTokens(group string, keyword string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
+func GetGroupTokens(group string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
+	if group == "" {
+		return nil, 0, errors.New("group is empty")
+	}
+
+	tx := DB.Model(&Token{}).Where("`group` = ?", group)
+
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if total <= 0 {
+		return nil, 0, nil
+	}
+	switch order {
+	case "remain_quota":
+		tx = tx.Order("unlimited_quota desc, remain_quota desc")
+	case "used_quota":
+		tx = tx.Order("used_quota desc")
+	default:
+		tx = tx.Order("id desc")
+	}
+	err = tx.Limit(num).Offset(startIdx).Find(&tokens).Error
+	return tokens, total, err
+}
+
+func SearchTokens(keyword string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
 	tx := DB.Model(&Token{})
 	if common.UsingPostgreSQL {
-		tx = tx.Where("group ILIKE ?", "%"+group+"%")
-		tx = tx.Where("name ILIKE ?", "%"+keyword+"%")
+		tx = tx.Where("`name` ILIKE ? or key ILIKE ? or `group` ILIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	} else {
-		tx = tx.Where("group LIKE ?", "%"+group+"%")
-		tx = tx.Where("name LIKE ?", "%"+keyword+"%")
+		tx = tx.Where("`name` LIKE ? or key LIKE ? or `group` LIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+	}
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if total <= 0 {
+		return nil, 0, nil
+	}
+	switch order {
+	case "remain_quota":
+		tx = tx.Order("unlimited_quota desc, remain_quota desc")
+	case "used_quota":
+		tx = tx.Order("used_quota desc")
+	default:
+		tx = tx.Order("id desc")
+	}
+	err = tx.Limit(num).Offset(startIdx).Find(&tokens).Error
+	return tokens, total, err
+}
+
+func SearchGroupTokens(group string, keyword string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
+	if group == "" {
+		return nil, 0, errors.New("group is empty")
+	}
+	tx := DB.Model(&Token{}).Where("`group` = ?", group)
+	if common.UsingPostgreSQL {
+		tx = tx.Where("`name` ILIKE ? or key ILIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+	} else {
+		tx = tx.Where("`name` LIKE ? or key LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -116,19 +193,17 @@ func ValidateAndGetToken(key string) (token *Token, err error) {
 	}
 	if !token.ExpiredAt.IsZero() && token.ExpiredAt.Before(time.Now()) {
 		if !common.RedisEnabled {
-			token.Status = TokenStatusExpired
-			err := token.UpdateStatusAndAccessedAt()
+			err := UpdateTokenStatusAndAccessedAt(token.Id, TokenStatusExpired)
 			if err != nil {
 				logger.SysError("failed to update token status" + err.Error())
 			}
 		}
 		return nil, errors.New("该令牌已过期")
 	}
-	if !token.UnlimitedQuota && token.RemainQuota <= 0 {
+	if !token.UnlimitedQuota && token.Quota <= token.UsedQuota {
 		if !common.RedisEnabled {
 			// in this case, we can make sure the token is exhausted
-			token.Status = TokenStatusExhausted
-			err := token.UpdateStatusAndAccessedAt()
+			err := UpdateTokenStatusAndAccessedAt(token.Id, TokenStatusExhausted)
 			if err != nil {
 				logger.SysError("failed to update token status" + err.Error())
 			}
@@ -138,12 +213,12 @@ func ValidateAndGetToken(key string) (token *Token, err error) {
 	return token, nil
 }
 
-func GetTokenByIdAndGroupId(id int, group string) (*Token, error) {
+func GetGroupTokenById(group string, id int) (*Token, error) {
 	if id == 0 || group == "" {
 		return nil, errors.New("id 或 group 为空！")
 	}
 	token := Token{Id: id, Group: group}
-	err := DB.First(&token, "id = ? and group = ?", id, group).Error
+	err := DB.First(&token, "id = ? and `group` = ?", id, group).Error
 	return &token, HandleNotFound(err, ErrTokenNotFound)
 }
 
@@ -156,11 +231,57 @@ func GetTokenById(id int) (*Token, error) {
 	return &token, HandleNotFound(err, ErrTokenNotFound)
 }
 
-func (t *Token) UpdateStatusAndAccessedAt() error {
-	result := DB.Model(t).Updates(
+func UpdateTokenAccessedAt(id int) error {
+	result := DB.Model(&Token{}).Where("id = ?", id).Updates(
 		map[string]interface{}{
-			"status":      t.Status,
 			"accessed_at": time.Now(),
+		},
+	)
+	return HandleUpdateResult(result, ErrTokenNotFound)
+}
+
+func UpdateTokenStatus(id int, status int) error {
+	result := DB.Model(&Token{}).Where("id = ?", id).Updates(
+		map[string]interface{}{
+			"status": status,
+		},
+	)
+	return HandleUpdateResult(result, ErrTokenNotFound)
+}
+
+func UpdateTokenStatusAndAccessedAt(id int, status int) error {
+	result := DB.Model(&Token{}).Where("id = ?", id).Updates(
+		map[string]interface{}{
+			"status":      status,
+			"accessed_at": time.Now(),
+		},
+	)
+	return HandleUpdateResult(result, ErrTokenNotFound)
+}
+
+func UpdateGroupTokenStatusAndAccessedAt(group string, id int, status int) error {
+	result := DB.Model(&Token{}).Where("id = ? and `group` = ?", id, group).Updates(
+		map[string]interface{}{
+			"status":      status,
+			"accessed_at": time.Now(),
+		},
+	)
+	return HandleUpdateResult(result, ErrTokenNotFound)
+}
+
+func UpdateGroupTokenAccessedAt(group string, id int) error {
+	result := DB.Model(&Token{}).Where("id = ? and `group` = ?", id, group).Updates(
+		map[string]interface{}{
+			"accessed_at": time.Now(),
+		},
+	)
+	return HandleUpdateResult(result, ErrTokenNotFound)
+}
+
+func UpdateGroupTokenStatus(group string, id int, status int) error {
+	result := DB.Model(&Token{}).Where("id = ? and `group` = ?", id, group).Updates(
+		map[string]interface{}{
+			"status": status,
 		},
 	)
 	return HandleUpdateResult(result, ErrTokenNotFound)
@@ -171,6 +292,15 @@ func DeleteTokenByIdAndGroupId(id int, groupId string) (err error) {
 		return errors.New("id 或 group 为空！")
 	}
 	token := Token{Id: id, Group: groupId}
+	result := DB.Where(token).Delete(&token)
+	return HandleUpdateResult(result, ErrTokenNotFound)
+}
+
+func DeleteTokenById(id int) (err error) {
+	if id == 0 {
+		return errors.New("id 为空！")
+	}
+	token := Token{Id: id}
 	result := DB.Where(token).Delete(&token)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
@@ -198,7 +328,7 @@ func PreConsumeTokenQuota(tokenId int, quota int64) (err error) {
 	if err != nil {
 		return err
 	}
-	if !token.UnlimitedQuota && token.RemainQuota < quota {
+	if !token.UnlimitedQuota && token.Quota <= token.UsedQuota {
 		return errors.New("令牌额度不足")
 	}
 	userQuota, err := GetGroupQuota(token.Group)

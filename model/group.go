@@ -1,7 +1,9 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/songquanpeng/one-api/common"
 	"gorm.io/gorm"
@@ -18,13 +20,28 @@ const (
 )
 
 type Group struct {
-	Id           string   `gorm:"primaryKey" json:"id"`
-	Status       int      `gorm:"type:int;default:1" json:"status"` // enabled, disabled
-	UsedQuota    int64    `gorm:"bigint" json:"used_quota"`         // used quota
-	QPM          int64    `gorm:"bigint" json:"qpm"`                // queries per minute
-	RequestCount int      `gorm:"type:int" json:"request_count"`    // request number
-	Tokens       []*Token `gorm:"foreignKey:Group;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
-	Logs         []*Log   `gorm:"foreignKey:Group;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
+	Id           string    `gorm:"primaryKey" json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Status       int       `gorm:"type:int;default:1" json:"status"` // enabled, disabled
+	UsedQuota    int64     `gorm:"bigint" json:"used_quota"`         // used quota
+	QPM          int64     `gorm:"bigint" json:"qpm"`                // queries per minute
+	RequestCount int       `gorm:"type:int" json:"request_count"`    // request number
+	Tokens       []*Token  `gorm:"foreignKey:Group;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
+	Logs         []*Log    `gorm:"foreignKey:Group;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
+}
+
+func (g *Group) MarshalJSON() ([]byte, error) {
+	type Alias Group
+	return json.Marshal(&struct {
+		Alias
+		CreatedAt int64 `json:"created_at"`
+		UpdatedAt int64 `json:"updated_at"`
+	}{
+		Alias:     (Alias)(*g),
+		CreatedAt: g.CreatedAt.UnixMilli(),
+		UpdatedAt: g.UpdatedAt.UnixMilli(),
+	})
 }
 
 func GetAllGroups(startIdx int, num int, order string) (groups []*Group, err error) {

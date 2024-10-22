@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -60,9 +61,9 @@ func TokenAuth(c *gin.Context) {
 		return
 	}
 	c.Set(ctxkey.RequestModel, requestModel)
-	if token.Models != "" {
+	if len(token.Models) != 0 {
 		c.Set(ctxkey.AvailableModels, token.Models)
-		if requestModel != "" && !isModelInList(requestModel, token.Models) {
+		if requestModel != "" && !slices.Contains(token.Models, requestModel) {
 			abortWithMessage(c, http.StatusForbidden, fmt.Sprintf("该令牌无权使用模型：%s", requestModel))
 			return
 		}

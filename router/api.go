@@ -48,21 +48,33 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.GET("/test/:id", controller.TestChannel)
 			channelRoute.GET("/update_balance/:id", controller.UpdateChannelBalance)
 		}
+		tokensRoute := apiRouter.Group("/tokens")
+		{
+			tokensRoute.GET("/", controller.GetTokens)
+			tokensRoute.GET("/:id", controller.GetToken)
+			tokensRoute.PUT("/:id", controller.UpdateToken)
+			tokensRoute.POST("/:id", controller.UpdateTokenStatus)
+			tokensRoute.DELETE("/:id", controller.DeleteToken)
+			tokensRoute.GET("/search", controller.SearchTokens)
+		}
 		tokenRoute := apiRouter.Group("/token")
 		{
-			tokenRoute.GET("/", controller.GetAllTokens)
-			tokenRoute.GET("/search", controller.SearchTokens)
-			tokenRoute.GET("/:id", controller.GetToken)
-			tokenRoute.POST("/", controller.AddToken)
-			tokenRoute.PUT("/", controller.UpdateToken)
-			tokenRoute.DELETE("/:id", controller.DeleteToken)
+			tokenRoute.GET("/search/:group", controller.SearchGroupTokens)
+			tokenRoute.GET("/group/:group", controller.GetGroupTokens)
+			tokenRoute.GET("/group/:group/:id", controller.GetGroupToken)
+			tokenRoute.POST("/group/:group", controller.AddToken)
+			tokenRoute.PUT("/group/:group/:id", controller.UpdateGroupToken)
+			tokenRoute.POST("/group/:group/:id", controller.UpdateGroupTokenStatus)
+			tokenRoute.DELETE("/group/:group/:id", controller.DeleteGroupToken)
 		}
-		logRoute := apiRouter.Group("/log")
+		logsRoute := apiRouter.Group("/logs")
 		{
-			logRoute.GET("/", controller.GetAllLogs)
-			logRoute.DELETE("/", controller.DeleteHistoryLogs)
-			logRoute.GET("/stat", controller.GetLogsStat)
-			logRoute.GET("/search", controller.SearchAllLogs)
+			logsRoute.GET("/", controller.GetLogs)
+			logsRoute.GET("/group/:group", controller.GetGroupLogs)
+			logsRoute.DELETE("/", controller.DeleteHistoryLogs)
+			logsRoute.GET("/stat", controller.GetLogsStat)
+			logsRoute.GET("/search", controller.SearchLogs)
+			logsRoute.GET("/search/:group", controller.SearchGroupLogs)
 		}
 	}
 }
