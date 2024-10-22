@@ -14,7 +14,7 @@ import (
 )
 
 func GetAllTokens(c *gin.Context) {
-	group := c.GetInt(ctxkey.Group)
+	group := c.GetString(ctxkey.Group)
 	p, _ := strconv.Atoi(c.Query("p"))
 	if p < 0 {
 		p = 0
@@ -25,7 +25,7 @@ func GetAllTokens(c *gin.Context) {
 	}
 
 	order := c.Query("order")
-	tokens, err := model.GetAllGroupTokens(group, p*perPage, perPage, order)
+	tokens, total, err := model.GetAllGroupTokens(group, p*perPage, perPage, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -36,15 +36,27 @@ func GetAllTokens(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    tokens,
+		"data": gin.H{
+			"tokens": tokens,
+			"total":  total,
+		},
 	})
 	return
 }
 
 func SearchTokens(c *gin.Context) {
-	group := c.GetInt(ctxkey.Group)
+	group := c.GetString(ctxkey.Group)
 	keyword := c.Query("keyword")
-	tokens, err := model.SearchGroupTokens(group, keyword)
+	p, _ := strconv.Atoi(c.Query("p"))
+	if p < 0 {
+		p = 0
+	}
+	perPage, _ := strconv.Atoi(c.Query("per_page"))
+	if perPage <= 0 {
+		perPage = 10
+	}
+	order := c.Query("order")
+	tokens, total, err := model.SearchGroupTokens(group, keyword, p*perPage, perPage, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -55,7 +67,10 @@ func SearchTokens(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    tokens,
+		"data": gin.H{
+			"tokens": tokens,
+			"total":  total,
+		},
 	})
 	return
 }

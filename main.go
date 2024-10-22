@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/songquanpeng/one-api/common"
@@ -75,8 +73,6 @@ func main() {
 	server.Use(middleware.RequestId())
 	middleware.SetUpLogger(server)
 	// Initialize session store
-	store := cookie.NewStore([]byte(config.SessionSecret))
-	server.Use(sessions.Sessions("session", store))
 
 	router.SetRouter(server)
 	port := os.Getenv("PORT")

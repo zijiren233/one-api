@@ -168,7 +168,7 @@ var (
 	testAllChannelsRunning bool = false
 )
 
-func testChannels(notify bool, scope string) error {
+func testChannels(onlyDisabled bool) error {
 	testAllChannelsLock.Lock()
 	if testAllChannelsRunning {
 		testAllChannelsLock.Unlock()
@@ -176,7 +176,7 @@ func testChannels(notify bool, scope string) error {
 	}
 	testAllChannelsRunning = true
 	testAllChannelsLock.Unlock()
-	channels, err := model.GetAllChannels(0, 0, scope)
+	channels, err := model.GetAllChannels(onlyDisabled, false)
 	if err != nil {
 		return err
 	}
@@ -215,11 +215,8 @@ func testChannels(notify bool, scope string) error {
 }
 
 func TestChannels(c *gin.Context) {
-	scope := c.Query("scope")
-	if scope == "" {
-		scope = "all"
-	}
-	err := testChannels(true, scope)
+	onlyDisabled := c.Query("only_disabled") == "true"
+	err := testChannels(onlyDisabled)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -238,7 +235,10 @@ func AutomaticallyTestChannels(frequency int) {
 	for {
 		time.Sleep(time.Duration(frequency) * time.Minute)
 		logger.SysLog("testing all channels")
-		_ = testChannels(false, "all")
+		err := testChannels(false)
+		if err != nil {
+			logger.SysLog("testing all channels failed: " + err.Error())
+		}
 		logger.SysLog("channel test finished")
 	}
 }

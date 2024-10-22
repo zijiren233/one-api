@@ -19,36 +19,43 @@ import (
 
 const (
 	SyncFrequency = time.Minute * 10
+	TokenCacheKey = "token:%s"
 )
 
 func CacheGetTokenByKey(key string) (*Token, error) {
+	var token Token
+
+	if !common.RedisEnabled {
+		keyCol := "`key`"
+		if common.UsingPostgreSQL {
+			keyCol = `"key"`
+		}
+		return &token, DB.Where(keyCol+" = ?", key).First(&token).Error
+	}
+
+	cacheKey := fmt.Sprintf(TokenCacheKey, key)
+	tokenObjectString, err := common.RedisGet(cacheKey)
+	if err == nil {
+		return &token, json.Unmarshal([]byte(tokenObjectString), &token)
+	}
+
+	// Cache miss, fetch from database
 	keyCol := "`key`"
 	if common.UsingPostgreSQL {
 		keyCol = `"key"`
 	}
-	var token Token
-	if !common.RedisEnabled {
-		err := DB.Where(keyCol+" = ?", key).First(&token).Error
-		return &token, err
+	if err := DB.Where(keyCol+" = ?", key).First(&token).Error; err != nil {
+		return nil, err
 	}
-	tokenObjectString, err := common.RedisGet(fmt.Sprintf("token:%s", key))
-	if err != nil {
-		err := DB.Where(keyCol+" = ?", key).First(&token).Error
-		if err != nil {
-			return nil, err
-		}
-		jsonBytes, err := json.Marshal(token)
-		if err != nil {
-			return nil, err
-		}
-		err = common.RedisSet(fmt.Sprintf("token:%s", key), string(jsonBytes), SyncFrequency)
-		if err != nil {
+
+	// Update cache
+	if jsonBytes, err := json.Marshal(token); err == nil {
+		if err := common.RedisSet(cacheKey, string(jsonBytes), SyncFrequency); err != nil {
 			logger.SysError("Redis set token error: " + err.Error())
 		}
-		return &token, nil
 	}
-	err = json.Unmarshal([]byte(tokenObjectString), &token)
-	return &token, err
+
+	return &token, nil
 }
 
 func fetchAndUpdateGroupQuota(ctx context.Context, id string) (quota int64, err error) {
@@ -168,8 +175,9 @@ func InitChannelCache() {
 }
 
 func SyncChannelCache(frequency time.Duration) {
-	for {
-		time.Sleep(frequency)
+	ticker := time.NewTicker(frequency)
+	defer ticker.Stop()
+	for range ticker.C {
 		logger.SysLog("syncing channels from database")
 		InitChannelCache()
 	}

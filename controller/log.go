@@ -26,7 +26,7 @@ func GetAllLogs(c *gin.Context) {
 	tokenName := c.Query("token_name")
 	modelName := c.Query("model_name")
 	channel, _ := strconv.Atoi(c.Query("channel"))
-	logs, err := model.GetAllLogs(logType,
+	logs, total, err := model.GetAllLogs(logType,
 		time.UnixMicro(startTimestamp), time.UnixMicro(endTimestamp),
 		modelName, username, tokenName, p*perPage, perPage, channel)
 	if err != nil {
@@ -39,7 +39,10 @@ func GetAllLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    logs,
+		"data": gin.H{
+			"logs":  logs,
+			"total": total,
+		},
 	})
 	return
 }
@@ -54,7 +57,7 @@ func SearchAllLogs(c *gin.Context) {
 	if perPage <= 0 {
 		perPage = 10
 	}
-	logs, err := model.SearchAllLogs(keyword, p*perPage, perPage)
+	logs, total, err := model.SearchAllLogs(keyword, p*perPage, perPage)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -65,7 +68,10 @@ func SearchAllLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    logs,
+		"data": gin.H{
+			"logs":  logs,
+			"total": total,
+		},
 	})
 	return
 }

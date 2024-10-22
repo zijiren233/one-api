@@ -7,7 +7,6 @@ import (
 
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/logger"
-	"gorm.io/gorm"
 )
 
 type Log struct {
@@ -25,9 +24,7 @@ type Log struct {
 
 const (
 	LogTypeUnknown = iota
-	LogTypeTopup
 	LogTypeConsume
-	LogTypeManage
 	LogTypeSystem
 )
 
@@ -39,19 +36,6 @@ func RecordLog(group string, logType int, content string) {
 		Group:     group,
 		CreatedAt: time.Now(),
 		Type:      logType,
-		Content:   content,
-	}
-	err := LOG_DB.Create(log).Error
-	if err != nil {
-		logger.SysError("failed to record log: " + err.Error())
-	}
-}
-
-func RecordTopupLog(group string, content string, quota int) {
-	log := &Log{
-		Group:     group,
-		CreatedAt: time.Now(),
-		Type:      LogTypeTopup,
 		Content:   content,
 	}
 	err := LOG_DB.Create(log).Error
@@ -79,12 +63,10 @@ func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTo
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenName string, startIdx int, num int, channel int) (logs []*Log, err error) {
-	var tx *gorm.DB
-	if logType == LogTypeUnknown {
-		tx = LOG_DB
-	} else {
-		tx = LOG_DB.Where("type = ?", logType)
+func GetAllLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenName string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
+	tx := LOG_DB.Model(&Log{})
+	if logType != LogTypeUnknown {
+		tx = tx.Where("type = ?", logType)
 	}
 	if modelName != "" {
 		tx = tx.Where("model_name = ?", modelName)
@@ -104,16 +86,21 @@ func GetAllLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, m
 	if channel != 0 {
 		tx = tx.Where("channel_id = ?", channel)
 	}
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if total <= 0 {
+		return nil, 0, nil
+	}
 	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&logs).Error
-	return logs, err
+	return logs, total, err
 }
 
-func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, tokenName string, startIdx int, num int) (logs []*Log, err error) {
-	var tx *gorm.DB
-	if logType == LogTypeUnknown {
-		tx = LOG_DB.Where("group = ?", group)
-	} else {
-		tx = LOG_DB.Where("group = ? and type = ?", group, logType)
+func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, tokenName string, startIdx int, num int) (logs []*Log, total int64, err error) {
+	tx := LOG_DB.Model(&Log{}).Where("group = ?", group)
+	if logType != LogTypeUnknown {
+		tx = tx.Where("type = ?", logType)
 	}
 	if modelName != "" {
 		tx = tx.Where("model_name = ?", modelName)
@@ -127,18 +114,62 @@ func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimest
 	if !endTimestamp.IsZero() {
 		tx = tx.Where("created_at <= ?", endTimestamp)
 	}
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if total <= 0 {
+		return nil, 0, nil
+	}
 	err = tx.Order("id desc").Limit(num).Offset(startIdx).Omit("id").Find(&logs).Error
-	return logs, err
+	return logs, total, err
 }
 
-func SearchAllLogs(keyword string, page int, perPage int) (logs []*Log, err error) {
-	err = LOG_DB.Where("type = ? or content LIKE ?", keyword, keyword+"%").Order("id desc").Limit(perPage).Offset(page * perPage).Find(&logs).Error
-	return logs, err
+func SearchAllLogs(keyword string, page int, perPage int) (logs []*Log, total int64, err error) {
+	tx := LOG_DB.Model(&Log{})
+	if keyword != "" {
+		if common.UsingPostgreSQL {
+			tx = tx.Where("type = ? or content ILIKE ?", keyword, keyword+"%")
+		} else {
+			tx = tx.Where("type = ? or content LIKE ?", keyword, keyword+"%")
+		}
+	}
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if total <= 0 {
+		return nil, 0, nil
+	}
+	err = tx.Order("id desc").Limit(perPage).Offset(page * perPage).Find(&logs).Error
+	return logs, total, err
 }
 
-func SearchGroupLogs(group string, keyword string, page int, perPage int) (logs []*Log, err error) {
-	err = LOG_DB.Where("group = ? and type = ?", group, keyword).Order("id desc").Limit(perPage).Offset(page * perPage).Omit("id").Find(&logs).Error
-	return logs, err
+func SearchGroupLogs(group string, keyword string, page int, perPage int) (logs []*Log, total int64, err error) {
+	tx := LOG_DB.Model(&Log{})
+	if group != "" {
+		if common.UsingPostgreSQL {
+			tx = tx.Where("group ILIKE ?", "%"+group+"%")
+		} else {
+			tx = tx.Where("group LIKE ?", "%"+group+"%")
+		}
+	}
+	if keyword != "" {
+		if common.UsingPostgreSQL {
+			tx = tx.Where("content ILIKE ?", "%"+keyword+"%")
+		} else {
+			tx = tx.Where("content LIKE ?", "%"+keyword+"%")
+		}
+	}
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if total <= 0 {
+		return nil, 0, nil
+	}
+	err = tx.Order("id desc").Limit(perPage).Offset(page * perPage).Find(&logs).Error
+	return logs, total, err
 }
 
 func SumUsedQuota(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenName string, channel int) (quota int64) {

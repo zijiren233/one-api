@@ -9,48 +9,46 @@ import (
 )
 
 func SetApiRouter(router *gin.Engine) {
-	apiRouter := router.Group("/api")
+	apiRouter := router.Group("/api", middleware.AdminAuth)
 	apiRouter.Use(gzip.Gzip(gzip.DefaultCompression))
 	apiRouter.Use(middleware.GlobalAPIRateLimit())
 	{
 		apiRouter.GET("/status", controller.GetStatus)
-		apiRouter.GET("/models", middleware.AdminAuth, controller.DashboardListModels)
+		apiRouter.GET("/models", controller.DashboardListModels)
 
-		userRoute := apiRouter.Group("/user")
+		groupsRoute := apiRouter.Group("/groups")
 		{
-			adminRoute := userRoute.Group("/")
-			adminRoute.Use(middleware.AdminAuth)
-			{
-				adminRoute.GET("/", controller.GetAllGroups)
-				adminRoute.GET("/search", controller.SearchGroups)
-				adminRoute.GET("/:id", controller.GetGroup)
-				adminRoute.POST("/", controller.CreateGroup)
-				adminRoute.DELETE("/:id", controller.DeleteGroup)
-			}
+			groupsRoute.GET("/", controller.GetGroups)
+			groupsRoute.GET("/search", controller.SearchGroups)
+		}
+		groupRoute := apiRouter.Group("/group")
+		{
+			groupRoute.GET("/:id", controller.GetGroup)
+			groupRoute.POST("/", controller.CreateGroup)
+			groupRoute.DELETE("/:id", controller.DeleteGroup)
 		}
 		optionRoute := apiRouter.Group("/option")
-		optionRoute.Use(middleware.AdminAuth)
 		{
 			optionRoute.GET("/", controller.GetOptions)
 			optionRoute.PUT("/", controller.UpdateOption)
 		}
-		channelRoute := apiRouter.Group("/channel")
-		channelRoute.Use(middleware.AdminAuth)
+		channelsRoute := apiRouter.Group("/channels")
 		{
-			channelRoute.GET("/", controller.GetAllChannels)
-			channelRoute.GET("/search", controller.SearchChannels)
-			channelRoute.GET("/models", controller.ListAllModels)
+			channelsRoute.GET("/", controller.GetChannels)
+			channelsRoute.GET("/search", controller.SearchChannels)
+			channelsRoute.GET("/test", controller.TestChannels)
+			channelsRoute.GET("/update_balance", controller.UpdateAllChannelsBalance)
+		}
+		channelRoute := apiRouter.Group("/channel")
+		{
 			channelRoute.GET("/:id", controller.GetChannel)
-			channelRoute.GET("/test", controller.TestChannels)
-			channelRoute.GET("/test/:id", controller.TestChannel)
-			channelRoute.GET("/update_balance", controller.UpdateAllChannelsBalance)
-			channelRoute.GET("/update_balance/:id", controller.UpdateChannelBalance)
 			channelRoute.POST("/", controller.AddChannel)
 			channelRoute.PUT("/", controller.UpdateChannel)
 			channelRoute.DELETE("/:id", controller.DeleteChannel)
+			channelRoute.GET("/test/:id", controller.TestChannel)
+			channelRoute.GET("/update_balance/:id", controller.UpdateChannelBalance)
 		}
 		tokenRoute := apiRouter.Group("/token")
-		tokenRoute.Use(middleware.AdminAuth)
 		{
 			tokenRoute.GET("/", controller.GetAllTokens)
 			tokenRoute.GET("/search", controller.SearchTokens)
@@ -60,7 +58,6 @@ func SetApiRouter(router *gin.Engine) {
 			tokenRoute.DELETE("/:id", controller.DeleteToken)
 		}
 		logRoute := apiRouter.Group("/log")
-		logRoute.Use(middleware.AdminAuth)
 		{
 			logRoute.GET("/", controller.GetAllLogs)
 			logRoute.DELETE("/", controller.DeleteHistoryLogs)

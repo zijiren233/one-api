@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GetAllGroups(c *gin.Context) {
+func GetGroups(c *gin.Context) {
 	p, _ := strconv.Atoi(c.Query("p"))
 	if p < 0 {
 		p = 0
@@ -23,7 +23,7 @@ func GetAllGroups(c *gin.Context) {
 	}
 
 	order := c.DefaultQuery("order", "")
-	groups, err := model.GetAllGroups(p*perPage, perPage, order)
+	groups, total, err := model.GetGroups(p*perPage, perPage, order, false)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -35,13 +35,24 @@ func GetAllGroups(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    groups,
+		"data": gin.H{
+			"groups": groups,
+			"total":  total,
+		},
 	})
 }
 
 func SearchGroups(c *gin.Context) {
 	keyword := c.Query("keyword")
-	groups, err := model.SearchGroup(keyword)
+	p, _ := strconv.Atoi(c.Query("p"))
+	if p < 0 {
+		p = 0
+	}
+	perPage, _ := strconv.Atoi(c.Query("per_page"))
+	if perPage <= 0 {
+		perPage = 10
+	}
+	groups, total, err := model.SearchGroup(keyword, p*perPage, perPage)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -52,13 +63,23 @@ func SearchGroups(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    groups,
+		"data": gin.H{
+			"groups": groups,
+			"total":  total,
+		},
 	})
 	return
 }
 
 func GetGroup(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "group id is empty",
+		})
+		return
+	}
 	group, err := model.GetGroupById(id)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -170,15 +191,25 @@ func DeleteGroup(c *gin.Context) {
 	err := model.DeleteGroupById(id)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "",
+			"success": false,
+			"message": err.Error(),
 		})
 		return
 	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
+	return
+}
+
+type CreateGroupRequest struct {
+	Id  string `json:"id"`
+	QPM int64  `json:"qpm"`
 }
 
 func CreateGroup(c *gin.Context) {
-	var group model.Group
+	var group CreateGroupRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&group)
 	if err != nil || group.Id == "" {
 		c.JSON(http.StatusOK, gin.H{
@@ -194,7 +225,10 @@ func CreateGroup(c *gin.Context) {
 		})
 		return
 	}
-	if err := model.CreateGroup(&group); err != nil {
+	if err := model.CreateGroup(&model.Group{
+		Id:  group.Id,
+		QPM: group.QPM,
+	}); err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),

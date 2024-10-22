@@ -1,2 +1,2 @@
 #!/bin/bash
-go run main.go -port 8080
+DEBUG=true DEBUG_SQL=true go run main.go -port 8080

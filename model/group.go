@@ -45,6 +45,36 @@ func GetAllGroups(startIdx int, num int, order string) (groups []*Group, err err
 	return groups, err
 }
 
+func GetGroups(startIdx int, num int, order string, onlyDisabled bool) (groups []*Group, total int64, err error) {
+	tx := DB.Model(&Group{})
+	if onlyDisabled {
+		tx = tx.Where("status = ?", GroupStatusDisabled)
+	}
+
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if total <= 0 {
+		return nil, 0, nil
+	}
+
+	switch order {
+	case "quota":
+		tx = tx.Order("quota desc")
+	case "used_quota":
+		tx = tx.Order("used_quota desc")
+	case "request_count":
+		tx = tx.Order("request_count desc")
+	default:
+		tx = tx.Order("id desc")
+	}
+
+	err = tx.Limit(num).Offset(startIdx).Find(&groups).Error
+	return groups, total, err
+}
+
 func GetGroupById(id string) (*Group, error) {
 	if id == "" {
 		return nil, errors.New("id 为空！")
@@ -61,7 +91,7 @@ func DeleteGroupById(id string) (err error) {
 	result := DB.Delete(&Group{
 		Id: id,
 	})
-	return HandleUpdateResult(result, "group")
+	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
 func GetGroupQuota(id string) (int64, error) {
@@ -116,13 +146,22 @@ func IsGroupEnabled(id string) (bool, error) {
 	return group.Status == GroupStatusEnabled, nil
 }
 
-func SearchGroup(keyword string) (groups []*Group, err error) {
+func SearchGroup(keyword string, startIdx int, num int) (groups []*Group, total int64, err error) {
+	tx := DB.Model(&Group{})
 	if common.UsingPostgreSQL {
-		err = DB.Where("id LIKE ?", keyword+"%").Find(&groups).Error
+		tx = tx.Where("id ILIKE ?", "%"+keyword+"%")
 	} else {
-		err = DB.Where("id ILIKE ?", keyword+"%").Find(&groups).Error
+		tx = tx.Where("id LIKE ?", "%"+keyword+"%")
 	}
-	return groups, err
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if total <= 0 {
+		return nil, 0, nil
+	}
+	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&groups).Error
+	return groups, total, err
 }
 
 func CreateGroup(group *Group) error {

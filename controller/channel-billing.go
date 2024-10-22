@@ -310,7 +310,7 @@ func UpdateChannelBalance(c *gin.Context) {
 		})
 		return
 	}
-	channel, err := model.GetChannelById(id, true)
+	channel, err := model.GetChannelById(id, false)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -331,11 +331,10 @@ func UpdateChannelBalance(c *gin.Context) {
 		"message": "",
 		"balance": balance,
 	})
-	return
 }
 
 func updateAllChannelsBalance() error {
-	channels, err := model.GetAllChannels(0, 0, "all")
+	channels, err := model.GetAllChannels(false, false)
 	if err != nil {
 		return err
 	}
@@ -362,14 +361,14 @@ func updateAllChannelsBalance() error {
 }
 
 func UpdateAllChannelsBalance(c *gin.Context) {
-	//err := updateAllChannelsBalance()
-	//if err != nil {
-	//	c.JSON(http.StatusOK, gin.H{
-	//		"success": false,
-	//		"message": err.Error(),
-	//	})
-	//	return
-	//}
+	// err := updateAllChannelsBalance()
+	// if err != nil {
+	// 	c.JSON(http.StatusOK, gin.H{
+	// 		"success": false,
+	// 		"message": err.Error(),
+	// 	})
+	// 	return
+	// }
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",

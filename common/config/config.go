@@ -7,15 +7,9 @@ import (
 	"time"
 
 	"github.com/songquanpeng/one-api/common/env"
-
-	"github.com/google/uuid"
 )
 
 var QuotaPerUnit = 500 * 1000.0 // $0.002 / 1K tokens
-
-// Any options with "Secret", "Token" in its key won't be return by GetOptions
-
-var SessionSecret = uuid.New().String()
 
 var (
 	OptionMap        map[string]string
@@ -38,7 +32,7 @@ var (
 	RetryTimes                           = 0
 )
 
-var AutoMigrateDB = os.Getenv("AUTO_MIGRATE_DB") == "true"
+var DisableAutoMigrateDB = os.Getenv("DISABLE_AUTO_MIGRATE_DB") == "true"
 
 var RelayTimeout = env.Int("RELAY_TIMEOUT", 0) // unit is second
 

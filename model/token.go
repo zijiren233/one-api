@@ -31,7 +31,7 @@ type Token struct {
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	AccessedAt     time.Time `json:"accessed_at"`
-	ExpiredAt      time.Time `gorm:"default:0000-00-00 00:00:00" json:"expired_at"` // 0000-00-00 00:00:00 means never expired
+	ExpiredAt      time.Time `json:"expired_at"`
 	RemainQuota    int64     `json:"remain_quota" gorm:"bigint;default:0"`
 	UnlimitedQuota bool      `json:"unlimited_quota" gorm:"default:false"`
 	UsedQuota      int64     `json:"used_quota" gorm:"bigint;default:0"` // used quota
@@ -43,27 +43,55 @@ func InsertToken(token *Token) error {
 	return DB.Create(token).Error
 }
 
-func GetAllGroupTokens(groupId int, startIdx int, num int, order string) ([]*Token, error) {
-	var tokens []*Token
-	var err error
-	query := DB.Where("group_id = ?", groupId)
+func GetAllGroupTokens(group string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
+	tx := DB.Model(&Token{}).Where("group = ?", group)
 
-	switch order {
-	case "remain_quota":
-		query = query.Order("unlimited_quota desc, remain_quota desc")
-	case "used_quota":
-		query = query.Order("used_quota desc")
-	default:
-		query = query.Order("id desc")
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
 	}
 
-	err = query.Limit(num).Offset(startIdx).Find(&tokens).Error
-	return tokens, err
+	if total <= 0 {
+		return nil, 0, nil
+	}
+	switch order {
+	case "remain_quota":
+		tx = tx.Order("unlimited_quota desc, remain_quota desc")
+	case "used_quota":
+		tx = tx.Order("used_quota desc")
+	default:
+		tx = tx.Order("id desc")
+	}
+	err = tx.Limit(num).Offset(startIdx).Find(&tokens).Error
+	return tokens, total, err
 }
 
-func SearchGroupTokens(groupId int, keyword string) (tokens []*Token, err error) {
-	err = DB.Where("group_id = ?", groupId).Where("name LIKE ?", keyword+"%").Find(&tokens).Error
-	return tokens, err
+func SearchGroupTokens(group string, keyword string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
+	tx := DB.Model(&Token{})
+	if common.UsingPostgreSQL {
+		tx = tx.Where("group ILIKE ?", "%"+group+"%")
+		tx = tx.Where("name ILIKE ?", "%"+keyword+"%")
+	} else {
+		tx = tx.Where("group LIKE ?", "%"+group+"%")
+		tx = tx.Where("name LIKE ?", "%"+keyword+"%")
+	}
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if total <= 0 {
+		return nil, 0, nil
+	}
+	switch order {
+	case "remain_quota":
+		tx = tx.Order("unlimited_quota desc, remain_quota desc")
+	case "used_quota":
+		tx = tx.Order("used_quota desc")
+	default:
+		tx = tx.Order("id desc")
+	}
+	err = tx.Limit(num).Offset(startIdx).Find(&tokens).Error
+	return tokens, total, err
 }
 
 func ValidateAndGetToken(key string) (token *Token, err error) {

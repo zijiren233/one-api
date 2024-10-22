@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 
+	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/logger"
 	"gorm.io/gorm"
@@ -26,7 +27,6 @@ type Channel struct {
 	Key              string            `json:"key" gorm:"type:text"`
 	Status           int               `json:"status" gorm:"default:1"`
 	Name             string            `json:"name" gorm:"index"`
-	Weight           uint32            `json:"weight"`
 	CreatedAt        time.Time         `json:"created_at"`
 	TestAt           time.Time         `json:"test_at"`
 	ResponseDuration int64             `gorm:"bigint" json:"response_duration"` // in milliseconds
@@ -53,37 +53,76 @@ type ChannelConfig struct {
 	VertexAIADC       string `json:"vertex_ai_adc,omitempty"`
 }
 
-func GetAllChannels(startIdx int, num int, scope string) ([]*Channel, error) {
-	var channels []*Channel
-	var err error
-	switch scope {
-	case "all":
-		err = DB.Order("id desc").Find(&channels).Error
-	case "disabled":
-		err = DB.Order("id desc").Where("status = ? or status = ?", ChannelStatusAutoDisabled, ChannelStatusManuallyDisabled).Find(&channels).Error
-	default:
-		err = DB.Order("id desc").Limit(num).Offset(startIdx).Omit("key").Find(&channels).Error
+func GetAllChannels(onlyDisabled bool, omitKey bool) (channels []*Channel, err error) {
+	tx := DB.Model(&Channel{})
+	if onlyDisabled {
+		tx = tx.Where("status = ? or status = ?", ChannelStatusAutoDisabled, ChannelStatusManuallyDisabled)
 	}
+	if omitKey {
+		tx = tx.Omit("key")
+	}
+	err = tx.Order("id desc").Find(&channels).Error
 	return channels, err
 }
 
-func SearchChannels(keyword string) (channels []*Channel, err error) {
-	err = DB.Omit("key").Where("id = ? or name LIKE ?", helper.String2Int(keyword), keyword+"%").Find(&channels).Error
-	return channels, err
+func GetChannels(startIdx int, num int, onlyDisabled bool, omitKey bool) (channels []*Channel, total int64, err error) {
+	tx := DB.Model(&Channel{})
+	if onlyDisabled {
+		tx = tx.Where("status = ? or status = ?", ChannelStatusAutoDisabled, ChannelStatusManuallyDisabled)
+	}
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if omitKey {
+		tx = tx.Omit("key")
+	}
+	if total <= 0 {
+		return nil, 0, nil
+	}
+	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&channels).Error
+	return channels, total, err
 }
 
-func GetChannelById(id int, selectAll bool) (*Channel, error) {
+func SearchChannels(keyword string, startIdx int, num int, onlyDisabled bool, omitKey bool) (channels []*Channel, total int64, err error) {
+	tx := DB.Model(&Channel{})
+	if onlyDisabled {
+		tx = tx.Where("status = ? or status = ?", ChannelStatusAutoDisabled, ChannelStatusManuallyDisabled)
+	}
+	if common.UsingPostgreSQL {
+		tx = tx.Where("id = ? or name ILIKE ?", helper.String2Int(keyword), "%"+keyword+"%")
+	} else {
+		tx = tx.Where("id = ? or name LIKE ?", helper.String2Int(keyword), "%"+keyword+"%")
+	}
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if omitKey {
+		tx = tx.Omit("key")
+	}
+	if total <= 0 {
+		return nil, 0, nil
+	}
+	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&channels).Error
+	return channels, total, err
+}
+
+func GetChannelById(id int, omitKey bool) (*Channel, error) {
 	channel := Channel{Id: id}
 	var err error
-	if selectAll {
-		err = DB.First(&channel, "id = ?", id).Error
-	} else {
+	if omitKey {
 		err = DB.Omit("key").First(&channel, "id = ?", id).Error
+	} else {
+		err = DB.First(&channel, "id = ?", id).Error
 	}
-	return &channel, err
+	if err != nil {
+		return nil, err
+	}
+	return &channel, nil
 }
 
-func BatchInsertChannels(channels []Channel) error {
+func BatchInsertChannels(channels []*Channel) error {
 	return DB.Create(&channels).Error
 }
 

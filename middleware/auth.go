@@ -14,7 +14,7 @@ import (
 
 func AdminAuth(c *gin.Context) {
 	accessToken := c.Request.Header.Get("Authorization")
-	if accessToken == "" || accessToken != config.AdminKey {
+	if config.AdminKey != "" && (accessToken == "" || accessToken != config.AdminKey) {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"message": "无权进行此操作，未登录且未提供 access token",

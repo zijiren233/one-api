@@ -46,7 +46,8 @@ func openPostgreSQL(dsn string) (*gorm.DB, error) {
 		DSN:                  dsn,
 		PreferSimpleProtocol: true, // disables implicit prepared statement usage
 	}), &gorm.Config{
-		PrepareStmt: true, // precompile SQL
+		PrepareStmt:    true, // precompile SQL
+		TranslateError: true,
 	})
 }
 
@@ -54,7 +55,8 @@ func openMySQL(dsn string) (*gorm.DB, error) {
 	logger.SysLog("using MySQL as database")
 	common.UsingMySQL = true
 	return gorm.Open(mysql.Open(dsn), &gorm.Config{
-		PrepareStmt: true, // precompile SQL
+		PrepareStmt:    true, // precompile SQL
+		TranslateError: true,
 	})
 }
 
@@ -63,7 +65,8 @@ func openSQLite() (*gorm.DB, error) {
 	common.UsingSQLite = true
 	dsn := fmt.Sprintf("%s?_busy_timeout=%d", common.SQLitePath, common.SQLiteBusyTimeout)
 	return gorm.Open(sqlite.Open(dsn), &gorm.Config{
-		PrepareStmt: true, // precompile SQL
+		PrepareStmt:    true, // precompile SQL
+		TranslateError: true,
 	})
 }
 
@@ -77,7 +80,7 @@ func InitDB() {
 
 	sqlDB := setDBConns(DB)
 
-	if !config.AutoMigrateDB {
+	if config.DisableAutoMigrateDB {
 		return
 	}
 
@@ -123,7 +126,7 @@ func InitLogDB() {
 
 	setDBConns(LOG_DB)
 
-	if !config.AutoMigrateDB {
+	if config.DisableAutoMigrateDB {
 		return
 	}
 
