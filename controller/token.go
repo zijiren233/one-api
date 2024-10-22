@@ -249,7 +249,7 @@ func AddToken(c *gin.Context) {
 	}
 
 	cleanToken := &model.Token{
-		Group:          group,
+		GroupId:        group,
 		Name:           token.Name,
 		Key:            random.GenerateKey(),
 		ExpiredAt:      time.UnixMilli(token.ExpiredAt),

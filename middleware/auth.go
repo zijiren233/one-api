@@ -46,7 +46,7 @@ func TokenAuth(c *gin.Context) {
 			return
 		}
 	}
-	groupEnabled, err := model.CacheIsGroupEnabled(ctx, token.Group)
+	groupEnabled, err := model.CacheIsGroupEnabled(ctx, token.GroupId)
 	if err != nil {
 		abortWithMessage(c, http.StatusInternalServerError, err.Error())
 		return

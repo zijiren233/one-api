@@ -24,9 +24,11 @@ func SetApiRouter(router *gin.Engine) {
 		}
 		groupRoute := apiRouter.Group("/group")
 		{
-			groupRoute.GET("/:id", controller.GetGroup)
 			groupRoute.POST("/", controller.CreateGroup)
+			groupRoute.GET("/:id", controller.GetGroup)
 			groupRoute.DELETE("/:id", controller.DeleteGroup)
+			groupRoute.POST("/:id/status", controller.UpdateGroupStatus)
+			groupRoute.POST("/:id/qpm", controller.UpdateGroupQPM)
 		}
 		optionRoute := apiRouter.Group("/option")
 		{

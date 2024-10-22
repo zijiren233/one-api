@@ -25,7 +25,8 @@ const (
 
 type Token struct {
 	Id             int       `gorm:"primaryKey" json:"id"`
-	Group          string    `gorm:"index" json:"group"`
+	GroupId        string    `gorm:"index" json:"group"`
+	Group          *Group    `gorm:"foreignKey:GroupId" json:"-"`
 	Key            string    `gorm:"type:char(48);uniqueIndex" json:"key"`
 	Status         int       `gorm:"default:1" json:"status"`
 	Name           string    `gorm:"index" json:"name"`
@@ -66,7 +67,7 @@ func GetTokens(startIdx int, num int, order string, group string) (tokens []*Tok
 	tx := DB.Model(&Token{})
 
 	if group != "" {
-		tx = tx.Where("`group` = ?", group)
+		tx = tx.Where("`group_id` = ?", group)
 	}
 
 	err = tx.Count(&total).Error
@@ -94,7 +95,7 @@ func GetGroupTokens(group string, startIdx int, num int, order string) (tokens [
 		return nil, 0, errors.New("group is empty")
 	}
 
-	tx := DB.Model(&Token{}).Where("`group` = ?", group)
+	tx := DB.Model(&Token{}).Where("`group_id` = ?", group)
 
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -119,9 +120,9 @@ func GetGroupTokens(group string, startIdx int, num int, order string) (tokens [
 func SearchTokens(keyword string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
 	tx := DB.Model(&Token{})
 	if common.UsingPostgreSQL {
-		tx = tx.Where("`name` ILIKE ? or key ILIKE ? or `group` ILIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+		tx = tx.Where("`name` ILIKE ? or key ILIKE ? or `group_id` ILIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	} else {
-		tx = tx.Where("`name` LIKE ? or key LIKE ? or `group` LIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+		tx = tx.Where("`name` LIKE ? or key LIKE ? or `group_id` LIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	}
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -146,7 +147,7 @@ func SearchGroupTokens(group string, keyword string, startIdx int, num int, orde
 	if group == "" {
 		return nil, 0, errors.New("group is empty")
 	}
-	tx := DB.Model(&Token{}).Where("`group` = ?", group)
+	tx := DB.Model(&Token{}).Where("`group_id` = ?", group)
 	if common.UsingPostgreSQL {
 		tx = tx.Where("`name` ILIKE ? or key ILIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	} else {
@@ -217,8 +218,8 @@ func GetGroupTokenById(group string, id int) (*Token, error) {
 	if id == 0 || group == "" {
 		return nil, errors.New("id 或 group 为空！")
 	}
-	token := Token{Id: id, Group: group}
-	err := DB.First(&token, "id = ? and `group` = ?", id, group).Error
+	token := Token{Id: id, GroupId: group}
+	err := DB.First(&token, "id = ? and `group_id` = ?", id, group).Error
 	return &token, HandleNotFound(err, ErrTokenNotFound)
 }
 
@@ -260,7 +261,7 @@ func UpdateTokenStatusAndAccessedAt(id int, status int) error {
 }
 
 func UpdateGroupTokenStatusAndAccessedAt(group string, id int, status int) error {
-	result := DB.Model(&Token{}).Where("id = ? and `group` = ?", id, group).Updates(
+	result := DB.Model(&Token{}).Where("id = ? and `group_id` = ?", id, group).Updates(
 		map[string]interface{}{
 			"status":      status,
 			"accessed_at": time.Now(),
@@ -270,7 +271,7 @@ func UpdateGroupTokenStatusAndAccessedAt(group string, id int, status int) error
 }
 
 func UpdateGroupTokenAccessedAt(group string, id int) error {
-	result := DB.Model(&Token{}).Where("id = ? and `group` = ?", id, group).Updates(
+	result := DB.Model(&Token{}).Where("id = ? and `group_id` = ?", id, group).Updates(
 		map[string]interface{}{
 			"accessed_at": time.Now(),
 		},
@@ -279,7 +280,7 @@ func UpdateGroupTokenAccessedAt(group string, id int) error {
 }
 
 func UpdateGroupTokenStatus(group string, id int, status int) error {
-	result := DB.Model(&Token{}).Where("id = ? and `group` = ?", id, group).Updates(
+	result := DB.Model(&Token{}).Where("id = ? and `group_id` = ?", id, group).Updates(
 		map[string]interface{}{
 			"status": status,
 		},
@@ -291,7 +292,7 @@ func DeleteTokenByIdAndGroupId(id int, groupId string) (err error) {
 	if id == 0 || groupId == "" {
 		return errors.New("id 或 group 为空！")
 	}
-	token := Token{Id: id, Group: groupId}
+	token := Token{Id: id, GroupId: groupId}
 	result := DB.Where(token).Delete(&token)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
@@ -331,7 +332,7 @@ func PreConsumeTokenQuota(tokenId int, quota int64) (err error) {
 	if !token.UnlimitedQuota && token.Quota <= token.UsedQuota {
 		return errors.New("令牌额度不足")
 	}
-	userQuota, err := GetGroupQuota(token.Group)
+	userQuota, err := GetGroupQuota(token.GroupId)
 	if err != nil {
 		return err
 	}
@@ -363,7 +364,7 @@ func PreConsumeTokenQuota(tokenId int, quota int64) (err error) {
 	if token.UnlimitedQuota {
 		return nil
 	}
-	err = UpdateGroupUsedQuota(token.Group, -quota)
+	err = UpdateGroupUsedQuota(token.GroupId, -quota)
 	return err
 }
 
@@ -375,6 +376,6 @@ func PostConsumeTokenQuota(tokenId int, quota int64) (err error) {
 	if token.UnlimitedQuota {
 		return nil
 	}
-	err = UpdateGroupUsedQuota(token.Group, -quota)
+	err = UpdateGroupUsedQuota(token.GroupId, -quota)
 	return err
 }

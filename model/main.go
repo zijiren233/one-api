@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	gormLogger "gorm.io/gorm/logger"
 )
 
 var (
@@ -39,6 +41,25 @@ func chooseDB(envName string) (*gorm.DB, error) {
 	}
 }
 
+func newDBLogger() gormLogger.Interface {
+	var logLevel gormLogger.LogLevel
+	if config.DebugSQLEnabled {
+		logLevel = gormLogger.Info
+	} else {
+		logLevel = gormLogger.Warn
+	}
+	return gormLogger.New(
+		log.New(os.Stdout, "", log.LstdFlags),
+		gormLogger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  logLevel,
+			IgnoreRecordNotFoundError: true,
+			ParameterizedQueries:      !config.DebugSQLEnabled,
+			Colorful:                  true,
+		},
+	)
+}
+
 func openPostgreSQL(dsn string) (*gorm.DB, error) {
 	logger.SysLog("using PostgreSQL as database")
 	common.UsingPostgreSQL = true
@@ -46,8 +67,11 @@ func openPostgreSQL(dsn string) (*gorm.DB, error) {
 		DSN:                  dsn,
 		PreferSimpleProtocol: true, // disables implicit prepared statement usage
 	}), &gorm.Config{
-		PrepareStmt:    true, // precompile SQL
-		TranslateError: true,
+		PrepareStmt:                              true, // precompile SQL
+		TranslateError:                           true,
+		Logger:                                   newDBLogger(),
+		DisableForeignKeyConstraintWhenMigrating: false,
+		IgnoreRelationshipsWhenMigrating:         false,
 	})
 }
 
@@ -55,8 +79,11 @@ func openMySQL(dsn string) (*gorm.DB, error) {
 	logger.SysLog("using MySQL as database")
 	common.UsingMySQL = true
 	return gorm.Open(mysql.Open(dsn), &gorm.Config{
-		PrepareStmt:    true, // precompile SQL
-		TranslateError: true,
+		PrepareStmt:                              true, // precompile SQL
+		TranslateError:                           true,
+		Logger:                                   newDBLogger(),
+		DisableForeignKeyConstraintWhenMigrating: false,
+		IgnoreRelationshipsWhenMigrating:         false,
 	})
 }
 
@@ -65,8 +92,11 @@ func openSQLite() (*gorm.DB, error) {
 	common.UsingSQLite = true
 	dsn := fmt.Sprintf("%s?_busy_timeout=%d", common.SQLitePath, common.SQLiteBusyTimeout)
 	return gorm.Open(sqlite.Open(dsn), &gorm.Config{
-		PrepareStmt:    true, // precompile SQL
-		TranslateError: true,
+		PrepareStmt:                              true, // precompile SQL
+		TranslateError:                           true,
+		Logger:                                   newDBLogger(),
+		DisableForeignKeyConstraintWhenMigrating: false,
+		IgnoreRelationshipsWhenMigrating:         false,
 	})
 }
 

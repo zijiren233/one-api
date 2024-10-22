@@ -27,8 +27,8 @@ type Group struct {
 	UsedQuota    int64     `gorm:"bigint" json:"used_quota"`         // used quota
 	QPM          int64     `gorm:"bigint" json:"qpm"`                // queries per minute
 	RequestCount int       `gorm:"type:int" json:"request_count"`    // request number
-	Tokens       []*Token  `gorm:"foreignKey:Group;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
-	Logs         []*Log    `gorm:"foreignKey:Group;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
+	Tokens       []*Token  `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
+	Logs         []*Log    `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
 }
 
 func (g *Group) MarshalJSON() ([]byte, error) {
@@ -42,24 +42,6 @@ func (g *Group) MarshalJSON() ([]byte, error) {
 		CreatedAt: g.CreatedAt.UnixMilli(),
 		UpdatedAt: g.UpdatedAt.UnixMilli(),
 	})
-}
-
-func GetAllGroups(startIdx int, num int, order string) (groups []*Group, err error) {
-	query := DB.Limit(num).Offset(startIdx).Where("status != ?", GroupStatusDeleted)
-
-	switch order {
-	case "quota":
-		query = query.Order("quota desc")
-	case "used_quota":
-		query = query.Order("used_quota desc")
-	case "request_count":
-		query = query.Order("request_count desc")
-	default:
-		query = query.Order("id desc")
-	}
-
-	err = query.Find(&groups).Error
-	return groups, err
 }
 
 func GetGroups(startIdx int, num int, order string, onlyDisabled bool) (groups []*Group, total int64, err error) {
@@ -163,8 +145,11 @@ func IsGroupEnabled(id string) (bool, error) {
 	return group.Status == GroupStatusEnabled, nil
 }
 
-func SearchGroup(keyword string, startIdx int, num int) (groups []*Group, total int64, err error) {
+func SearchGroup(keyword string, startIdx int, num int, onlyDisabled bool) (groups []*Group, total int64, err error) {
 	tx := DB.Model(&Group{})
+	if onlyDisabled {
+		tx = tx.Where("status = ?", GroupStatusDisabled)
+	}
 	if common.UsingPostgreSQL {
 		tx = tx.Where("id ILIKE ?", "%"+keyword+"%")
 	} else {
