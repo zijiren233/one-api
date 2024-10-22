@@ -46,12 +46,12 @@ func TokenAuth(c *gin.Context) {
 			return
 		}
 	}
-	groupEnabled, err := model.CacheIsGroupEnabled(ctx, token.GroupId)
+	group, err := model.CacheGetGroup(token.Group)
 	if err != nil {
 		abortWithMessage(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if !groupEnabled {
+	if group.Status != model.GroupStatusEnabled {
 		abortWithMessage(c, http.StatusForbidden, "用户组已被禁用")
 		return
 	}
@@ -68,7 +68,7 @@ func TokenAuth(c *gin.Context) {
 			return
 		}
 	}
-	c.Set(ctxkey.Group, token.GroupId)
+	c.Set(ctxkey.Group, token.Group)
 	c.Set(ctxkey.TokenId, token.Id)
 	c.Set(ctxkey.TokenName, token.Name)
 	if len(parts) > 1 {

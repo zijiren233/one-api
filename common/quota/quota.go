@@ -1,5 +1,8 @@
 package quota
 
 type GroupQuota interface {
-	GetGroupQuota(id string) (int64, error)
+	GetGroupRemainQuota(id string) (int64, error)
+	PostGroupConsume(id string, quota int64) error
 }
+
+var Default = NewMockGroupQuota()

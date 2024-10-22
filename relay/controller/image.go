@@ -13,6 +13,7 @@ import (
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
+	groupQuota "github.com/songquanpeng/one-api/common/quota"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
@@ -168,11 +169,11 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 
 	ratio := billingratio.GetModelRatio(imageModel, meta.ChannelType)
-	groupQuota, err := model.CacheGetGroupQuota(ctx, meta.Group)
+	groupRemainQuota, err := groupQuota.Default.GetGroupRemainQuota(meta.Group)
 
 	quota := int64(ratio*imageCostRatio*1000) * int64(imageRequest.N)
 
-	if groupQuota-quota < 0 {
+	if groupRemainQuota-quota < 0 {
 		return openai.ErrorWrapper(errors.New("group quota is not enough"), "insufficient_group_quota", http.StatusForbidden)
 	}
 
@@ -188,13 +189,9 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return
 		}
 
-		err := model.PostConsumeTokenQuota(meta.TokenId, quota)
+		err := groupQuota.Default.PostGroupConsume(meta.Group, quota)
 		if err != nil {
 			logger.SysError("error consuming token remain quota: " + err.Error())
-		}
-		err = model.CacheUpdateGroupQuota(ctx, meta.Group)
-		if err != nil {
-			logger.SysError("error update group quota cache: " + err.Error())
 		}
 		if quota != 0 {
 			tokenName := c.GetString(ctxkey.TokenName)

@@ -11,71 +11,44 @@ import (
 	"github.com/songquanpeng/one-api/common/config"
 )
 
-var timeFormat = "2006-01-02T15:04:05.000Z"
-
 var inMemoryRateLimiter common.InMemoryRateLimiter
 
-func redisRateLimitRequest(ctx context.Context, key string, maxRequestNum int, duration int64) (bool, error) {
+var luaScript = `
+local key = KEYS[1]
+local max_requests = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local current_time = tonumber(ARGV[3])
+
+local count = redis.call('LLEN', key)
+
+if count < max_requests then
+    redis.call('LPUSH', key, current_time)
+    redis.call('EXPIRE', key, window)
+    return 1
+else
+    local oldest = redis.call('LINDEX', key, -1)
+    if current_time - tonumber(oldest) >= window then
+        redis.call('LPUSH', key, current_time)
+        redis.call('LTRIM', key, 0, max_requests - 1)
+        redis.call('EXPIRE', key, window)
+        return 1
+    else
+        return 0
+    end
+end
+`
+
+func redisRateLimitRequest(ctx context.Context, key string, maxRequestNum int, duration time.Duration) (bool, error) {
 	rdb := common.RDB
-	listLength, err := rdb.LLen(ctx, key).Result()
+	currentTime := time.Now().UnixNano() / int64(time.Millisecond)
+	result, err := rdb.Eval(ctx, luaScript, []string{key}, maxRequestNum, int64(duration/time.Millisecond), currentTime).Int64()
 	if err != nil {
 		return false, err
 	}
-	if listLength < int64(maxRequestNum) {
-		rdb.LPush(ctx, key, time.Now().Format(timeFormat))
-		rdb.Expire(ctx, key, config.RateLimitKeyExpirationDuration)
-		return true, nil
-	} else {
-		oldTimeStr, _ := rdb.LIndex(ctx, key, -1).Result()
-		oldTime, err := time.Parse(timeFormat, oldTimeStr)
-		if err != nil {
-			return false, err
-		}
-		nowTimeStr := time.Now().Format(timeFormat)
-		nowTime, err := time.Parse(timeFormat, nowTimeStr)
-		if err != nil {
-			return false, err
-		}
-		if int64(nowTime.Sub(oldTime).Seconds()) < duration {
-			rdb.Expire(ctx, key, config.RateLimitKeyExpirationDuration)
-			return false, nil
-		} else {
-			rdb.LPush(ctx, key, time.Now().Format(timeFormat))
-			rdb.LTrim(ctx, key, 0, int64(maxRequestNum-1))
-			rdb.Expire(ctx, key, config.RateLimitKeyExpirationDuration)
-			return true, nil
-		}
-	}
+	return result == 1, nil
 }
 
-func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark string) {
-	ctx, cancel := context.WithTimeout(c, 5*time.Second)
-	defer cancel()
-	key := "rateLimit:" + mark + c.ClientIP()
-	allowed, err := redisRateLimitRequest(ctx, key, maxRequestNum, duration)
-	if err != nil {
-		fmt.Println(err.Error())
-		c.Status(http.StatusInternalServerError)
-		c.Abort()
-		return
-	}
-	if !allowed {
-		c.Status(http.StatusTooManyRequests)
-		c.Abort()
-		return
-	}
-}
-
-func memoryRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark string) {
-	key := mark + c.ClientIP()
-	if !inMemoryRateLimiter.Request(key, maxRequestNum, duration) {
-		c.Status(http.StatusTooManyRequests)
-		c.Abort()
-		return
-	}
-}
-
-func RateLimit(ctx context.Context, key string, maxRequestNum int, duration int64) (bool, error) {
+func RateLimit(ctx context.Context, key string, maxRequestNum int, duration time.Duration) (bool, error) {
 	if maxRequestNum == 0 {
 		return true, nil
 	}
@@ -88,29 +61,23 @@ func RateLimit(ctx context.Context, key string, maxRequestNum int, duration int6
 	}
 }
 
-func rateLimitFactory(maxRequestNum int, duration int64, mark string) func(c *gin.Context) {
-	if maxRequestNum == 0 {
-		return func(c *gin.Context) {
-			c.Next()
+func rateLimitFactory(maxRequestNum int, duration time.Duration) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		ok, err := RateLimit(c.Request.Context(), "ip"+c.ClientIP(), maxRequestNum, duration)
+		if err != nil {
+			fmt.Println(err.Error())
+			c.Status(http.StatusInternalServerError)
+			c.Abort()
+			return
 		}
-	}
-	if common.RedisEnabled {
-		return func(c *gin.Context) {
-			redisRateLimiter(c, maxRequestNum, duration, mark)
+		if !ok {
+			c.Status(http.StatusTooManyRequests)
+			c.Abort()
 		}
-	} else {
-		// It's safe to call multi times.
-		inMemoryRateLimiter.Init(config.RateLimitKeyExpirationDuration)
-		return func(c *gin.Context) {
-			memoryRateLimiter(c, maxRequestNum, duration, mark)
-		}
+		c.Next()
 	}
 }
 
 func GlobalAPIRateLimit() func(c *gin.Context) {
-	return rateLimitFactory(config.GlobalApiRateLimitNum, config.GlobalApiRateLimitDuration, "GA")
-}
-
-func CriticalRateLimit() func(c *gin.Context) {
-	return rateLimitFactory(config.CriticalRateLimitNum, config.CriticalRateLimitDuration, "CT")
+	return rateLimitFactory(config.GlobalApiRateLimitNum, time.Minute)
 }

@@ -2,25 +2,23 @@ package common
 
 import (
 	"context"
-	"github.com/go-redis/redis/v8"
-	"github.com/songquanpeng/one-api/common/logger"
 	"os"
 	"time"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/songquanpeng/one-api/common/logger"
 )
 
-var RDB *redis.Client
-var RedisEnabled = true
+var (
+	RDB          *redis.Client
+	RedisEnabled = true
+)
 
 // InitRedisClient This function is called after init()
 func InitRedisClient() (err error) {
 	if os.Getenv("REDIS_CONN_STRING") == "" {
 		RedisEnabled = false
 		logger.SysLog("REDIS_CONN_STRING not set, Redis is not enabled")
-		return nil
-	}
-	if os.Getenv("SYNC_FREQUENCY") == "" {
-		RedisEnabled = false
-		logger.SysLog("SYNC_FREQUENCY not set, Redis is disabled")
 		return nil
 	}
 	logger.SysLog("Redis is enabled")

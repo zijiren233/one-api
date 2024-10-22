@@ -41,11 +41,7 @@ var GeminiSafetySetting = env.String("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
 // All duration's unit is seconds
 // Shouldn't larger then RateLimitKeyExpirationDuration
 var (
-	GlobalApiRateLimitNum            = env.Int("GLOBAL_API_RATE_LIMIT", 240)
-	GlobalApiRateLimitDuration int64 = 3 * 60
-
-	CriticalRateLimitNum            = 20
-	CriticalRateLimitDuration int64 = 20 * 60
+	GlobalApiRateLimitNum = env.Int("GLOBAL_API_RATE_LIMIT", 240)
 )
 
 var RateLimitKeyExpirationDuration = 20 * time.Minute

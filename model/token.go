@@ -11,6 +11,7 @@ import (
 	"github.com/songquanpeng/one-api/common/logger"
 	quotaIf "github.com/songquanpeng/one-api/common/quota"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -174,7 +175,19 @@ func SearchGroupTokens(group string, keyword string, startIdx int, num int, orde
 	return tokens, total, err
 }
 
-func ValidateAndGetToken(key string) (token *Token, err error) {
+func GetTokenUsedQuota(id int) (int64, error) {
+	var quota int64
+	err := DB.Model(&Token{}).Where("id = ?", id).Select("used_quota").Scan(&quota).Error
+	return quota, HandleNotFound(err, ErrTokenNotFound)
+}
+
+func GetTokenUsedQuotaByKey(key string) (int64, error) {
+	var quota int64
+	err := DB.Model(&Token{}).Where("key = ?", key).Select("used_quota").Scan(&quota).Error
+	return quota, HandleNotFound(err, ErrTokenNotFound)
+}
+
+func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 	if key == "" {
 		return nil, errors.New("未提供令牌")
 	}
@@ -203,8 +216,12 @@ func ValidateAndGetToken(key string) (token *Token, err error) {
 		}
 		return nil, errors.New("该令牌已过期")
 	}
-	if !token.UnlimitedQuota && token.Quota <= token.UsedQuota {
-		if !common.RedisEnabled {
+	if !token.UnlimitedQuota {
+		usedQuota, err := CacheGetTokenUsedQuota(token.Id)
+		if err != nil {
+			logger.SysError("CacheGetTokenUsedQuota failed: " + err.Error())
+		}
+		if usedQuota >= token.Quota {
 			// in this case, we can make sure the token is exhausted
 			err := UpdateTokenStatusAndAccessedAt(token.Id, TokenStatusExhausted)
 			if err != nil {
@@ -234,25 +251,34 @@ func GetTokenById(id int) (*Token, error) {
 	return &token, HandleNotFound(err, ErrTokenNotFound)
 }
 
-func UpdateTokenAccessedAt(id int) error {
-	result := DB.Model(&Token{}).Where("id = ?", id).Updates(
-		map[string]interface{}{
-			"accessed_at": time.Now(),
-		},
-	)
+func UpdateTokenStatus(id int, status int) (err error) {
+	token := Token{Id: id}
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteToken(token.Key)
+		}
+	}()
+	result := DB.
+		Clauses(clause.Returning{
+			Columns: []clause.Column{
+				{Name: "key"},
+			},
+		}).
+		Where("id = ?", id).
+		Updates(
+			map[string]interface{}{
+				"status": status,
+			},
+		)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
-func UpdateTokenStatus(id int, status int) error {
-	result := DB.Model(&Token{}).Where("id = ?", id).Updates(
-		map[string]interface{}{
-			"status": status,
-		},
-	)
-	return HandleUpdateResult(result, ErrTokenNotFound)
-}
-
-func UpdateTokenStatusAndAccessedAt(id int, status int) error {
+func UpdateTokenStatusAndAccessedAt(id int, status int) (err error) {
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteTokenUsedQuota(id)
+		}
+	}()
 	result := DB.Model(&Token{}).Where("id = ?", id).Updates(
 		map[string]interface{}{
 			"status":      status,
@@ -262,31 +288,48 @@ func UpdateTokenStatusAndAccessedAt(id int, status int) error {
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
-func UpdateGroupTokenStatusAndAccessedAt(group string, id int, status int) error {
-	result := DB.Model(&Token{}).Where("id = ? and `group_id` = ?", id, group).Updates(
-		map[string]interface{}{
-			"status":      status,
-			"accessed_at": time.Now(),
-		},
-	)
+func UpdateGroupTokenStatusAndAccessedAt(group string, id int, status int) (err error) {
+	token := Token{}
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteToken(token.Key)
+		}
+	}()
+	result := DB.Model(&token).
+		Clauses(clause.Returning{
+			Columns: []clause.Column{
+				{Name: "key"},
+			},
+		}).
+		Where("id = ? and `group_id` = ?", id, group).
+		Updates(
+			map[string]interface{}{
+				"status":      status,
+				"accessed_at": time.Now(),
+			},
+		)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
-func UpdateGroupTokenAccessedAt(group string, id int) error {
-	result := DB.Model(&Token{}).Where("id = ? and `group_id` = ?", id, group).Updates(
-		map[string]interface{}{
-			"accessed_at": time.Now(),
-		},
-	)
-	return HandleUpdateResult(result, ErrTokenNotFound)
-}
-
-func UpdateGroupTokenStatus(group string, id int, status int) error {
-	result := DB.Model(&Token{}).Where("id = ? and `group_id` = ?", id, group).Updates(
-		map[string]interface{}{
-			"status": status,
-		},
-	)
+func UpdateGroupTokenStatus(group string, id int, status int) (err error) {
+	token := Token{}
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteToken(token.Key)
+		}
+	}()
+	result := DB.Model(&token).
+		Clauses(clause.Returning{
+			Columns: []clause.Column{
+				{Name: "key"},
+			},
+		}).
+		Where("id = ? and `group_id` = ?", id, group).
+		Updates(
+			map[string]interface{}{
+				"status": status,
+			},
+		)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
@@ -295,7 +338,20 @@ func DeleteTokenByIdAndGroupId(id int, groupId string) (err error) {
 		return errors.New("id 或 group 为空！")
 	}
 	token := Token{Id: id, GroupId: groupId}
-	result := DB.Where(token).Delete(&token)
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteToken(token.Key)
+			_ = CacheDeleteTokenUsedQuota(id)
+		}
+	}()
+	result := DB.
+		Clauses(clause.Returning{
+			Columns: []clause.Column{
+				{Name: "key"},
+			},
+		}).
+		Where(token).
+		Delete(&token)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
@@ -304,23 +360,48 @@ func DeleteTokenById(id int) (err error) {
 		return errors.New("id 为空！")
 	}
 	token := Token{Id: id}
-	result := DB.Where(token).Delete(&token)
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteToken(token.Key)
+			_ = CacheDeleteTokenUsedQuota(id)
+		}
+	}()
+	result := DB.
+		Clauses(clause.Returning{
+			Columns: []clause.Column{
+				{Name: "key"},
+			},
+		}).
+		Where(token).
+		Delete(&token)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
-func UpdateToken(token *Token) error {
-	return DB.Save(token).Error
+func UpdateToken(token *Token) (err error) {
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteToken(token.Key)
+		}
+	}()
+	result := DB.Omit("used_quota", "request_count").Save(token)
+	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
 func UpdateTokenUsedQuota(id int, quota int64, requestCount int) (err error) {
-	err = DB.Model(&Token{}).Where("id = ?", id).Updates(
+	token := Token{Id: id}
+	defer func() {
+		if err == nil {
+			_ = CacheUpdateTokenUsedQuota(id, quota)
+		}
+	}()
+	result := DB.Model(&token).Where("id = ?", id).Updates(
 		map[string]interface{}{
 			"used_quota":    gorm.Expr("used_quota + ?", quota),
 			"request_count": gorm.Expr("request_count + ?", requestCount),
 			"accessed_at":   time.Now(),
 		},
-	).Error
-	return err
+	)
+	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
 func PreConsumeTokenQuota(tokenId int, quota int64) (err error) {
@@ -334,7 +415,7 @@ func PreConsumeTokenQuota(tokenId int, quota int64) (err error) {
 	if !token.UnlimitedQuota && token.Quota <= token.UsedQuota {
 		return errors.New("令牌额度不足")
 	}
-	userQuota, err := quotaIf.DefaultMockGroupQuota.GetGroupQuota(token.GroupId)
+	userQuota, err := quotaIf.Default.GetGroupRemainQuota(token.GroupId)
 	if err != nil {
 		return err
 	}
@@ -362,18 +443,6 @@ func PreConsumeTokenQuota(tokenId int, quota int64) (err error) {
 		// 		}
 		// 	}
 		// }()
-	}
-	if token.UnlimitedQuota {
-		return nil
-	}
-	err = UpdateGroupUsedQuota(token.GroupId, -quota)
-	return err
-}
-
-func PostConsumeTokenQuota(tokenId int, quota int64) (err error) {
-	token, err := GetTokenById(tokenId)
-	if err != nil {
-		return err
 	}
 	if token.UnlimitedQuota {
 		return nil

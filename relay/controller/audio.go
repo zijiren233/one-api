@@ -17,6 +17,7 @@ import (
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
+	groupQuota "github.com/songquanpeng/one-api/common/quota"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/billing"
@@ -28,7 +29,6 @@ import (
 )
 
 func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatusCode {
-	ctx := c.Request.Context()
 	meta := meta.GetByContext(c)
 	audioModel := "whisper-1"
 
@@ -63,20 +63,20 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	default:
 		preConsumedQuota = int64(float64(config.PreConsumedQuota) * ratio)
 	}
-	groupQuota, err := model.CacheGetGroupQuota(ctx, group)
+	groupRemainQuota, err := groupQuota.Default.GetGroupRemainQuota(group)
 	if err != nil {
 		return openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
 	}
 
 	// Check if group quota is enough
-	if groupQuota-preConsumedQuota < 0 {
+	if groupRemainQuota-preConsumedQuota < 0 {
 		return openai.ErrorWrapper(errors.New("group quota is not enough"), "insufficient_group_quota", http.StatusForbidden)
 	}
-	err = model.CacheDecreaseGroupQuota(group, preConsumedQuota)
+	err = groupQuota.Default.PostGroupConsume(group, preConsumedQuota)
 	if err != nil {
 		return openai.ErrorWrapper(err, "decrease_group_quota_failed", http.StatusInternalServerError)
 	}
-	if groupQuota > 100*preConsumedQuota {
+	if groupRemainQuota > 100*preConsumedQuota {
 		// in this case, we do not pre-consume quota
 		// because the group has enough quota
 		preConsumedQuota = 0
@@ -97,7 +97,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			defer func(ctx context.Context) {
 				go func() {
 					// negative means add quota back for token & user
-					err := model.PostConsumeTokenQuota(tokenId, -preConsumedQuota)
+					err := groupQuota.Default.PostGroupConsume(group, -preConsumedQuota)
 					if err != nil {
 						logger.Error(ctx, fmt.Sprintf("error rollback pre-consumed quota: %s", err.Error()))
 					}

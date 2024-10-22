@@ -12,6 +12,7 @@ import (
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"
+	groupQuota "github.com/songquanpeng/one-api/common/quota"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	billingratio "github.com/songquanpeng/one-api/relay/billing/ratio"
@@ -64,25 +65,25 @@ func getPreConsumedQuota(textRequest *relaymodel.GeneralOpenAIRequest, promptTok
 func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, ratio float64, meta *meta.Meta) (int64, *relaymodel.ErrorWithStatusCode) {
 	preConsumedQuota := getPreConsumedQuota(textRequest, promptTokens, ratio)
 
-	groupQuota, err := model.CacheGetGroupQuota(ctx, meta.Group)
+	groupRemainQuota, err := groupQuota.Default.GetGroupRemainQuota(meta.Group)
 	if err != nil {
 		return preConsumedQuota, openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
 	}
-	if groupQuota-preConsumedQuota < 0 {
+	if groupRemainQuota-preConsumedQuota < 0 {
 		return preConsumedQuota, openai.ErrorWrapper(errors.New("group quota is not enough"), "insufficient_group_quota", http.StatusForbidden)
 	}
-	err = model.CacheDecreaseGroupQuota(meta.Group, preConsumedQuota)
+	err = groupQuota.Default.PostGroupConsume(meta.Group, preConsumedQuota)
 	if err != nil {
 		return preConsumedQuota, openai.ErrorWrapper(err, "decrease_group_quota_failed", http.StatusInternalServerError)
 	}
-	if groupQuota > 100*preConsumedQuota {
+	if groupRemainQuota > 100*preConsumedQuota {
 		// in this case, we do not pre-consume quota
 		// because the group has enough quota
 		preConsumedQuota = 0
-		logger.Info(ctx, fmt.Sprintf("group %s has enough quota %d, trusted and no need to pre-consume", meta.Group, groupQuota))
+		logger.Info(ctx, fmt.Sprintf("group %s has enough quota %d, trusted and no need to pre-consume", meta.Group, groupRemainQuota))
 	}
 	if preConsumedQuota > 0 {
-		err := model.PreConsumeTokenQuota(meta.TokenId, preConsumedQuota)
+		err := groupQuota.Default.PostGroupConsume(meta.Group, preConsumedQuota)
 		if err != nil {
 			return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
 		}
@@ -110,13 +111,9 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		quota = 0
 	}
 	quotaDelta := quota - preConsumedQuota
-	err := model.PostConsumeTokenQuota(meta.TokenId, quotaDelta)
+	err := groupQuota.Default.PostGroupConsume(meta.Group, quotaDelta)
 	if err != nil {
 		logger.Error(ctx, "error consuming token remain quota: "+err.Error())
-	}
-	err = model.CacheUpdateGroupQuota(ctx, meta.Group)
-	if err != nil {
-		logger.Error(ctx, "error update group quota cache: "+err.Error())
 	}
 	logContent := fmt.Sprintf("模型倍率 %.2f，补全倍率 %.2f", ratio, completionRatio)
 	model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenName, quota, logContent)

@@ -87,9 +87,15 @@ func DeleteGroupById(id string) (err error) {
 	if id == "" {
 		return errors.New("id 为空！")
 	}
-	result := DB.Delete(&Group{
-		Id: id,
-	})
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteGroup(id)
+		}
+	}()
+	result := DB.
+		Delete(&Group{
+			Id: id,
+		})
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
@@ -111,26 +117,24 @@ func UpdateGroupRequestCount(id string, count int) error {
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
-func UpdateGroupQPM(id string, qpm int64) error {
+func UpdateGroupQPM(id string, qpm int64) (err error) {
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteGroup(id)
+		}
+	}()
 	result := DB.Model(&Group{}).Where("id = ?", id).UpdateColumn("qpm", gorm.Expr("qpm = ?", qpm))
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
-func UpdateGroupStatus(id string, status int) error {
+func UpdateGroupStatus(id string, status int) (err error) {
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteGroup(id)
+		}
+	}()
 	result := DB.Model(&Group{}).Where("id = ?", id).UpdateColumn("status", gorm.Expr("status = ?", status))
 	return HandleUpdateResult(result, ErrGroupNotFound)
-}
-
-func IsGroupEnabled(id string) (bool, error) {
-	if id == "" {
-		return false, errors.New("group id is empty")
-	}
-	var group Group
-	err := DB.Where("id = ?", id).Select("status").First(&group).Error
-	if err != nil {
-		return false, HandleNotFound(err, ErrGroupNotFound)
-	}
-	return group.Status == GroupStatusEnabled, nil
 }
 
 func SearchGroup(keyword string, startIdx int, num int, onlyDisabled bool) (groups []*Group, total int64, err error) {
