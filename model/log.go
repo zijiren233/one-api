@@ -230,8 +230,8 @@ func SumUsedToken(logType int, startTimestamp time.Time, endTimestamp time.Time,
 	return token
 }
 
-func DeleteOldLog(targetTimestamp time.Time) (int64, error) {
-	result := LOG_DB.Where("created_at < ?", targetTimestamp).Delete(&Log{})
+func DeleteOldLog(timestamp time.Time) (int64, error) {
+	result := LOG_DB.Where("created_at < ?", timestamp).Delete(&Log{})
 	return result.RowsAffected, result.Error
 }
 

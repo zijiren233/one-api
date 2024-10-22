@@ -70,11 +70,14 @@ func SetApiRouter(router *gin.Engine) {
 		logsRoute := apiRouter.Group("/logs")
 		{
 			logsRoute.GET("/", controller.GetLogs)
-			logsRoute.GET("/group/:group", controller.GetGroupLogs)
 			logsRoute.DELETE("/", controller.DeleteHistoryLogs)
 			logsRoute.GET("/stat", controller.GetLogsStat)
 			logsRoute.GET("/search", controller.SearchLogs)
-			logsRoute.GET("/search/:group", controller.SearchGroupLogs)
+		}
+		logRoute := apiRouter.Group("/log")
+		{
+			logRoute.GET("/:group/search", controller.SearchGroupLogs)
+			logRoute.GET("/:group", controller.GetGroupLogs)
 		}
 	}
 }

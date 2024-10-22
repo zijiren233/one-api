@@ -147,11 +147,18 @@ func GetLogsStat(c *gin.Context) {
 	logType, _ := strconv.Atoi(c.Query("type"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	if endTimestamp < startTimestamp {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "end_timestamp must be greater than start_timestamp",
+		})
+		return
+	}
 	tokenName := c.Query("token_name")
-	username := c.Query("username")
+	group := c.Query("group")
 	modelName := c.Query("model_name")
 	channel, _ := strconv.Atoi(c.Query("channel"))
-	quotaNum := model.SumUsedQuota(logType, time.UnixMilli(startTimestamp), time.UnixMilli(endTimestamp), modelName, username, tokenName, channel)
+	quotaNum := model.SumUsedQuota(logType, time.UnixMilli(startTimestamp), time.UnixMilli(endTimestamp), modelName, group, tokenName, channel)
 	// tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, "")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -188,15 +195,15 @@ func GetLogsSelfStat(c *gin.Context) {
 }
 
 func DeleteHistoryLogs(c *gin.Context) {
-	targetTimestamp, _ := strconv.ParseInt(c.Query("target_timestamp"), 10, 64)
-	if targetTimestamp == 0 {
+	timestamp, _ := strconv.ParseInt(c.Query("timestamp"), 10, 64)
+	if timestamp == 0 {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "target timestamp is required",
+			"message": "timestamp is required",
 		})
 		return
 	}
-	count, err := model.DeleteOldLog(time.UnixMilli(targetTimestamp))
+	count, err := model.DeleteOldLog(time.UnixMilli(timestamp))
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
