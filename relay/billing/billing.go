@@ -2,7 +2,6 @@ package billing
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/logger"
@@ -16,8 +15,7 @@ func PostConsumeAmount(ctx context.Context, tokenId int, amount float64, group s
 		logger.SysError("error consuming token remain quota: " + err.Error())
 	}
 	// totalAmount is total amount consumed
-	logContent := fmt.Sprintf("模型价格 %.6f", modelPrice)
-	model.RecordConsumeLog(ctx, group, channelId, int(amount), 0, modelName, tokenName, amount, modelPrice, 0, logContent)
+	model.RecordConsumeLog(ctx, group, channelId, int(amount), 0, modelName, tokenName, amount, modelPrice, 0, "")
 	model.UpdateGroupUsedAmountAndRequestCount(group, amount, 1)
 	model.UpdateTokenUsedAmount(tokenId, amount, 1)
 	model.UpdateChannelUsedAmount(channelId, amount, 1)
