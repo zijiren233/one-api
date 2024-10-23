@@ -3,10 +3,11 @@ package openai
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common/render"
 

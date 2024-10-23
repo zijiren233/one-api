@@ -1,11 +1,12 @@
 package palm
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/songquanpeng/one-api/common/render"
 	"io"
 	"net/http"
+
+	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"

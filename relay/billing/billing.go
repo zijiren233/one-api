@@ -13,7 +13,7 @@ func ReturnPreConsumedQuota(ctx context.Context, preConsumedQuota int64, group s
 	if preConsumedQuota != 0 {
 		go func(ctx context.Context) {
 			// return pre-consumed quota
-			err := quota.Default.PostGroupConsume(group, -preConsumedQuota)
+			err := quota.Default.PostGroupConsume(group, preConsumedQuota)
 			if err != nil {
 				logger.Error(ctx, "error return pre-consumed quota: "+err.Error())
 			}

@@ -1,8 +1,11 @@
 package deepl
 
 import (
-	"encoding/json"
+	"io"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
+	json "github.com/json-iterator/go"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
@@ -10,8 +13,6 @@ import (
 	"github.com/songquanpeng/one-api/relay/constant/finishreason"
 	"github.com/songquanpeng/one-api/relay/constant/role"
 	"github.com/songquanpeng/one-api/relay/model"
-	"io"
-	"net/http"
 )
 
 // https://developers.deepl.com/docs/getting-started/your-first-api-request

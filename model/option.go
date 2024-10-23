@@ -1,10 +1,11 @@
 package model
 
 import (
-	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"

@@ -2,13 +2,14 @@ package zhipu
 
 import (
 	"bufio"
-	"encoding/json"
-	"github.com/songquanpeng/one-api/common/render"
 	"io"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
@@ -25,8 +26,10 @@ import (
 // https://open.bigmodel.cn/api/paas/v3/model-api/chatglm_std/invoke
 // https://open.bigmodel.cn/api/paas/v3/model-api/chatglm_std/sse-invoke
 
-var zhipuTokens sync.Map
-var expSeconds int64 = 24 * 3600
+var (
+	zhipuTokens sync.Map
+	expSeconds  int64 = 24 * 3600
+)
 
 func GetToken(apikey string) string {
 	data, ok := zhipuTokens.Load(apikey)

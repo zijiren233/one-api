@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"reflect"
 
-	jsoniter "github.com/json-iterator/go"
+	json "github.com/json-iterator/go"
 
 	"gorm.io/gorm/schema"
 )
-
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type JSONSerializer struct{}
 

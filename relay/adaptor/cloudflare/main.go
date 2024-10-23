@@ -2,10 +2,11 @@ package cloudflare
 
 import (
 	"bufio"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/render"

@@ -2,9 +2,10 @@ package vertexai
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
+
+	json "github.com/json-iterator/go"
 
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
 	"cloud.google.com/go/iam/credentials/apiv1/credentialspb"

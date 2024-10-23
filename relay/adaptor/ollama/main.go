@@ -3,12 +3,13 @@ package ollama
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/songquanpeng/one-api/common/render"
 	"io"
 	"net/http"
 	"strings"
+
+	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/random"
@@ -31,8 +32,8 @@ func ConvertRequest(request model.GeneralOpenAIRequest) *ChatRequest {
 			TopP:             request.TopP,
 			FrequencyPenalty: request.FrequencyPenalty,
 			PresencePenalty:  request.PresencePenalty,
-			NumPredict:  	  request.MaxTokens,
-			NumCtx:  	  request.NumCtx,
+			NumPredict:       request.MaxTokens,
+			NumCtx:           request.NumCtx,
 		},
 		Stream: request.Stream,
 	}
@@ -122,7 +123,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	for scanner.Scan() {
 		data := scanner.Text()
 		if strings.HasPrefix(data, "}") {
-		    data = strings.TrimPrefix(data, "}") + "}"
+			data = strings.TrimPrefix(data, "}") + "}"
 		}
 
 		var ollamaResponse ChatResponse

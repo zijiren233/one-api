@@ -1,13 +1,14 @@
 package controller
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"time"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common/client"
 	"github.com/songquanpeng/one-api/common/logger"

@@ -3,11 +3,12 @@ package aws
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"text/template"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/random"

@@ -1,8 +1,9 @@
 package controller
 
 import (
-	"encoding/json"
 	"net/http"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/helper"

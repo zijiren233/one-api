@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -9,6 +8,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"

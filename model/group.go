@@ -1,9 +1,10 @@
 package model
 
 import (
-	"encoding/json"
 	"errors"
 	"time"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common"
 	"gorm.io/gorm"

@@ -1,8 +1,9 @@
 package model
 
 import (
-	"encoding/json"
 	"time"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/helper"

@@ -2,12 +2,13 @@ package cohere
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
-	"github.com/songquanpeng/one-api/common/render"
 	"io"
 	"net/http"
 	"strings"
+
+	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
@@ -17,9 +18,7 @@ import (
 	"github.com/songquanpeng/one-api/relay/model"
 )
 
-var (
-	WebSearchConnector = Connector{ID: "web-search"}
-)
+var WebSearchConnector = Connector{ID: "web-search"}
 
 func stopReasonCohere2OpenAI(reason *string) string {
 	if reason == nil {

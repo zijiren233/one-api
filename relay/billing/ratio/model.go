@@ -1,9 +1,10 @@
 package ratio
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common/logger"
 )

@@ -2,12 +2,13 @@ package gemini
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
-	"github.com/songquanpeng/one-api/common/render"
 	"io"
 	"net/http"
 	"strings"
+
+	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
@@ -246,7 +247,7 @@ func responseGeminiChat2OpenAI(response *ChatResponse) *openai.TextResponse {
 func streamResponseGeminiChat2OpenAI(geminiResponse *ChatResponse) *openai.ChatCompletionsStreamResponse {
 	var choice openai.ChatCompletionsStreamResponseChoice
 	choice.Delta.Content = geminiResponse.GetResponseText()
-	//choice.FinishReason = &constant.StopFinishReason
+	// choice.FinishReason = &constant.StopFinishReason
 	var response openai.ChatCompletionsStreamResponse
 	response.Id = fmt.Sprintf("chatcmpl-%s", random.GetUUID())
 	response.Created = helper.GetTimestamp()
