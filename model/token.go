@@ -254,6 +254,7 @@ func UpdateTokenStatus(id int, status int) (err error) {
 		}
 	}()
 	result := DB.
+		Model(&token).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
 				{Name: "key"},
@@ -275,7 +276,8 @@ func UpdateTokenStatusAndAccessedAt(id int, status int) (err error) {
 			_ = CacheDeleteToken(token.Key)
 		}
 	}()
-	result := DB.Model(&token).
+	result := DB.
+		Model(&token).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
 				{Name: "key"},
@@ -297,7 +299,8 @@ func UpdateGroupTokenStatusAndAccessedAt(group string, id int, status int) (err 
 			_ = CacheDeleteToken(token.Key)
 		}
 	}()
-	result := DB.Model(&token).
+	result := DB.
+		Model(&token).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
 				{Name: "key"},
@@ -320,7 +323,8 @@ func UpdateGroupTokenStatus(group string, id int, status int) (err error) {
 			_ = CacheDeleteToken(token.Key)
 		}
 	}()
-	result := DB.Model(&token).
+	result := DB.
+		Model(&token).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
 				{Name: "key"},
@@ -397,18 +401,20 @@ func UpdateTokenUsedQuota(id int, quota int64, requestCount int) (err error) {
 		}
 	}()
 	result := DB.
+		Model(token).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
 				{Name: "used_quota"},
 			},
 		}).
-		Model(token).Where("id = ?", id).Updates(
-		map[string]interface{}{
-			"used_quota":    gorm.Expr("used_quota + ?", quota),
-			"request_count": gorm.Expr("request_count + ?", requestCount),
-			"accessed_at":   time.Now(),
-		},
-	)
+		Where("id = ?", id).
+		Updates(
+			map[string]interface{}{
+				"used_quota":    gorm.Expr("used_quota + ?", quota),
+				"request_count": gorm.Expr("request_count + ?", requestCount),
+				"accessed_at":   time.Now(),
+			},
+		)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 

@@ -340,8 +340,12 @@ func UpdateToken(c *gin.Context) {
 		})
 		return
 	}
+	expiredAt := time.Time{}
+	if token.ExpiredAt != 0 {
+		expiredAt = time.UnixMilli(token.ExpiredAt)
+	}
 	cleanToken.Name = token.Name
-	cleanToken.ExpiredAt = time.UnixMilli(token.ExpiredAt)
+	cleanToken.ExpiredAt = expiredAt
 	cleanToken.Quota = token.Quota
 	cleanToken.Models = token.Models
 	cleanToken.Subnet = token.Subnet
@@ -396,8 +400,12 @@ func UpdateGroupToken(c *gin.Context) {
 		})
 		return
 	}
+	expiredAt := time.Time{}
+	if token.ExpiredAt != 0 {
+		expiredAt = time.UnixMilli(token.ExpiredAt)
+	}
 	cleanToken.Name = token.Name
-	cleanToken.ExpiredAt = time.UnixMilli(token.ExpiredAt)
+	cleanToken.ExpiredAt = expiredAt
 	cleanToken.Quota = token.Quota
 	cleanToken.Models = token.Models
 	cleanToken.Subnet = token.Subnet
