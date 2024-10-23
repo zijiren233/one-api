@@ -389,7 +389,7 @@ func UpdateToken(token *Token) (err error) {
 			_ = CacheDeleteToken(token.Key)
 		}
 	}()
-	result := DB.Omit("used_quota", "request_count").Save(token)
+	result := DB.Omit("status", "key", "group", "used_quota", "request_count").Save(token)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
