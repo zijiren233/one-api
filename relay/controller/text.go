@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"github.com/songquanpeng/one-api/relay/adaptor"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/apitype"
-	"github.com/songquanpeng/one-api/relay/billing"
 	billingPrice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
@@ -40,10 +40,13 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	// pre-consume balance
 	promptTokens := getPromptTokens(textRequest, meta.Mode)
 	meta.PromptTokens = promptTokens
-	preConsumedAmount, bizErr := preConsumeAmount(ctx, textRequest, promptTokens, price, meta)
+	ok, bizErr := preCheckGroupBalance(ctx, textRequest, promptTokens, price, meta)
 	if bizErr != nil {
 		logger.Warnf(ctx, "preConsumeAmount failed: %+v", *bizErr)
 		return bizErr
+	}
+	if !ok {
+		return openai.ErrorWrapper(errors.New("group balance is not enough"), "insufficient_group_balance", http.StatusForbidden)
 	}
 
 	adaptor := relay.GetAdaptor(meta.APIType)
@@ -65,7 +68,6 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return openai.ErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)
 	}
 	if isErrorHappened(meta, resp) {
-		billing.ReturnPreConsumedAmount(ctx, preConsumedAmount, meta.Group)
 		return RelayErrorHandler(resp)
 	}
 
@@ -73,11 +75,10 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	usage, respErr := adaptor.DoResponse(c, resp, meta)
 	if respErr != nil {
 		logger.Errorf(ctx, "respErr is not nil: %+v", respErr)
-		billing.ReturnPreConsumedAmount(ctx, preConsumedAmount, meta.Group)
 		return respErr
 	}
 	// post-consume amount
-	go postConsumeAmount(ctx, usage, meta, textRequest, price, preConsumedAmount)
+	go postConsumeAmount(ctx, usage, meta, textRequest, price)
 	return nil
 }
 

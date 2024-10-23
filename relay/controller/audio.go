@@ -17,7 +17,6 @@ import (
 	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/client"
 	"github.com/songquanpeng/one-api/common/ctxkey"
-	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/billing"
 	billingprice "github.com/songquanpeng/one-api/relay/billing/price"
@@ -53,57 +52,21 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 
 	price := billingprice.GetModelPrice(audioModel, channelType)
-	var amount float64
 	var preConsumedAmount float64
 	switch relayMode {
 	case relaymode.AudioSpeech:
 		preConsumedAmount = float64(len(ttsRequest.Input)) * price
-		amount = preConsumedAmount
 	default:
 	}
-	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(group)
+	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(c.Request.Context(), group)
 	if err != nil {
 		return openai.ErrorWrapper(err, "get_group_balance_failed", http.StatusInternalServerError)
 	}
 
 	// Check if group balance is enough
-	if groupRemainBalance-preConsumedAmount < 0 {
+	if groupRemainBalance < preConsumedAmount {
 		return openai.ErrorWrapper(errors.New("group balance is not enough"), "insufficient_group_balance", http.StatusForbidden)
 	}
-	err = balance.Default.PostGroupConsume(group, preConsumedAmount)
-	if err != nil {
-		return openai.ErrorWrapper(err, "decrease_group_balance_failed", http.StatusInternalServerError)
-	}
-	if groupRemainBalance > 100*preConsumedAmount {
-		// in this case, we do not pre-consume balance
-		// because the group has enough balance
-		preConsumedAmount = 0
-	}
-	if preConsumedAmount > 0 {
-		err := balance.Default.PostGroupConsume(group, -preConsumedAmount)
-		if err != nil {
-			return openai.ErrorWrapper(err, "pre_consume_token_balance_failed", http.StatusForbidden)
-		}
-	}
-	succeed := false
-	defer func() {
-		if succeed {
-			return
-		}
-		if preConsumedAmount > 0 {
-			// we need to roll back the pre-consumed balance
-			defer func(ctx context.Context) {
-				go func() {
-					// negative means add balance back for group
-					err := balance.Default.PostGroupConsume(group, -preConsumedAmount)
-					if err != nil {
-						logger.Error(ctx, fmt.Sprintf("error rollback pre-consumed balance: %s", err.Error()))
-					}
-				}()
-			}(c.Request.Context())
-		}
-	}()
-
 	// map model name
 	modelMapping := c.GetString(ctxkey.ModelMapping)
 	if modelMapping != "" {
@@ -174,6 +137,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return openai.ErrorWrapper(err, "close_request_body_failed", http.StatusInternalServerError)
 	}
 
+	var amount float64
 	if relayMode != relaymode.AudioSpeech {
 		responseBody, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -215,10 +179,8 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	if resp.StatusCode != http.StatusOK {
 		return RelayErrorHandler(resp)
 	}
-	succeed = true
-	amountDelta := amount - preConsumedAmount
 	defer func(ctx context.Context) {
-		go billing.PostConsumeAmount(ctx, tokenId, amountDelta, amount, group, channelId, price, audioModel, tokenName)
+		go billing.PostConsumeAmount(ctx, tokenId, amount, group, channelId, price, audioModel, tokenName)
 	}(c.Request.Context())
 
 	for k, v := range resp.Header {

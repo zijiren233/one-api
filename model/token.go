@@ -8,7 +8,6 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common"
-	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/logger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -408,48 +407,4 @@ func UpdateTokenUsedAmount(id int, amount float64, requestCount int) (err error)
 			},
 		)
 	return HandleUpdateResult(result, ErrTokenNotFound)
-}
-
-func PreConsumeTokenAmount(tokenId int, amount float64) (err error) {
-	if amount < 0 {
-		return errors.New("金额不能为负数！")
-	}
-	token, err := GetTokenById(tokenId)
-	if err != nil {
-		return err
-	}
-	if token.Quota > 0 && token.Quota <= token.UsedAmount {
-		return errors.New("令牌额度不足")
-	}
-	groupBalance, err := balance.Default.GetGroupRemainBalance(token.GroupId)
-	if err != nil {
-		return err
-	}
-	if groupBalance < amount {
-		return errors.New("用户金额不足")
-	}
-	// amountTooLow := groupBalance >= config.AmountRemindThreshold && groupBalance-amount < config.AmountRemindThreshold
-	// noMoreAmount := groupBalance-amount <= 0
-	// if amountTooLow || noMoreAmount {
-	// go func() {
-	// 	email, err := GetUserEmail(token.UserId)
-	// 	if err != nil {
-	// 		logger.SysError("failed to fetch user email: " + err.Error())
-	// 	}
-	// 	prompt := "您的金额即将用尽"
-	// 	if noMoreAmount {
-	// 		prompt = "您的金额已用尽"
-	// 	}
-	// 	if email != "" {
-	// 		topUpLink := fmt.Sprintf("%s/topup", config.ServerAddress)
-	// 		err = message.SendEmail(prompt, email,
-	// 			fmt.Sprintf("%s，当前剩余金额为 %d，为了不影响您的使用，请及时充值。<br/>充值链接：<a href='%s'>%s</a>", prompt, groupBalance, topUpLink, topUpLink))
-	// 		if err != nil {
-	// 			logger.SysError("failed to send email" + err.Error())
-	// 		}
-	// 	}
-	// }()
-	// }
-	err = UpdateGroupUsedAmount(token.GroupId, -amount)
-	return err
 }

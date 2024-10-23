@@ -169,7 +169,10 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 
 	price := billingPrice.GetModelPrice(imageModel, meta.ChannelType)
-	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(meta.Group)
+	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(ctx, meta.Group)
+	if err != nil {
+		return openai.ErrorWrapper(err, "get_group_remain_balance_failed", http.StatusInternalServerError)
+	}
 
 	amount := price * imageCostRatio * 1000 * float64(imageRequest.N)
 
@@ -189,7 +192,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return
 		}
 
-		err := balance.Default.PostGroupConsume(meta.Group, amount)
+		err := balance.Default.PostGroupConsume(ctx, meta.Group, amount)
 		if err != nil {
 			logger.SysError("error consuming token remain balance: " + err.Error())
 		}

@@ -1,8 +1,10 @@
 package balance
 
+import "context"
+
 type GroupBalance interface {
-	GetGroupRemainBalance(id string) (float64, error)
-	PostGroupConsume(id string, amount float64) error
+	GetGroupRemainBalance(ctx context.Context, group string) (float64, error)
+	PostGroupConsume(ctx context.Context, group string, usage float64) error
 }
 
-var Default = NewMockGroupBalance()
+var Default GroupBalance = NewMockGroupBalance()

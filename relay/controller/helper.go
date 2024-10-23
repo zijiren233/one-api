@@ -2,8 +2,6 @@ package controller
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -57,39 +55,23 @@ func getPreConsumedAmount(textRequest *relaymodel.GeneralOpenAIRequest, promptTo
 	if textRequest.MaxTokens != 0 {
 		preConsumedTokens += int64(textRequest.MaxTokens)
 	}
-	return float64(preConsumedTokens) * price
+	return float64(preConsumedTokens) * price / billingPrice.PriceUnit
 }
 
-func preConsumeAmount(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, price float64, meta *meta.Meta) (float64, *relaymodel.ErrorWithStatusCode) {
+func preCheckGroupBalance(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, price float64, meta *meta.Meta) (bool, *relaymodel.ErrorWithStatusCode) {
 	preConsumedAmount := getPreConsumedAmount(textRequest, promptTokens, price)
 
-	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(meta.Group)
+	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(ctx, meta.Group)
 	if err != nil {
-		return preConsumedAmount, openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
+		return false, openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
 	}
-	if groupRemainBalance-preConsumedAmount < 0 {
-		return preConsumedAmount, openai.ErrorWrapper(errors.New("group balance is not enough"), "insufficient_group_balance", http.StatusForbidden)
+	if groupRemainBalance < preConsumedAmount {
+		return false, nil
 	}
-	err = balance.Default.PostGroupConsume(meta.Group, preConsumedAmount)
-	if err != nil {
-		return preConsumedAmount, openai.ErrorWrapper(err, "decrease_group_balance_failed", http.StatusInternalServerError)
-	}
-	if groupRemainBalance > 100*preConsumedAmount {
-		// in this case, we do not pre-consume amount
-		// because the group has enough balance
-		preConsumedAmount = 0
-		logger.Info(ctx, fmt.Sprintf("group %s has enough balance %d, trusted and no need to pre-consume", meta.Group, groupRemainBalance))
-	}
-	if preConsumedAmount > 0 {
-		err := balance.Default.PostGroupConsume(meta.Group, preConsumedAmount)
-		if err != nil {
-			return preConsumedAmount, openai.ErrorWrapper(err, "pre_consume_token_amount_failed", http.StatusForbidden)
-		}
-	}
-	return preConsumedAmount, nil
+	return true, nil
 }
 
-func postConsumeAmount(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64, preConsumedAmount float64) {
+func postConsumeAmount(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		return
@@ -104,8 +86,7 @@ func postConsumeAmount(ctx context.Context, usage *relaymodel.Usage, meta *meta.
 		// we cannot just return, because we may have to return the pre-consumed amount
 		amount = 0
 	}
-	amountDelta := amount - preConsumedAmount
-	err := balance.Default.PostGroupConsume(meta.Group, amountDelta)
+	err := balance.Default.PostGroupConsume(ctx, meta.Group, amount)
 	if err != nil {
 		logger.Error(ctx, "error consuming token remain amount: "+err.Error())
 	}
