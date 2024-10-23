@@ -22,7 +22,7 @@ const (
 type Group struct {
 	Id           string    `gorm:"primaryKey" json:"id"`
 	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	AccessedAt   time.Time `json:"accessed_at"`
 	Status       int       `gorm:"type:int;default:1" json:"status"` // enabled, disabled
 	UsedQuota    int64     `gorm:"bigint" json:"used_quota"`         // used quota
 	QPM          int64     `gorm:"bigint" json:"qpm"`                // queries per minute
@@ -35,12 +35,12 @@ func (g *Group) MarshalJSON() ([]byte, error) {
 	type Alias Group
 	return json.Marshal(&struct {
 		Alias
-		CreatedAt int64 `json:"created_at"`
-		UpdatedAt int64 `json:"updated_at"`
+		CreatedAt  int64 `json:"created_at"`
+		AccessedAt int64 `json:"accessed_at"`
 	}{
-		Alias:     (Alias)(*g),
-		CreatedAt: g.CreatedAt.UnixMilli(),
-		UpdatedAt: g.UpdatedAt.UnixMilli(),
+		Alias:      (Alias)(*g),
+		CreatedAt:  g.CreatedAt.UnixMilli(),
+		AccessedAt: g.AccessedAt.UnixMilli(),
 	})
 }
 
@@ -103,17 +103,24 @@ func UpdateGroupUsedQuotaAndRequestCount(id string, quota int64, count int) erro
 	result := DB.Model(&Group{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"used_quota":    gorm.Expr("used_quota + ?", quota),
 		"request_count": gorm.Expr("request_count + ?", count),
+		"accessed_at":   time.Now(),
 	})
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
 func UpdateGroupUsedQuota(id string, quota int64) error {
-	result := DB.Model(&Group{}).Where("id = ?", id).UpdateColumn("used_quota", gorm.Expr("used_quota + ?", quota))
+	result := DB.Model(&Group{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"used_quota":  gorm.Expr("used_quota + ?", quota),
+		"accessed_at": time.Now(),
+	})
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
 func UpdateGroupRequestCount(id string, count int) error {
-	result := DB.Model(&Group{}).Where("id = ?", id).UpdateColumn("request_count", gorm.Expr("request_count + ?", count))
+	result := DB.Model(&Group{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"request_count": gorm.Expr("request_count + ?", count),
+		"accessed_at":   time.Now(),
+	})
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 

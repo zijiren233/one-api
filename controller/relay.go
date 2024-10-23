@@ -56,10 +56,9 @@ func Relay(c *gin.Context) {
 		return
 	}
 	lastFailedChannelId := channelId
-	channelName := c.GetString(ctxkey.ChannelName)
 	group := c.GetString(ctxkey.Group)
 	originalModel := c.GetString(ctxkey.OriginalModel)
-	go processChannelRelayError(ctx, group, channelId, channelName, bizErr)
+	go processChannelRelayError(ctx, group, channelId, bizErr)
 	requestId := c.GetString(helper.RequestIdKey)
 	retryTimes := config.RetryTimes
 	if !shouldRetry(c, bizErr.StatusCode) {
@@ -85,9 +84,8 @@ func Relay(c *gin.Context) {
 		}
 		channelId := c.GetInt(ctxkey.ChannelId)
 		lastFailedChannelId = channelId
-		channelName := c.GetString(ctxkey.ChannelName)
 		// BUG: bizErr is in race condition
-		go processChannelRelayError(ctx, group, channelId, channelName, bizErr)
+		go processChannelRelayError(ctx, group, channelId, bizErr)
 	}
 	if bizErr != nil {
 		if bizErr.StatusCode == http.StatusTooManyRequests {
@@ -121,7 +119,7 @@ func shouldRetry(c *gin.Context, statusCode int) bool {
 	return true
 }
 
-func processChannelRelayError(ctx context.Context, group string, channelId int, channelName string, err *model.ErrorWithStatusCode) {
+func processChannelRelayError(ctx context.Context, group string, channelId int, err *model.ErrorWithStatusCode) {
 	logger.Errorf(ctx, "relay error (channel id %d, group: %s): %s", channelId, group, err.Message)
 	// https://platform.openai.com/docs/guides/error-codes/api-errors
 	if monitor.ShouldDisableChannel(&err.Error, err.StatusCode) {

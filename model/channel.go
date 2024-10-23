@@ -26,7 +26,6 @@ const (
 type Channel struct {
 	Id               int               `json:"id"`
 	CreatedAt        time.Time         `json:"created_at"`
-	UpdatedAt        time.Time         `json:"updated_at"`
 	Type             int               `json:"type" gorm:"default:0"`
 	Key              string            `json:"key" gorm:"type:text"`
 	Status           int               `json:"status" gorm:"default:1"`
@@ -60,11 +59,9 @@ func (c *Channel) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		Alias
 		CreatedAt int64 `json:"created_at"`
-		UpdatedAt int64 `json:"updated_at"`
 	}{
 		Alias:     (Alias)(*c),
 		CreatedAt: c.CreatedAt.UnixMilli(),
-		UpdatedAt: c.UpdatedAt.UnixMilli(),
 	})
 }
 

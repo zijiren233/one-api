@@ -33,7 +33,6 @@ type Token struct {
 	Status       int       `gorm:"default:1" json:"status"`
 	Name         string    `gorm:"index" json:"name"`
 	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
 	AccessedAt   time.Time `json:"accessed_at"`
 	ExpiredAt    time.Time `json:"expired_at"`
 	Quota        int64     `gorm:"bigint" json:"quota"`
@@ -48,13 +47,11 @@ func (t *Token) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		Alias
 		CreatedAt  int64 `json:"created_at"`
-		UpdatedAt  int64 `json:"updated_at"`
 		AccessedAt int64 `json:"accessed_at"`
 		ExpiredAt  int64 `json:"expired_at"`
 	}{
 		Alias:      (Alias)(*t),
 		CreatedAt:  t.CreatedAt.UnixMilli(),
-		UpdatedAt:  t.UpdatedAt.UnixMilli(),
 		AccessedAt: t.AccessedAt.UnixMilli(),
 		ExpiredAt:  t.ExpiredAt.UnixMilli(),
 	})
@@ -393,7 +390,7 @@ func UpdateToken(token *Token) (err error) {
 }
 
 func UpdateTokenUsedQuota(id int, quota int64, requestCount int) (err error) {
-	token := Token{Id: id}
+	token := &Token{Id: id}
 	defer func() {
 		if err == nil {
 			_ = CacheUpdateTokenUsedQuota(id, token.UsedQuota)
@@ -405,7 +402,7 @@ func UpdateTokenUsedQuota(id int, quota int64, requestCount int) (err error) {
 				{Name: "used_quota"},
 			},
 		}).
-		Model(&token).Where("id = ?", id).Updates(
+		Model(token).Where("id = ?", id).Updates(
 		map[string]interface{}{
 			"used_quota":    gorm.Expr("used_quota + ?", quota),
 			"request_count": gorm.Expr("request_count + ?", requestCount),

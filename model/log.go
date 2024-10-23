@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -22,6 +23,17 @@ type Log struct {
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
 	ChannelId        int       `gorm:"index" json:"channel"`
+}
+
+func (l *Log) MarshalJSON() ([]byte, error) {
+	type Alias Log
+	return json.Marshal(&struct {
+		Alias
+		CreatedAt int64 `json:"created_at"`
+	}{
+		Alias:     (Alias)(*l),
+		CreatedAt: l.CreatedAt.UnixMilli(),
+	})
 }
 
 const (
