@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/songquanpeng/one-api/common"
-	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/logger"
 	"gorm.io/gorm"
@@ -42,16 +41,6 @@ type Channel struct {
 	ModelMapping     map[string]string `gorm:"serializer:fastjson;type:text" json:"model_mapping"`
 	Priority         int32             `json:"priority"`
 	Config           ChannelConfig     `gorm:"serializer:json;type:text" json:"config"`
-}
-
-func (c *Channel) AfterFind(tx *gorm.DB) (err error) {
-	if len(c.Models) == 0 {
-		c.Models = config.DefaultChannelModels[c.Type]
-	}
-	if len(c.ModelMapping) == 0 {
-		c.ModelMapping = config.DefaultChannelModelMapping[c.Type]
-	}
-	return nil
 }
 
 func (c *Channel) MarshalJSON() ([]byte, error) {

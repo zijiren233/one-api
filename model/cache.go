@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/common/random"
 )
@@ -257,6 +258,12 @@ func InitChannelCache() {
 	var channels []*Channel
 	DB.Where("status = ?", ChannelStatusEnabled).Find(&channels)
 	for _, channel := range channels {
+		if len(channel.Models) == 0 {
+			channel.Models = config.DefaultChannelModels[channel.Type]
+		}
+		if len(channel.ModelMapping) == 0 {
+			channel.ModelMapping = config.DefaultChannelModelMapping[channel.Type]
+		}
 		newChannelId2channel[channel.Id] = channel
 	}
 	newModel2channels := make(map[string][]*Channel)
