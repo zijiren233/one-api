@@ -16,38 +16,34 @@ import (
 )
 
 const (
-	SyncFrequency     = time.Minute
-	TokenCacheKey     = "token:%s"
-	TokenUsedQuotaKey = "token_used_quota:%d"
-	GroupCacheKey     = "group:%s"
+	SyncFrequency          = time.Minute
+	TokenCacheKey          = "token:%s"
+	TokenUsedQuotaCacheKey = "token_used_quota:%d"
+	GroupCacheKey          = "group:%s"
 )
 
 type TokenCache struct {
-	Id             int       `json:"id"`
-	Group          string    `json:"group"`
-	Key            string    `json:"-"`
-	Name           string    `json:"name"`
-	Models         []string  `json:"models"`
-	Subnet         string    `json:"subnet"`
-	Status         int       `json:"status"`
-	ExpiredAt      time.Time `json:"expired_at"`
-	UnlimitedQuota bool      `json:"unlimited_quota"`
-	Quota          int64     `json:"quota"`
-	QPM            int64     `json:"qpm"`
+	Id        int       `json:"id"`
+	Group     string    `json:"group"`
+	Key       string    `json:"-"`
+	Name      string    `json:"name"`
+	Models    []string  `json:"models"`
+	Subnet    string    `json:"subnet"`
+	Status    int       `json:"status"`
+	ExpiredAt time.Time `json:"expired_at"`
+	Quota     int64     `json:"quota"`
 }
 
 func (t *Token) ToTokenCache() *TokenCache {
 	return &TokenCache{
-		Id:             t.Id,
-		Group:          t.GroupId,
-		Name:           t.Name,
-		Models:         t.Models,
-		Subnet:         t.Subnet,
-		Status:         t.Status,
-		ExpiredAt:      t.ExpiredAt,
-		UnlimitedQuota: t.UnlimitedQuota,
-		Quota:          t.Quota,
-		QPM:            t.QPM,
+		Id:        t.Id,
+		Group:     t.GroupId,
+		Name:      t.Name,
+		Models:    t.Models,
+		Subnet:    t.Subnet,
+		Status:    t.Status,
+		ExpiredAt: t.ExpiredAt,
+		Quota:     t.Quota,
 	}
 }
 
@@ -125,7 +121,7 @@ func CacheGetTokenUsedQuota(id int) (int64, error) {
 	if !common.RedisEnabled {
 		return GetTokenUsedQuota(id)
 	}
-	quotaString, err := common.RedisGet(fmt.Sprintf(TokenUsedQuotaKey, id))
+	quotaString, err := common.RedisGet(fmt.Sprintf(TokenUsedQuotaCacheKey, id))
 	if err == nil {
 		return strconv.ParseInt(quotaString, 10, 64)
 	}
@@ -143,14 +139,14 @@ func CacheUpdateTokenUsedQuota(id int, quota int64) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	return common.RedisSet(fmt.Sprintf(TokenUsedQuotaKey, id), fmt.Sprintf("%d", quota), SyncFrequency)
+	return common.RedisSet(fmt.Sprintf(TokenUsedQuotaCacheKey, id), fmt.Sprintf("%d", quota), SyncFrequency)
 }
 
 func CacheDeleteTokenUsedQuota(id int) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	return common.RedisDel(fmt.Sprintf(TokenUsedQuotaKey, id))
+	return common.RedisDel(fmt.Sprintf(TokenUsedQuotaCacheKey, id))
 }
 
 type GroupCache struct {

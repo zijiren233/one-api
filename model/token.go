@@ -26,23 +26,21 @@ const (
 )
 
 type Token struct {
-	Id             int       `gorm:"primaryKey" json:"id"`
-	GroupId        string    `gorm:"index" json:"group"`
-	Group          *Group    `gorm:"foreignKey:GroupId" json:"-"`
-	Key            string    `gorm:"type:char(48);uniqueIndex" json:"key"`
-	Status         int       `gorm:"default:1" json:"status"`
-	Name           string    `gorm:"index" json:"name"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	AccessedAt     time.Time `json:"accessed_at"`
-	ExpiredAt      time.Time `json:"expired_at"`
-	UnlimitedQuota bool      `json:"unlimited_quota"`
-	Quota          int64     `gorm:"bigint" json:"quota"`
-	UsedQuota      int64     `gorm:"bigint" json:"used_quota"` // used quota
-	RequestCount   int       `gorm:"type:int" json:"request_count"`
-	Models         []string  `gorm:"serializer:json;type:text" json:"models"` // allowed models
-	Subnet         string    `json:"subnet"`                                  // allowed subnet
-	QPM            int64     `gorm:"bigint" json:"qpm"`
+	Id           int       `gorm:"primaryKey" json:"id"`
+	GroupId      string    `gorm:"index" json:"group"`
+	Group        *Group    `gorm:"foreignKey:GroupId" json:"-"`
+	Key          string    `gorm:"type:char(48);uniqueIndex" json:"key"`
+	Status       int       `gorm:"default:1" json:"status"`
+	Name         string    `gorm:"index" json:"name"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	AccessedAt   time.Time `json:"accessed_at"`
+	ExpiredAt    time.Time `json:"expired_at"`
+	Quota        int64     `gorm:"bigint" json:"quota"`
+	UsedQuota    int64     `gorm:"bigint" json:"used_quota"` // used quota
+	RequestCount int       `gorm:"type:int" json:"request_count"`
+	Models       []string  `gorm:"serializer:json;type:text" json:"models"` // allowed models
+	Subnet       string    `json:"subnet"`                                  // allowed subnet
 }
 
 func (t *Token) MarshalJSON() ([]byte, error) {
@@ -216,7 +214,7 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 		}
 		return nil, errors.New("该令牌已过期")
 	}
-	if !token.UnlimitedQuota {
+	if token.Quota > 0 {
 		usedQuota, err := CacheGetTokenUsedQuota(token.Id)
 		if err != nil {
 			logger.SysError("CacheGetTokenUsedQuota failed: " + err.Error())
@@ -274,12 +272,19 @@ func UpdateTokenStatus(id int, status int) (err error) {
 }
 
 func UpdateTokenStatusAndAccessedAt(id int, status int) (err error) {
+	token := Token{Id: id}
 	defer func() {
 		if err == nil {
-			_ = CacheDeleteTokenUsedQuota(id)
+			_ = CacheDeleteToken(token.Key)
 		}
 	}()
-	result := DB.Model(&Token{}).Where("id = ?", id).Updates(
+	result := DB.Model(&token).
+		Clauses(clause.Returning{
+			Columns: []clause.Column{
+				{Name: "key"},
+			},
+		}).
+		Where("id = ?", id).Updates(
 		map[string]interface{}{
 			"status":      status,
 			"accessed_at": time.Now(),
@@ -391,10 +396,16 @@ func UpdateTokenUsedQuota(id int, quota int64, requestCount int) (err error) {
 	token := Token{Id: id}
 	defer func() {
 		if err == nil {
-			_ = CacheUpdateTokenUsedQuota(id, quota)
+			_ = CacheUpdateTokenUsedQuota(id, token.UsedQuota)
 		}
 	}()
-	result := DB.Model(&token).Where("id = ?", id).Updates(
+	result := DB.
+		Clauses(clause.Returning{
+			Columns: []clause.Column{
+				{Name: "used_quota"},
+			},
+		}).
+		Model(&token).Where("id = ?", id).Updates(
 		map[string]interface{}{
 			"used_quota":    gorm.Expr("used_quota + ?", quota),
 			"request_count": gorm.Expr("request_count + ?", requestCount),
@@ -412,7 +423,7 @@ func PreConsumeTokenQuota(tokenId int, quota int64) (err error) {
 	if err != nil {
 		return err
 	}
-	if !token.UnlimitedQuota && token.Quota <= token.UsedQuota {
+	if token.Quota > 0 && token.Quota <= token.UsedQuota {
 		return errors.New("令牌额度不足")
 	}
 	userQuota, err := quotaIf.Default.GetGroupRemainQuota(token.GroupId)
@@ -444,7 +455,7 @@ func PreConsumeTokenQuota(tokenId int, quota int64) (err error) {
 		// 	}
 		// }()
 	}
-	if token.UnlimitedQuota {
+	if token.Quota > 0 {
 		return nil
 	}
 	err = UpdateGroupUsedQuota(token.GroupId, -quota)

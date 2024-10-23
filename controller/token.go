@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/network"
 	"github.com/songquanpeng/one-api/common/random"
 	"github.com/songquanpeng/one-api/model"
@@ -185,26 +184,6 @@ func GetGroupToken(c *gin.Context) {
 	return
 }
 
-func GetTokenStatus(c *gin.Context) {
-	tokenId := c.GetInt(ctxkey.TokenId)
-	group := c.GetString(ctxkey.Group)
-	token, err := model.GetGroupTokenById(group, tokenId)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"object":     "credit_summary",
-		"quota":      token.Quota,
-		"used":       token.UsedQuota,
-		"qpm":        token.QPM,
-		"expires_at": token.ExpiredAt,
-	})
-}
-
 func validateToken(token AddTokenRequest) error {
 	if len(token.Name) > 30 {
 		return fmt.Errorf("令牌名称过长")
@@ -219,13 +198,11 @@ func validateToken(token AddTokenRequest) error {
 }
 
 type AddTokenRequest struct {
-	Name           string   `json:"name"`
-	ExpiredAt      int64    `json:"expired_at"`
-	UnlimitedQuota bool     `json:"unlimited_quota"`
-	Quota          int64    `json:"quota"`
-	Models         []string `json:"models"`
-	Subnet         string   `json:"subnet"`
-	QPM            int64    `json:"qpm"`
+	Name      string   `json:"name"`
+	ExpiredAt int64    `json:"expired_at"`
+	Quota     int64    `json:"quota"`
+	Models    []string `json:"models"`
+	Subnet    string   `json:"subnet"`
 }
 
 func AddToken(c *gin.Context) {
@@ -256,15 +233,13 @@ func AddToken(c *gin.Context) {
 	}
 
 	cleanToken := &model.Token{
-		GroupId:        group,
-		Name:           token.Name,
-		Key:            random.GenerateKey(),
-		ExpiredAt:      expiredAt,
-		UnlimitedQuota: token.UnlimitedQuota,
-		Quota:          token.Quota,
-		Models:         token.Models,
-		Subnet:         token.Subnet,
-		QPM:            token.QPM,
+		GroupId:   group,
+		Name:      token.Name,
+		Key:       random.GenerateKey(),
+		ExpiredAt: expiredAt,
+		Quota:     token.Quota,
+		Models:    token.Models,
+		Subnet:    token.Subnet,
 	}
 	err = model.InsertToken(cleanToken)
 	if err != nil {
@@ -368,10 +343,8 @@ func UpdateToken(c *gin.Context) {
 	cleanToken.Name = token.Name
 	cleanToken.ExpiredAt = time.UnixMilli(token.ExpiredAt)
 	cleanToken.Quota = token.Quota
-	cleanToken.UnlimitedQuota = token.UnlimitedQuota
 	cleanToken.Models = token.Models
 	cleanToken.Subnet = token.Subnet
-	cleanToken.QPM = token.QPM
 	err = model.UpdateToken(cleanToken)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -426,10 +399,8 @@ func UpdateGroupToken(c *gin.Context) {
 	cleanToken.Name = token.Name
 	cleanToken.ExpiredAt = time.UnixMilli(token.ExpiredAt)
 	cleanToken.Quota = token.Quota
-	cleanToken.UnlimitedQuota = token.UnlimitedQuota
 	cleanToken.Models = token.Models
 	cleanToken.Subnet = token.Subnet
-	cleanToken.QPM = token.QPM
 	err = model.UpdateToken(cleanToken)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -484,7 +455,7 @@ func UpdateTokenStatus(c *gin.Context) {
 			})
 			return
 		}
-		if cleanToken.Status == model.TokenStatusExhausted && !cleanToken.UnlimitedQuota && cleanToken.UsedQuota >= cleanToken.Quota {
+		if cleanToken.Status == model.TokenStatusExhausted && cleanToken.Quota > 0 && cleanToken.UsedQuota >= cleanToken.Quota {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度",
@@ -546,7 +517,7 @@ func UpdateGroupTokenStatus(c *gin.Context) {
 			})
 			return
 		}
-		if cleanToken.Status == model.TokenStatusExhausted && !cleanToken.UnlimitedQuota && cleanToken.UsedQuota >= cleanToken.Quota {
+		if cleanToken.Status == model.TokenStatusExhausted && cleanToken.Quota > 0 && cleanToken.UsedQuota >= cleanToken.Quota {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度",

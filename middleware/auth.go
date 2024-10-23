@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/config"
@@ -61,13 +62,27 @@ func TokenAuth(c *gin.Context) {
 		return
 	}
 	c.Set(ctxkey.RequestModel, requestModel)
-	if len(token.Models) != 0 {
-		c.Set(ctxkey.AvailableModels, token.Models)
-		if requestModel != "" && !slices.Contains(token.Models, requestModel) {
-			abortWithMessage(c, http.StatusForbidden, fmt.Sprintf("该令牌无权使用模型：%s", requestModel))
+	if len(token.Models) == 0 {
+		token.Models = model.CacheGetAllModels()
+	}
+	c.Set(ctxkey.AvailableModels, token.Models)
+	if requestModel != "" && !slices.Contains(token.Models, requestModel) {
+		abortWithMessage(c, http.StatusForbidden, fmt.Sprintf("该令牌无权使用模型：%s", requestModel))
+		return
+	}
+
+	if group.QPM > 0 {
+		ok, err := RateLimit(ctx, fmt.Sprintf("group_qpm:%s", group.Id), int(group.QPM), time.Minute)
+		if err != nil {
+			abortWithMessage(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if !ok {
+			abortWithMessage(c, http.StatusTooManyRequests, "请求过于频繁")
 			return
 		}
 	}
+
 	c.Set(ctxkey.Group, token.Group)
 	c.Set(ctxkey.TokenId, token.Id)
 	c.Set(ctxkey.TokenName, token.Name)

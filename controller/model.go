@@ -3,7 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
-	"strings"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/ctxkey"
@@ -133,44 +133,33 @@ func EnabledType2Models(c *gin.Context) {
 	})
 }
 
-func ListAllModels(c *gin.Context) {
-	c.JSON(200, gin.H{
-		"object": "list",
-		"data":   models,
-	})
-}
-
 func ListModels(c *gin.Context) {
-	var availableModels []string
-	if c.GetString(ctxkey.AvailableModels) != "" {
-		availableModels = strings.Split(c.GetString(ctxkey.AvailableModels), ",")
-	} else {
-		availableModels = model.CacheGetAllModels()
-	}
-	modelSet := make(map[string]bool)
+	availableModels := c.GetStringSlice(ctxkey.AvailableModels)
+	modelSet := make(map[string]struct{})
 	for _, availableModel := range availableModels {
-		modelSet[availableModel] = true
+		modelSet[availableModel] = struct{}{}
 	}
-	availableOpenAIModels := make([]OpenAIModels, 0)
+
+	availableOpenAIModels := make([]OpenAIModels, 0, len(availableModels))
 	for _, model := range models {
 		if _, ok := modelSet[model.Id]; ok {
-			modelSet[model.Id] = false
 			availableOpenAIModels = append(availableOpenAIModels, model)
+			delete(modelSet, model.Id)
 		}
 	}
-	for modelName, ok := range modelSet {
-		if ok {
-			availableOpenAIModels = append(availableOpenAIModels, OpenAIModels{
-				Id:      modelName,
-				Object:  "model",
-				Created: 1626777600,
-				OwnedBy: "custom",
-				Root:    modelName,
-				Parent:  nil,
-			})
-		}
+
+	for modelName := range modelSet {
+		availableOpenAIModels = append(availableOpenAIModels, OpenAIModels{
+			Id:      modelName,
+			Object:  "model",
+			Created: 1626777600,
+			OwnedBy: "custom",
+			Root:    modelName,
+			Parent:  nil,
+		})
 	}
-	c.JSON(200, gin.H{
+
+	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
 		"data":   availableOpenAIModels,
 	})
@@ -178,26 +167,16 @@ func ListModels(c *gin.Context) {
 
 func RetrieveModel(c *gin.Context) {
 	modelId := c.Param("model")
-	if model, ok := modelsMap[modelId]; ok {
-		c.JSON(200, model)
-	} else {
-		Error := relaymodel.Error{
-			Message: fmt.Sprintf("The model '%s' does not exist", modelId),
-			Type:    "invalid_request_error",
-			Param:   "model",
-			Code:    "model_not_found",
-		}
+	model, ok := modelsMap[modelId]
+	if !ok || !slices.Contains(c.GetStringSlice(ctxkey.AvailableModels), modelId) {
 		c.JSON(200, gin.H{
-			"error": Error,
+			"error": relaymodel.Error{
+				Message: fmt.Sprintf("The model '%s' does not exist", modelId),
+				Type:    "invalid_request_error",
+				Param:   "model",
+				Code:    "model_not_found",
+			},
 		})
 	}
-}
-
-func GetUserAvailableModels(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    model.CacheGetAllModels(),
-	})
-	return
+	c.JSON(200, model)
 }
