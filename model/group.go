@@ -25,7 +25,7 @@ type Group struct {
 	CreatedAt    time.Time `json:"created_at"`
 	AccessedAt   time.Time `json:"accessed_at"`
 	Status       int       `gorm:"type:int;default:1" json:"status"` // enabled, disabled
-	UsedQuota    int64     `gorm:"bigint" json:"used_quota"`         // used quota
+	UsedAmount   float64   `gorm:"bigint" json:"used_amount"`        // used amount
 	QPM          int64     `gorm:"bigint" json:"qpm"`                // queries per minute
 	RequestCount int       `gorm:"type:int" json:"request_count"`    // request number
 	Tokens       []*Token  `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
@@ -100,18 +100,18 @@ func DeleteGroupById(id string) (err error) {
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
-func UpdateGroupUsedQuotaAndRequestCount(id string, quota int64, count int) error {
+func UpdateGroupUsedAmountAndRequestCount(id string, amount float64, count int) error {
 	result := DB.Model(&Group{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"used_quota":    gorm.Expr("used_quota + ?", quota),
+		"used_amount":   gorm.Expr("used_amount + ?", amount),
 		"request_count": gorm.Expr("request_count + ?", count),
 		"accessed_at":   time.Now(),
 	})
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
-func UpdateGroupUsedQuota(id string, quota int64) error {
+func UpdateGroupUsedAmount(id string, amount float64) error {
 	result := DB.Model(&Group{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"used_quota":  gorm.Expr("used_quota + ?", quota),
+		"used_amount": gorm.Expr("used_amount + ?", amount),
 		"accessed_at": time.Now(),
 	})
 	return HandleUpdateResult(result, ErrGroupNotFound)

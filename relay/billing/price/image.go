@@ -1,6 +1,6 @@
-package ratio
+package price
 
-var ImageSizeRatios = map[string]map[string]float64{
+var ImageSizePrices = map[string]map[string]float64{
 	"dall-e-2": {
 		"256x256":   1,
 		"512x512":   1.125,

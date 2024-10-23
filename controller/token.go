@@ -200,7 +200,7 @@ func validateToken(token AddTokenRequest) error {
 type AddTokenRequest struct {
 	Name      string   `json:"name"`
 	ExpiredAt int64    `json:"expired_at"`
-	Quota     int64    `json:"quota"`
+	Quota     float64  `json:"quota"`
 	Models    []string `json:"models"`
 	Subnet    string   `json:"subnet"`
 }
@@ -463,7 +463,7 @@ func UpdateTokenStatus(c *gin.Context) {
 			})
 			return
 		}
-		if cleanToken.Status == model.TokenStatusExhausted && cleanToken.Quota > 0 && cleanToken.UsedQuota >= cleanToken.Quota {
+		if cleanToken.Status == model.TokenStatusExhausted && cleanToken.Quota > 0 && cleanToken.UsedAmount >= cleanToken.Quota {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度",
@@ -525,7 +525,7 @@ func UpdateGroupTokenStatus(c *gin.Context) {
 			})
 			return
 		}
-		if cleanToken.Status == model.TokenStatusExhausted && cleanToken.Quota > 0 && cleanToken.UsedQuota >= cleanToken.Quota {
+		if cleanToken.Status == model.TokenStatusExhausted && cleanToken.Quota > 0 && cleanToken.UsedAmount >= cleanToken.Quota {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度",

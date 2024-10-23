@@ -20,6 +20,9 @@ type Log struct {
 	GroupId          string    `gorm:"index;index:idx_group_model_name,priority:2" json:"group"`
 	Group            *Group    `gorm:"foreignKey:GroupId" json:"-"`
 	Model            string    `gorm:"index;index:idx_group_model_name,priority:1" json:"model"`
+	UsedAmount       float64   `json:"used_amount"`
+	Price            float64   `json:"price"`
+	CompletionPrice  float64   `json:"completion_price"`
 	TokenName        string    `gorm:"index" json:"token_name"`
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
@@ -59,8 +62,8 @@ func RecordLog(group string, logType int, content string) {
 	}
 }
 
-func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTokens int, completionTokens int, modelName string, tokenName string, quota int64, content string) {
-	logger.Info(ctx, fmt.Sprintf("record consume log: group=%s, channelId=%d, promptTokens=%d, completionTokens=%d, modelName=%s, tokenName=%s, quota=%d, content=%s", group, channelId, promptTokens, completionTokens, modelName, tokenName, quota, content))
+func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTokens int, completionTokens int, modelName string, tokenName string, usedAmount float64, price float64, completionPrice float64, content string) {
+	logger.Info(ctx, fmt.Sprintf("record consume log: group=%s, channelId=%d, promptTokens=%d, completionTokens=%d, modelName=%s, tokenName=%s, usedAmount=%f, price=%f, completionPrice=%f, content=%s", group, channelId, promptTokens, completionTokens, modelName, tokenName, usedAmount, price, completionPrice, content))
 	log := &Log{
 		GroupId:          group,
 		CreatedAt:        time.Now(),
@@ -70,6 +73,9 @@ func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTo
 		CompletionTokens: completionTokens,
 		TokenName:        tokenName,
 		Model:            modelName,
+		UsedAmount:       usedAmount,
+		Price:            price,
+		CompletionPrice:  completionPrice,
 		ChannelId:        channelId,
 	}
 	err := LOG_DB.Create(log).Error

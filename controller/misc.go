@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/songquanpeng/one-api/common"
-	"github.com/songquanpeng/one-api/common/config"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,9 +13,8 @@ func GetStatus(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"version":        common.Version,
-			"start_time":     common.StartTime,
-			"quota_per_unit": config.QuotaPerUnit,
+			"version":    common.Version,
+			"start_time": common.StartTime,
 		},
 	})
 	return

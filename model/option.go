@@ -9,7 +9,7 @@ import (
 
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"
-	billingratio "github.com/songquanpeng/one-api/relay/billing/ratio"
+	billingprice "github.com/songquanpeng/one-api/relay/billing/price"
 )
 
 type Option struct {
@@ -30,11 +30,8 @@ func InitOptionMap() {
 	config.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(config.AutomaticEnableChannelEnabled)
 	config.OptionMap["ApproximateTokenEnabled"] = strconv.FormatBool(config.ApproximateTokenEnabled)
 	config.OptionMap["ChannelDisableThreshold"] = strconv.FormatFloat(config.ChannelDisableThreshold, 'f', -1, 64)
-	config.OptionMap["QuotaRemindThreshold"] = strconv.FormatInt(config.QuotaRemindThreshold, 10)
-	config.OptionMap["PreConsumedQuota"] = strconv.FormatInt(config.PreConsumedQuota, 10)
-	config.OptionMap["ModelRatio"] = billingratio.ModelRatio2JSONString()
-	config.OptionMap["CompletionRatio"] = billingratio.CompletionRatio2JSONString()
-	config.OptionMap["QuotaPerUnit"] = strconv.FormatFloat(config.QuotaPerUnit, 'f', -1, 64)
+	config.OptionMap["ModelPrice"] = billingprice.ModelPrice2JSONString()
+	config.OptionMap["CompletionPrice"] = billingprice.CompletionPrice2JSONString()
 	config.OptionMap["RetryTimes"] = strconv.Itoa(config.RetryTimes)
 	config.OptionMap["DefaultChannelModels"] = "{}"
 	config.OptionMap["DefaultChannelModelMapping"] = "{}"
@@ -45,8 +42,8 @@ func InitOptionMap() {
 func loadOptionsFromDatabase() {
 	options, _ := AllOption()
 	for _, option := range options {
-		if option.Key == "ModelRatio" {
-			option.Value = billingratio.AddNewMissingRatio(option.Value)
+		if option.Key == "ModelPrice" {
+			option.Value = billingprice.AddNewMissingPrice(option.Value)
 		}
 		err := updateOptionMap(option.Key, option.Value)
 		if err != nil {
@@ -109,20 +106,14 @@ func updateOptionMap(key string, value string) (err error) {
 			return err
 		}
 		config.DefaultChannelModelMapping = newMapping
-	case "QuotaRemindThreshold":
-		config.QuotaRemindThreshold, _ = strconv.ParseInt(value, 10, 64)
-	case "PreConsumedQuota":
-		config.PreConsumedQuota, _ = strconv.ParseInt(value, 10, 64)
 	case "RetryTimes":
 		config.RetryTimes, _ = strconv.Atoi(value)
-	case "ModelRatio":
-		err = billingratio.UpdateModelRatioByJSONString(value)
-	case "CompletionRatio":
-		err = billingratio.UpdateCompletionRatioByJSONString(value)
+	case "ModelPrice":
+		err = billingprice.UpdateModelPriceByJSONString(value)
+	case "CompletionPrice":
+		err = billingprice.UpdateCompletionPriceByJSONString(value)
 	case "ChannelDisableThreshold":
 		config.ChannelDisableThreshold, _ = strconv.ParseFloat(value, 64)
-	case "QuotaPerUnit":
-		config.QuotaPerUnit, _ = strconv.ParseFloat(value, 64)
 	}
 	return err
 }

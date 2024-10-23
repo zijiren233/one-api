@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	SyncFrequency          = time.Minute
-	TokenCacheKey          = "token:%s"
-	TokenUsedQuotaCacheKey = "token_used_quota:%d"
-	GroupCacheKey          = "group:%s"
+	SyncFrequency           = time.Minute
+	TokenCacheKey           = "token:%s"
+	TokenUsedAmountCacheKey = "token_used_amount:%d"
+	GroupCacheKey           = "group:%s"
 )
 
 type TokenCache struct {
@@ -33,7 +33,7 @@ type TokenCache struct {
 	Subnet    string    `json:"subnet"`
 	Status    int       `json:"status"`
 	ExpiredAt time.Time `json:"expired_at"`
-	Quota     int64     `json:"quota"`
+	Quota     float64   `json:"quota"`
 }
 
 func (t *Token) ToTokenCache() *TokenCache {
@@ -119,36 +119,36 @@ func cacheToken(cacheKey string, token *TokenCache) error {
 	return common.RedisSet(cacheKey, common.BytesToString(jsonBytes), SyncFrequency)
 }
 
-func CacheGetTokenUsedQuota(id int) (int64, error) {
+func CacheGetTokenUsedAmount(id int) (float64, error) {
 	if !common.RedisEnabled {
-		return GetTokenUsedQuota(id)
+		return GetTokenUsedAmount(id)
 	}
-	quotaString, err := common.RedisGet(fmt.Sprintf(TokenUsedQuotaCacheKey, id))
+	amountString, err := common.RedisGet(fmt.Sprintf(TokenUsedAmountCacheKey, id))
 	if err == nil {
-		return strconv.ParseInt(quotaString, 10, 64)
+		return strconv.ParseFloat(amountString, 64)
 	}
-	quota, err := GetTokenUsedQuota(id)
+	amount, err := GetTokenUsedAmount(id)
 	if err != nil {
 		return 0, err
 	}
-	if err := CacheUpdateTokenUsedQuota(id, quota); err != nil {
-		logger.SysError("Redis set token used quota error: " + err.Error())
+	if err := CacheUpdateTokenUsedAmount(id, amount); err != nil {
+		logger.SysError("Redis set token used amount error: " + err.Error())
 	}
-	return quota, nil
+	return amount, nil
 }
 
-func CacheUpdateTokenUsedQuota(id int, quota int64) error {
+func CacheUpdateTokenUsedAmount(id int, amount float64) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	return common.RedisSet(fmt.Sprintf(TokenUsedQuotaCacheKey, id), fmt.Sprintf("%d", quota), SyncFrequency)
+	return common.RedisSet(fmt.Sprintf(TokenUsedAmountCacheKey, id), fmt.Sprintf("%f", amount), SyncFrequency)
 }
 
-func CacheDeleteTokenUsedQuota(id int) error {
+func CacheDeleteTokenUsedAmount(id int) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	return common.RedisDel(fmt.Sprintf(TokenUsedQuotaCacheKey, id))
+	return common.RedisDel(fmt.Sprintf(TokenUsedAmountCacheKey, id))
 }
 
 type GroupCache struct {

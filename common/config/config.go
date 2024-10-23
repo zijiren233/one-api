@@ -9,8 +9,6 @@ import (
 	"github.com/songquanpeng/one-api/common/env"
 )
 
-var QuotaPerUnit = 500 * 1000.0 // $0.002 / 1K tokens
-
 var (
 	OptionMap        map[string]string
 	OptionMapRWMutex sync.RWMutex
@@ -23,13 +21,11 @@ var (
 
 var (
 	// 渠道超时时的禁用阈值
-	ChannelDisableThreshold              = 5.0
-	AutomaticDisableChannelEnabled       = false
-	AutomaticEnableChannelEnabled        = false
-	QuotaRemindThreshold           int64 = 1000
-	PreConsumedQuota               int64 = 500
-	ApproximateTokenEnabled              = false
-	RetryTimes                           = 0
+	ChannelDisableThreshold        = 5.0
+	AutomaticDisableChannelEnabled = false
+	AutomaticEnableChannelEnabled  = false
+	ApproximateTokenEnabled        = false
+	RetryTimes                     = 0
 )
 
 var DisableAutoMigrateDB = os.Getenv("DISABLE_AUTO_MIGRATE_DB") == "true"

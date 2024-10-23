@@ -8,9 +8,8 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common"
-	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/logger"
-	quotaIf "github.com/songquanpeng/one-api/common/quota"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -36,8 +35,8 @@ type Token struct {
 	CreatedAt    time.Time `json:"created_at"`
 	AccessedAt   time.Time `json:"accessed_at"`
 	ExpiredAt    time.Time `json:"expired_at"`
-	Quota        int64     `gorm:"bigint" json:"quota"`
-	UsedQuota    int64     `gorm:"bigint" json:"used_quota"` // used quota
+	Quota        float64   `gorm:"bigint" json:"quota"`
+	UsedAmount   float64   `gorm:"bigint" json:"used_amount"` // used amount
 	RequestCount int       `gorm:"type:int" json:"request_count"`
 	Models       []string  `gorm:"serializer:json;type:text" json:"models"` // allowed models
 	Subnet       string    `json:"subnet"`                                  // allowed subnet
@@ -78,10 +77,8 @@ func GetTokens(startIdx int, num int, order string, group string) (tokens []*Tok
 		return nil, 0, nil
 	}
 	switch order {
-	case "remain_quota":
-		tx = tx.Order("unlimited_quota desc, remain_quota desc")
-	case "used_quota":
-		tx = tx.Order("used_quota desc")
+	case "used_amount":
+		tx = tx.Order("used_amount desc")
 	default:
 		tx = tx.Order("id desc")
 	}
@@ -105,10 +102,8 @@ func GetGroupTokens(group string, startIdx int, num int, order string) (tokens [
 		return nil, 0, nil
 	}
 	switch order {
-	case "remain_quota":
-		tx = tx.Order("unlimited_quota desc, remain_quota desc")
-	case "used_quota":
-		tx = tx.Order("used_quota desc")
+	case "used_amount":
+		tx = tx.Order("used_amount desc")
 	default:
 		tx = tx.Order("id desc")
 	}
@@ -131,10 +126,8 @@ func SearchTokens(keyword string, startIdx int, num int, order string) (tokens [
 		return nil, 0, nil
 	}
 	switch order {
-	case "remain_quota":
-		tx = tx.Order("unlimited_quota desc, remain_quota desc")
-	case "used_quota":
-		tx = tx.Order("used_quota desc")
+	case "used_amount":
+		tx = tx.Order("used_amount desc")
 	default:
 		tx = tx.Order("id desc")
 	}
@@ -160,10 +153,8 @@ func SearchGroupTokens(group string, keyword string, startIdx int, num int, orde
 		return nil, 0, nil
 	}
 	switch order {
-	case "remain_quota":
-		tx = tx.Order("unlimited_quota desc, remain_quota desc")
-	case "used_quota":
-		tx = tx.Order("used_quota desc")
+	case "used_amount":
+		tx = tx.Order("used_amount desc")
 	default:
 		tx = tx.Order("id desc")
 	}
@@ -171,16 +162,16 @@ func SearchGroupTokens(group string, keyword string, startIdx int, num int, orde
 	return tokens, total, err
 }
 
-func GetTokenUsedQuota(id int) (int64, error) {
-	var quota int64
-	err := DB.Model(&Token{}).Where("id = ?", id).Select("used_quota").Scan(&quota).Error
-	return quota, HandleNotFound(err, ErrTokenNotFound)
+func GetTokenUsedAmount(id int) (float64, error) {
+	var amount float64
+	err := DB.Model(&Token{}).Where("id = ?", id).Select("used_amount").Scan(&amount).Error
+	return amount, HandleNotFound(err, ErrTokenNotFound)
 }
 
-func GetTokenUsedQuotaByKey(key string) (int64, error) {
-	var quota int64
-	err := DB.Model(&Token{}).Where("key = ?", key).Select("used_quota").Scan(&quota).Error
-	return quota, HandleNotFound(err, ErrTokenNotFound)
+func GetTokenUsedAmountByKey(key string) (float64, error) {
+	var amount float64
+	err := DB.Model(&Token{}).Where("key = ?", key).Select("used_amount").Scan(&amount).Error
+	return amount, HandleNotFound(err, ErrTokenNotFound)
 }
 
 func ValidateAndGetToken(key string) (token *TokenCache, err error) {
@@ -213,11 +204,11 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 		return nil, errors.New("该令牌已过期")
 	}
 	if token.Quota > 0 {
-		usedQuota, err := CacheGetTokenUsedQuota(token.Id)
+		usedAmount, err := CacheGetTokenUsedAmount(token.Id)
 		if err != nil {
-			logger.SysError("CacheGetTokenUsedQuota failed: " + err.Error())
+			logger.SysError("CacheGetTokenUsedAmount failed: " + err.Error())
 		}
-		if usedQuota >= token.Quota {
+		if usedAmount >= token.Quota {
 			// in this case, we can make sure the token is exhausted
 			err := UpdateTokenStatusAndAccessedAt(token.Id, TokenStatusExhausted)
 			if err != nil {
@@ -348,7 +339,7 @@ func DeleteTokenByIdAndGroupId(id int, groupId string) (err error) {
 	defer func() {
 		if err == nil {
 			_ = CacheDeleteToken(token.Key)
-			_ = CacheDeleteTokenUsedQuota(id)
+			_ = CacheDeleteTokenUsedAmount(id)
 		}
 	}()
 	result := DB.
@@ -370,7 +361,7 @@ func DeleteTokenById(id int) (err error) {
 	defer func() {
 		if err == nil {
 			_ = CacheDeleteToken(token.Key)
-			_ = CacheDeleteTokenUsedQuota(id)
+			_ = CacheDeleteTokenUsedAmount(id)
 		}
 	}()
 	result := DB.
@@ -390,28 +381,28 @@ func UpdateToken(token *Token) (err error) {
 			_ = CacheDeleteToken(token.Key)
 		}
 	}()
-	result := DB.Omit("status", "key", "group", "used_quota", "request_count").Save(token)
+	result := DB.Omit("status", "key", "group", "used_amount", "request_count").Save(token)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
-func UpdateTokenUsedQuota(id int, quota int64, requestCount int) (err error) {
+func UpdateTokenUsedAmount(id int, amount float64, requestCount int) (err error) {
 	token := &Token{Id: id}
 	defer func() {
 		if err == nil {
-			_ = CacheUpdateTokenUsedQuota(id, token.UsedQuota)
+			_ = CacheUpdateTokenUsedAmount(id, token.UsedAmount)
 		}
 	}()
 	result := DB.
 		Model(token).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
-				{Name: "used_quota"},
+				{Name: "used_amount"},
 			},
 		}).
 		Where("id = ?", id).
 		Updates(
 			map[string]interface{}{
-				"used_quota":    gorm.Expr("used_quota + ?", quota),
+				"used_amount":   gorm.Expr("used_amount + ?", amount),
 				"request_count": gorm.Expr("request_count + ?", requestCount),
 				"accessed_at":   time.Now(),
 			},
@@ -419,49 +410,46 @@ func UpdateTokenUsedQuota(id int, quota int64, requestCount int) (err error) {
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 
-func PreConsumeTokenQuota(tokenId int, quota int64) (err error) {
-	if quota < 0 {
-		return errors.New("quota 不能为负数！")
+func PreConsumeTokenAmount(tokenId int, amount float64) (err error) {
+	if amount < 0 {
+		return errors.New("金额不能为负数！")
 	}
 	token, err := GetTokenById(tokenId)
 	if err != nil {
 		return err
 	}
-	if token.Quota > 0 && token.Quota <= token.UsedQuota {
+	if token.Quota > 0 && token.Quota <= token.UsedAmount {
 		return errors.New("令牌额度不足")
 	}
-	userQuota, err := quotaIf.Default.GetGroupRemainQuota(token.GroupId)
+	groupBalance, err := balance.Default.GetGroupRemainBalance(token.GroupId)
 	if err != nil {
 		return err
 	}
-	if userQuota < quota {
-		return errors.New("用户额度不足")
+	if groupBalance < amount {
+		return errors.New("用户金额不足")
 	}
-	quotaTooLow := userQuota >= config.QuotaRemindThreshold && userQuota-quota < config.QuotaRemindThreshold
-	noMoreQuota := userQuota-quota <= 0
-	if quotaTooLow || noMoreQuota {
-		// go func() {
-		// 	email, err := GetUserEmail(token.UserId)
-		// 	if err != nil {
-		// 		logger.SysError("failed to fetch user email: " + err.Error())
-		// 	}
-		// 	prompt := "您的额度即将用尽"
-		// 	if noMoreQuota {
-		// 		prompt = "您的额度已用尽"
-		// 	}
-		// 	if email != "" {
-		// 		topUpLink := fmt.Sprintf("%s/topup", config.ServerAddress)
-		// 		err = message.SendEmail(prompt, email,
-		// 			fmt.Sprintf("%s，当前剩余额度为 %d，为了不影响您的使用，请及时充值。<br/>充值链接：<a href='%s'>%s</a>", prompt, userQuota, topUpLink, topUpLink))
-		// 		if err != nil {
-		// 			logger.SysError("failed to send email" + err.Error())
-		// 		}
-		// 	}
-		// }()
-	}
-	if token.Quota > 0 {
-		return nil
-	}
-	err = UpdateGroupUsedQuota(token.GroupId, -quota)
+	// amountTooLow := groupBalance >= config.AmountRemindThreshold && groupBalance-amount < config.AmountRemindThreshold
+	// noMoreAmount := groupBalance-amount <= 0
+	// if amountTooLow || noMoreAmount {
+	// go func() {
+	// 	email, err := GetUserEmail(token.UserId)
+	// 	if err != nil {
+	// 		logger.SysError("failed to fetch user email: " + err.Error())
+	// 	}
+	// 	prompt := "您的金额即将用尽"
+	// 	if noMoreAmount {
+	// 		prompt = "您的金额已用尽"
+	// 	}
+	// 	if email != "" {
+	// 		topUpLink := fmt.Sprintf("%s/topup", config.ServerAddress)
+	// 		err = message.SendEmail(prompt, email,
+	// 			fmt.Sprintf("%s，当前剩余金额为 %d，为了不影响您的使用，请及时充值。<br/>充值链接：<a href='%s'>%s</a>", prompt, groupBalance, topUpLink, topUpLink))
+	// 		if err != nil {
+	// 			logger.SysError("failed to send email" + err.Error())
+	// 		}
+	// 	}
+	// }()
+	// }
+	err = UpdateGroupUsedAmount(token.GroupId, -amount)
 	return err
 }

@@ -14,15 +14,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/client"
-	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
-	groupQuota "github.com/songquanpeng/one-api/common/quota"
-	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/billing"
-	billingratio "github.com/songquanpeng/one-api/relay/billing/ratio"
+	billingprice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
@@ -54,38 +52,37 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 	}
 
-	ratio := billingratio.GetModelRatio(audioModel, channelType)
-	var quota int64
-	var preConsumedQuota int64
+	price := billingprice.GetModelPrice(audioModel, channelType)
+	var amount float64
+	var preConsumedAmount float64
 	switch relayMode {
 	case relaymode.AudioSpeech:
-		preConsumedQuota = int64(float64(len(ttsRequest.Input)) * ratio)
-		quota = preConsumedQuota
+		preConsumedAmount = float64(len(ttsRequest.Input)) * price
+		amount = preConsumedAmount
 	default:
-		preConsumedQuota = int64(float64(config.PreConsumedQuota) * ratio)
 	}
-	groupRemainQuota, err := groupQuota.Default.GetGroupRemainQuota(group)
+	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(group)
 	if err != nil {
-		return openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
+		return openai.ErrorWrapper(err, "get_group_balance_failed", http.StatusInternalServerError)
 	}
 
-	// Check if group quota is enough
-	if groupRemainQuota-preConsumedQuota < 0 {
-		return openai.ErrorWrapper(errors.New("group quota is not enough"), "insufficient_group_quota", http.StatusForbidden)
+	// Check if group balance is enough
+	if groupRemainBalance-preConsumedAmount < 0 {
+		return openai.ErrorWrapper(errors.New("group balance is not enough"), "insufficient_group_balance", http.StatusForbidden)
 	}
-	err = groupQuota.Default.PostGroupConsume(group, preConsumedQuota)
+	err = balance.Default.PostGroupConsume(group, preConsumedAmount)
 	if err != nil {
-		return openai.ErrorWrapper(err, "decrease_group_quota_failed", http.StatusInternalServerError)
+		return openai.ErrorWrapper(err, "decrease_group_balance_failed", http.StatusInternalServerError)
 	}
-	if groupRemainQuota > 100*preConsumedQuota {
-		// in this case, we do not pre-consume quota
-		// because the group has enough quota
-		preConsumedQuota = 0
+	if groupRemainBalance > 100*preConsumedAmount {
+		// in this case, we do not pre-consume balance
+		// because the group has enough balance
+		preConsumedAmount = 0
 	}
-	if preConsumedQuota > 0 {
-		err := model.PreConsumeTokenQuota(tokenId, preConsumedQuota)
+	if preConsumedAmount > 0 {
+		err := balance.Default.PostGroupConsume(group, -preConsumedAmount)
 		if err != nil {
-			return openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
+			return openai.ErrorWrapper(err, "pre_consume_token_balance_failed", http.StatusForbidden)
 		}
 	}
 	succeed := false
@@ -93,14 +90,14 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if succeed {
 			return
 		}
-		if preConsumedQuota > 0 {
-			// we need to roll back the pre-consumed quota
+		if preConsumedAmount > 0 {
+			// we need to roll back the pre-consumed balance
 			defer func(ctx context.Context) {
 				go func() {
-					// negative means add quota back for token & user
-					err := groupQuota.Default.PostGroupConsume(group, -preConsumedQuota)
+					// negative means add balance back for group
+					err := balance.Default.PostGroupConsume(group, -preConsumedAmount)
 					if err != nil {
-						logger.Error(ctx, fmt.Sprintf("error rollback pre-consumed quota: %s", err.Error()))
+						logger.Error(ctx, fmt.Sprintf("error rollback pre-consumed balance: %s", err.Error()))
 					}
 				}()
 			}(c.Request.Context())
@@ -212,16 +209,16 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "get_text_from_body_err", http.StatusInternalServerError)
 		}
-		quota = int64(openai.CountTokenText(text, audioModel))
+		amount = float64(openai.CountTokenText(text, audioModel))
 		resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
 	}
 	if resp.StatusCode != http.StatusOK {
 		return RelayErrorHandler(resp)
 	}
 	succeed = true
-	quotaDelta := quota - preConsumedQuota
+	amountDelta := amount - preConsumedAmount
 	defer func(ctx context.Context) {
-		go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, group, channelId, ratio, audioModel, tokenName)
+		go billing.PostConsumeAmount(ctx, tokenId, amountDelta, amount, group, channelId, price, audioModel, tokenName)
 	}(c.Request.Context())
 
 	for k, v := range resp.Header {

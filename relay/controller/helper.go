@@ -4,18 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
-	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/logger"
-	groupQuota "github.com/songquanpeng/one-api/common/quota"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
-	billingratio "github.com/songquanpeng/one-api/relay/billing/ratio"
+	billingPrice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/controller/validator"
 	"github.com/songquanpeng/one-api/relay/meta"
@@ -54,72 +52,67 @@ func getPromptTokens(textRequest *relaymodel.GeneralOpenAIRequest, relayMode int
 	return 0
 }
 
-func getPreConsumedQuota(textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, ratio float64) int64 {
-	preConsumedTokens := config.PreConsumedQuota + int64(promptTokens)
+func getPreConsumedAmount(textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, price float64) float64 {
+	preConsumedTokens := int64(promptTokens)
 	if textRequest.MaxTokens != 0 {
 		preConsumedTokens += int64(textRequest.MaxTokens)
 	}
-	return int64(float64(preConsumedTokens) * ratio)
+	return float64(preConsumedTokens) * price
 }
 
-func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, ratio float64, meta *meta.Meta) (int64, *relaymodel.ErrorWithStatusCode) {
-	preConsumedQuota := getPreConsumedQuota(textRequest, promptTokens, ratio)
+func preConsumeAmount(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, price float64, meta *meta.Meta) (float64, *relaymodel.ErrorWithStatusCode) {
+	preConsumedAmount := getPreConsumedAmount(textRequest, promptTokens, price)
 
-	groupRemainQuota, err := groupQuota.Default.GetGroupRemainQuota(meta.Group)
+	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(meta.Group)
 	if err != nil {
-		return preConsumedQuota, openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
+		return preConsumedAmount, openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
 	}
-	if groupRemainQuota-preConsumedQuota < 0 {
-		return preConsumedQuota, openai.ErrorWrapper(errors.New("group quota is not enough"), "insufficient_group_quota", http.StatusForbidden)
+	if groupRemainBalance-preConsumedAmount < 0 {
+		return preConsumedAmount, openai.ErrorWrapper(errors.New("group balance is not enough"), "insufficient_group_balance", http.StatusForbidden)
 	}
-	err = groupQuota.Default.PostGroupConsume(meta.Group, preConsumedQuota)
+	err = balance.Default.PostGroupConsume(meta.Group, preConsumedAmount)
 	if err != nil {
-		return preConsumedQuota, openai.ErrorWrapper(err, "decrease_group_quota_failed", http.StatusInternalServerError)
+		return preConsumedAmount, openai.ErrorWrapper(err, "decrease_group_balance_failed", http.StatusInternalServerError)
 	}
-	if groupRemainQuota > 100*preConsumedQuota {
-		// in this case, we do not pre-consume quota
-		// because the group has enough quota
-		preConsumedQuota = 0
-		logger.Info(ctx, fmt.Sprintf("group %s has enough quota %d, trusted and no need to pre-consume", meta.Group, groupRemainQuota))
+	if groupRemainBalance > 100*preConsumedAmount {
+		// in this case, we do not pre-consume amount
+		// because the group has enough balance
+		preConsumedAmount = 0
+		logger.Info(ctx, fmt.Sprintf("group %s has enough balance %d, trusted and no need to pre-consume", meta.Group, groupRemainBalance))
 	}
-	if preConsumedQuota > 0 {
-		err := groupQuota.Default.PostGroupConsume(meta.Group, preConsumedQuota)
+	if preConsumedAmount > 0 {
+		err := balance.Default.PostGroupConsume(meta.Group, preConsumedAmount)
 		if err != nil {
-			return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
+			return preConsumedAmount, openai.ErrorWrapper(err, "pre_consume_token_amount_failed", http.StatusForbidden)
 		}
 	}
-	return preConsumedQuota, nil
+	return preConsumedAmount, nil
 }
 
-func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, ratio float64, preConsumedQuota int64) {
+func postConsumeAmount(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64, preConsumedAmount float64) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		return
 	}
-	var quota int64
-	completionRatio := billingratio.GetCompletionRatio(textRequest.Model, meta.ChannelType)
+	completionPrice := billingPrice.GetCompletionPrice(textRequest.Model, meta.ChannelType)
 	promptTokens := usage.PromptTokens
 	completionTokens := usage.CompletionTokens
-	quota = int64(math.Ceil((float64(promptTokens) + float64(completionTokens)*completionRatio) * ratio))
-	if ratio != 0 && quota <= 0 {
-		quota = 1
-	}
+	amount := (float64(promptTokens) + float64(completionTokens)*completionPrice) * price / billingPrice.PriceUnit
 	totalTokens := promptTokens + completionTokens
 	if totalTokens == 0 {
 		// in this case, must be some error happened
-		// we cannot just return, because we may have to return the pre-consumed quota
-		quota = 0
+		// we cannot just return, because we may have to return the pre-consumed amount
+		amount = 0
 	}
-	quotaDelta := quota - preConsumedQuota
-	err := groupQuota.Default.PostGroupConsume(meta.Group, quotaDelta)
+	amountDelta := amount - preConsumedAmount
+	err := balance.Default.PostGroupConsume(meta.Group, amountDelta)
 	if err != nil {
-		logger.Error(ctx, "error consuming token remain quota: "+err.Error())
+		logger.Error(ctx, "error consuming token remain amount: "+err.Error())
 	}
-	logContent := fmt.Sprintf("模型倍率 %.2f，补全倍率 %.2f", ratio, completionRatio)
-	model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenName, quota, logContent)
-	model.UpdateGroupUsedQuotaAndRequestCount(meta.Group, quota, 1)
-	model.UpdateTokenUsedQuota(meta.TokenId, quota, 1)
-	model.UpdateChannelUsedQuota(meta.ChannelId, quota, 1)
+	model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenName, amount, price, completionPrice, "")
+	model.UpdateGroupUsedAmountAndRequestCount(meta.Group, amount, 1)
+	model.UpdateTokenUsedAmount(meta.TokenId, amount, 1)
+	model.UpdateChannelUsedAmount(meta.ChannelId, amount, 1)
 }
 
 func getMappedModelName(modelName string, mapping map[string]string) (string, bool) {

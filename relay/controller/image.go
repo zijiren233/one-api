@@ -12,13 +12,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
-	"github.com/songquanpeng/one-api/common/ctxkey"
+	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/logger"
-	groupQuota "github.com/songquanpeng/one-api/common/quota"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
-	billingratio "github.com/songquanpeng/one-api/relay/billing/ratio"
+	billingPrice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
@@ -43,25 +42,25 @@ func getImageRequest(c *gin.Context, relayMode int) (*relaymodel.ImageRequest, e
 }
 
 func isValidImageSize(model string, size string) bool {
-	if model == "cogview-3" || billingratio.ImageSizeRatios[model] == nil {
+	if model == "cogview-3" || billingPrice.ImageSizePrices[model] == nil {
 		return true
 	}
-	_, ok := billingratio.ImageSizeRatios[model][size]
+	_, ok := billingPrice.ImageSizePrices[model][size]
 	return ok
 }
 
 func isValidImagePromptLength(model string, promptLength int) bool {
-	maxPromptLength, ok := billingratio.ImagePromptLengthLimitations[model]
+	maxPromptLength, ok := billingPrice.ImagePromptLengthLimitations[model]
 	return !ok || promptLength <= maxPromptLength
 }
 
 func isWithinRange(element string, value int) bool {
-	amounts, ok := billingratio.ImageGenerationAmounts[element]
+	amounts, ok := billingPrice.ImageGenerationAmounts[element]
 	return !ok || (value >= amounts[0] && value <= amounts[1])
 }
 
 func getImageSizeRatio(model string, size string) float64 {
-	if ratio, ok := billingratio.ImageSizeRatios[model][size]; ok {
+	if ratio, ok := billingPrice.ImageSizePrices[model][size]; ok {
 		return ratio
 	}
 	return 1
@@ -132,7 +131,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 
 	imageModel := imageRequest.Model
 	// Convert the original image model
-	imageRequest.Model, _ = getMappedModelName(imageRequest.Model, billingratio.ImageOriginModelName)
+	imageRequest.Model, _ = getMappedModelName(imageRequest.Model, billingPrice.ImageOriginModelName)
 	c.Set("response_format", imageRequest.ResponseFormat)
 
 	var requestBody io.Reader
@@ -169,13 +168,13 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		requestBody = bytes.NewBuffer(jsonStr)
 	}
 
-	ratio := billingratio.GetModelRatio(imageModel, meta.ChannelType)
-	groupRemainQuota, err := groupQuota.Default.GetGroupRemainQuota(meta.Group)
+	price := billingPrice.GetModelPrice(imageModel, meta.ChannelType)
+	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(meta.Group)
 
-	quota := int64(ratio*imageCostRatio*1000) * int64(imageRequest.N)
+	amount := price * imageCostRatio * 1000 * float64(imageRequest.N)
 
-	if groupRemainQuota-quota < 0 {
-		return openai.ErrorWrapper(errors.New("group quota is not enough"), "insufficient_group_quota", http.StatusForbidden)
+	if groupRemainBalance-amount < 0 {
+		return openai.ErrorWrapper(errors.New("group balance is not enough"), "insufficient_group_balance", http.StatusForbidden)
 	}
 
 	// do request
@@ -190,18 +189,13 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return
 		}
 
-		err := groupQuota.Default.PostGroupConsume(meta.Group, quota)
+		err := balance.Default.PostGroupConsume(meta.Group, amount)
 		if err != nil {
-			logger.SysError("error consuming token remain quota: " + err.Error())
+			logger.SysError("error consuming token remain balance: " + err.Error())
 		}
-		if quota != 0 {
-			tokenName := c.GetString(ctxkey.TokenName)
-			logContent := fmt.Sprintf("模型倍率 %.2f", ratio)
-			model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, 0, 0, imageRequest.Model, tokenName, quota, logContent)
-			model.UpdateGroupUsedQuotaAndRequestCount(meta.Group, quota, 1)
-			model.UpdateTokenUsedQuota(meta.TokenId, quota, 1)
-			model.UpdateChannelUsedQuota(meta.ChannelId, quota, 1)
-		}
+		model.UpdateGroupUsedAmountAndRequestCount(meta.Group, amount, 1)
+		model.UpdateTokenUsedAmount(meta.TokenId, amount, 1)
+		model.UpdateChannelUsedAmount(meta.ChannelId, amount, 1)
 	}(c.Request.Context())
 
 	// do response

@@ -3,19 +3,22 @@ package openai
 import (
 	"errors"
 	"fmt"
+	"math"
+	"strings"
+
 	"github.com/pkoukk/tiktoken-go"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/image"
 	"github.com/songquanpeng/one-api/common/logger"
-	billingratio "github.com/songquanpeng/one-api/relay/billing/ratio"
+	billingprice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/model"
-	"math"
-	"strings"
 )
 
 // tokenEncoderMap won't grow after initialization
-var tokenEncoderMap = map[string]*tiktoken.Tiktoken{}
-var defaultTokenEncoder *tiktoken.Tiktoken
+var (
+	tokenEncoderMap     = map[string]*tiktoken.Tiktoken{}
+	defaultTokenEncoder *tiktoken.Tiktoken
+)
 
 func InitTokenEncoders() {
 	logger.SysLog("initializing token encoders")
@@ -32,7 +35,7 @@ func InitTokenEncoders() {
 	if err != nil {
 		logger.FatalLog(fmt.Sprintf("failed to get gpt-4 token encoder: %s", err.Error()))
 	}
-	for model := range billingratio.ModelRatio {
+	for model := range billingprice.ModelPrice {
 		if strings.HasPrefix(model, "gpt-3.5") {
 			tokenEncoderMap[model] = gpt35TokenEncoder
 		} else if strings.HasPrefix(model, "gpt-4o") {
@@ -143,7 +146,7 @@ const (
 // https://platform.openai.com/docs/guides/vision/calculating-costs
 // https://github.com/openai/openai-cookbook/blob/05e3f9be4c7a2ae7ecf029a7c32065b024730ebe/examples/How_to_count_tokens_with_tiktoken.ipynb
 func countImageTokens(url string, detail string, model string) (_ int, err error) {
-	var fetchSize = true
+	fetchSize := true
 	var width, height int
 	// Reference: https://platform.openai.com/docs/guides/vision/low-or-high-fidelity-image-understanding
 	// detail == "auto" is undocumented on how it works, it just said the model will use the auto setting which will look at the image input size and decide if it should use the low or high setting.

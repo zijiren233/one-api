@@ -37,7 +37,7 @@ type Channel struct {
 	Balance          float64           `json:"balance"` // in USD
 	BalanceUpdatedAt time.Time         `json:"balance_updated_at"`
 	Models           []string          `gorm:"serializer:json;type:text" json:"models"`
-	UsedQuota        int64             `gorm:"bigint" json:"used_quota"`
+	UsedAmount       float64           `gorm:"bigint" json:"used_amount"`
 	RequestCount     int               `gorm:"type:int" json:"request_count"`
 	ModelMapping     map[string]string `gorm:"serializer:fastjson;type:text" json:"model_mapping"`
 	Priority         int32             `json:"priority"`
@@ -183,9 +183,9 @@ func EnableChannelById(id int) error {
 	return UpdateChannelStatusById(id, ChannelStatusEnabled)
 }
 
-func UpdateChannelUsedQuota(id int, quota int64, requestCount int) error {
+func UpdateChannelUsedAmount(id int, amount float64, requestCount int) error {
 	result := DB.Model(&Channel{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"used_quota":    gorm.Expr("used_quota + ?", quota),
+		"used_amount":   gorm.Expr("used_amount + ?", amount),
 		"request_count": gorm.Expr("request_count + ?", requestCount),
 	})
 	return HandleUpdateResult(result, ErrChannelNotFound)
