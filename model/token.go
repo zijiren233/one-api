@@ -213,8 +213,8 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 			if err != nil {
 				logger.SysError("failed to update token status" + err.Error())
 			}
+			return nil, errors.New("该令牌额度已用尽")
 		}
-		return nil, errors.New("该令牌额度已用尽")
 	}
 	return token, nil
 }
