@@ -26,11 +26,11 @@ const (
 
 type Token struct {
 	Id           int       `gorm:"primaryKey" json:"id"`
-	GroupId      string    `gorm:"index" json:"group"`
+	GroupId      string    `gorm:"index;uniqueIndex:idx_group_name" json:"group"`
 	Group        *Group    `gorm:"foreignKey:GroupId" json:"-"`
 	Key          string    `gorm:"type:char(48);uniqueIndex" json:"key"`
 	Status       int       `gorm:"default:1" json:"status"`
-	Name         string    `gorm:"index" json:"name"`
+	Name         string    `gorm:"index;uniqueIndex:idx_group_name" json:"name"`
 	CreatedAt    time.Time `json:"created_at"`
 	AccessedAt   time.Time `json:"accessed_at"`
 	ExpiredAt    time.Time `json:"expired_at"`
@@ -65,14 +65,21 @@ func InsertToken(token *Token, autoCreateGroup bool) error {
 			return err
 		}
 	}
-	return DB.Create(token).Error
+	err := DB.Create(token).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return errors.New("token name already exists in this group")
+		}
+		return err
+	}
+	return nil
 }
 
 func GetTokens(startIdx int, num int, order string, group string) (tokens []*Token, total int64, err error) {
 	tx := DB.Model(&Token{})
 
 	if group != "" {
-		tx = tx.Where("`group_id` = ?", group)
+		tx = tx.Where("group_id = ?", group)
 	}
 
 	err = tx.Count(&total).Error
@@ -98,7 +105,7 @@ func GetGroupTokens(group string, startIdx int, num int, order string) (tokens [
 		return nil, 0, errors.New("group is empty")
 	}
 
-	tx := DB.Model(&Token{}).Where("`group_id` = ?", group)
+	tx := DB.Model(&Token{}).Where("group_id = ?", group)
 
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -121,9 +128,9 @@ func GetGroupTokens(group string, startIdx int, num int, order string) (tokens [
 func SearchTokens(keyword string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
 	tx := DB.Model(&Token{})
 	if common.UsingPostgreSQL {
-		tx = tx.Where("`name` ILIKE ? or key ILIKE ? or `group_id` ILIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+		tx = tx.Where("`name` ILIKE ? or key ILIKE ? or group_id ILIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	} else {
-		tx = tx.Where("`name` LIKE ? or key LIKE ? or `group_id` LIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+		tx = tx.Where("`name` LIKE ? or key LIKE ? or group_id LIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	}
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -146,7 +153,7 @@ func SearchGroupTokens(group string, keyword string, startIdx int, num int, orde
 	if group == "" {
 		return nil, 0, errors.New("group is empty")
 	}
-	tx := DB.Model(&Token{}).Where("`group_id` = ?", group)
+	tx := DB.Model(&Token{}).Where("group_id = ?", group)
 	if common.UsingPostgreSQL {
 		tx = tx.Where("`name` ILIKE ? or key ILIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	} else {
@@ -231,8 +238,10 @@ func GetGroupTokenById(group string, id int) (*Token, error) {
 	if id == 0 || group == "" {
 		return nil, errors.New("id 或 group 为空！")
 	}
-	token := Token{Id: id, GroupId: group}
-	err := DB.First(&token, "id = ? and `group_id` = ?", id, group).Error
+	token := Token{}
+	err := DB.
+		Where("id = ? and group_id = ?", id, group).
+		First(&token).Error
 	return &token, HandleNotFound(err, ErrTokenNotFound)
 }
 
@@ -305,7 +314,7 @@ func UpdateGroupTokenStatusAndAccessedAt(group string, id int, status int) (err 
 				{Name: "key"},
 			},
 		}).
-		Where("id = ? and `group_id` = ?", id, group).
+		Where("id = ? and group_id = ?", id, group).
 		Updates(
 			map[string]interface{}{
 				"status":      status,
@@ -329,7 +338,7 @@ func UpdateGroupTokenStatus(group string, id int, status int) (err error) {
 				{Name: "key"},
 			},
 		}).
-		Where("id = ? and `group_id` = ?", id, group).
+		Where("id = ? and group_id = ?", id, group).
 		Updates(
 			map[string]interface{}{
 				"status": status,
@@ -388,7 +397,12 @@ func UpdateToken(token *Token) (err error) {
 			_ = CacheDeleteToken(token.Key)
 		}
 	}()
-	result := DB.Omit("status", "key", "group", "used_amount", "request_count").Save(token)
+	result := DB.Omit("created_at", "status", "key", "group_id", "used_amount", "request_count").Save(token)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+			return errors.New("token name already exists in this group")
+		}
+	}
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
 

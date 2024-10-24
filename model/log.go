@@ -93,7 +93,7 @@ func GetLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, mode
 		tx = tx.Where("model_name = ?", modelName)
 	}
 	if group != "" {
-		tx = tx.Where("`group_id` = ?", group)
+		tx = tx.Where("group_id = ?", group)
 	}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)
@@ -119,7 +119,7 @@ func GetLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, mode
 }
 
 func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, tokenName string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
-	tx := LOG_DB.Model(&Log{}).Where("`group_id` = ?", group)
+	tx := LOG_DB.Model(&Log{}).Where("group_id = ?", group)
 	if logType != LogTypeUnknown {
 		tx = tx.Where("type = ?", logType)
 	}
@@ -153,9 +153,9 @@ func SearchLogs(keyword string, page int, perPage int) (logs []*Log, total int64
 	tx := LOG_DB.Model(&Log{})
 	if keyword != "" {
 		if common.UsingPostgreSQL {
-			tx = tx.Where("type = ? or content ILIKE ? or `group_id` ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
+			tx = tx.Where("type = ? or content ILIKE ? or group_id ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
 		} else {
-			tx = tx.Where("type = ? or content LIKE ? or `group_id` LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
+			tx = tx.Where("type = ? or content LIKE ? or group_id LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
 		}
 	}
 	err = tx.Count(&total).Error
@@ -175,9 +175,9 @@ func SearchGroupLogs(group string, keyword string, page int, perPage int) (logs 
 	}
 	tx := LOG_DB.Model(&Log{})
 	if common.UsingPostgreSQL {
-		tx = tx.Where("`group_id` = ?", group)
+		tx = tx.Where("group_id = ?", group)
 	} else {
-		tx = tx.Where("`group_id` = ?", group)
+		tx = tx.Where("group_id = ?", group)
 	}
 	if keyword != "" {
 		if common.UsingPostgreSQL {
@@ -204,7 +204,7 @@ func SumUsedQuota(logType int, startTimestamp time.Time, endTimestamp time.Time,
 	}
 	tx := LOG_DB.Table("logs").Select(fmt.Sprintf("%s(sum(quota),0)", ifnull))
 	if group != "" {
-		tx = tx.Where("`group_id` = ?", group)
+		tx = tx.Where("group_id = ?", group)
 	}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)
@@ -232,7 +232,7 @@ func SumUsedToken(logType int, startTimestamp time.Time, endTimestamp time.Time,
 	}
 	tx := LOG_DB.Table("logs").Select(fmt.Sprintf("%s(sum(prompt_tokens),0) + %s(sum(completion_tokens),0)", ifnull, ifnull))
 	if group != "" {
-		tx = tx.Where("`group_id` = ?", group)
+		tx = tx.Where("group_id = ?", group)
 	}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)

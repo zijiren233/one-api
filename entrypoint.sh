@@ -1,2 +1,0 @@
-#!/bin/bash
-DEBUG=true DEBUG_SQL=true REDIS_CONN_STRING=redis://default:44554jp8@dbconn.sealosbja.site:45881 SQL_DSN="postgres://postgres:9584tx2z@dbconn.sealosbja.site:34841/oneapi" go run main.go -port 8080
