@@ -14,20 +14,20 @@ import (
 
 type Log struct {
 	Id               int       `json:"id"`
-	CreatedAt        time.Time `json:"created_at"`
-	Code             int       `json:"code"`
+	CreatedAt        time.Time `gorm:"index" json:"created_at"`
+	Code             int       `gorm:"index" json:"code"`
 	Content          string    `gorm:"type:text" json:"content"`
-	GroupId          string    `gorm:"index;index:idx_group_model_name,priority:2" json:"group"`
+	GroupId          string    `gorm:"index" json:"group"`
 	Group            *Group    `gorm:"foreignKey:GroupId" json:"-"`
-	Model            string    `gorm:"index;index:idx_group_model_name,priority:1" json:"model"`
+	Model            string    `gorm:"index" json:"model"`
 	UsedAmount       float64   `json:"used_amount"`
 	Price            float64   `json:"price"`
 	CompletionPrice  float64   `json:"completion_price"`
-	TokenRemark      string    `gorm:"index" json:"token_remark"`
+	TokenRemark      string    `json:"token_remark"`
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
 	ChannelId        int       `gorm:"index" json:"channel"`
-	Endpoint         string    `gorm:"index" json:"endpoint"`
+	Endpoint         string    `json:"endpoint"`
 }
 
 func (l *Log) MarshalJSON() ([]byte, error) {
@@ -67,7 +67,7 @@ func RecordConsumeLog(ctx context.Context, group string, code int, channelId int
 func GetLogs(startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, group string, tokenRemark string, startIdx int, num int, channel int, endpoint string, content string) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{})
 	if modelName != "" {
-		tx = tx.Where("model_name = ?", modelName)
+		tx = tx.Where("model = ?", modelName)
 	}
 	if group != "" {
 		tx = tx.Where("group_id = ?", group)
@@ -107,7 +107,7 @@ func GetLogs(startTimestamp time.Time, endTimestamp time.Time, code int, modelNa
 func GetGroupLogs(group string, startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, tokenRemark string, startIdx int, num int, channel int, endpoint string, content string) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{}).Where("group_id = ?", group)
 	if modelName != "" {
-		tx = tx.Where("model_name = ?", modelName)
+		tx = tx.Where("model = ?", modelName)
 	}
 	if tokenRemark != "" {
 		tx = tx.Where("token_remark = ?", tokenRemark)
@@ -145,7 +145,7 @@ func SearchLogs(keyword string, page int, perPage int) (logs []*Log, total int64
 	tx := LOG_DB.Model(&Log{})
 	if keyword != "" {
 		if common.UsingPostgreSQL {
-			tx = tx.Where("code = ? or group_id ILIKE ? or endpoint ILIKE ? or content ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+			tx = tx.Where("code::text = ? or group_id ILIKE ? or endpoint ILIKE ? or content ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 		} else {
 			tx = tx.Where("code = ? or group_id LIKE ? or endpoint LIKE ? or content LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 		}
@@ -165,17 +165,12 @@ func SearchGroupLogs(group string, keyword string, page int, perPage int) (logs 
 	if group == "" {
 		return nil, 0, errors.New("group is empty")
 	}
-	tx := LOG_DB.Model(&Log{})
-	if common.UsingPostgreSQL {
-		tx = tx.Where("group_id = ?", group)
-	} else {
-		tx = tx.Where("group_id = ?", group)
-	}
+	tx := LOG_DB.Model(&Log{}).Where("group_id = ?", group)
 	if keyword != "" {
 		if common.UsingPostgreSQL {
-			tx = tx.Where("code = ? or group_id ILIKE ? or endpoint ILIKE ? or content ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+			tx = tx.Where("code::text = ? or endpoint ILIKE ? or content ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
 		} else {
-			tx = tx.Where("code = ? or group_id LIKE ? or endpoint LIKE ? or content LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+			tx = tx.Where("code = ? or endpoint LIKE ? or content LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
 		}
 	}
 	err = tx.Count(&total).Error
@@ -208,7 +203,7 @@ func SumUsedQuota(startTimestamp time.Time, endTimestamp time.Time, modelName st
 		tx = tx.Where("created_at <= ?", endTimestamp)
 	}
 	if modelName != "" {
-		tx = tx.Where("model_name = ?", modelName)
+		tx = tx.Where("model = ?", modelName)
 	}
 	if channel != 0 {
 		tx = tx.Where("channel_id = ?", channel)
@@ -239,7 +234,7 @@ func SumUsedToken(startTimestamp time.Time, endTimestamp time.Time, modelName st
 		tx = tx.Where("created_at <= ?", endTimestamp)
 	}
 	if modelName != "" {
-		tx = tx.Where("model_name = ?", modelName)
+		tx = tx.Where("model = ?", modelName)
 	}
 	if endpoint != "" {
 		tx = tx.Where("endpoint = ?", endpoint)
@@ -278,7 +273,7 @@ func SearchLogsByDayAndModel(group string, start time.Time, end time.Time) (LogS
 		sum(prompt_tokens) as prompt_tokens,
 		sum(completion_tokens) as completion_tokens
 		FROM logs
-		AND group_id= ?
+		WHERE group_id = ?
 		AND created_at BETWEEN ? AND ?
 		GROUP BY day, model
 		ORDER BY day, model

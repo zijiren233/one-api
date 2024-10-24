@@ -30,8 +30,8 @@ type Token struct {
 	GroupId      string          `gorm:"index;uniqueIndex:idx_group_remark" json:"group"`
 	Group        *Group          `gorm:"foreignKey:GroupId" json:"-"`
 	Key          string          `gorm:"type:char(48);uniqueIndex" json:"key"`
-	Status       int             `gorm:"default:1" json:"status"`
-	Remark       EmptyNullString `gorm:"index;uniqueIndex:idx_group_remark" json:"remark"`
+	Status       int             `gorm:"default:1;index" json:"status"`
+	Remark       EmptyNullString `gorm:"uniqueIndex:idx_group_remark" json:"remark"`
 	CreatedAt    time.Time       `json:"created_at"`
 	AccessedAt   time.Time       `json:"accessed_at"`
 	ExpiredAt    time.Time       `json:"expired_at"`

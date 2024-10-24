@@ -24,10 +24,10 @@ type Group struct {
 	Id           string    `gorm:"primaryKey" json:"id"`
 	CreatedAt    time.Time `json:"created_at"`
 	AccessedAt   time.Time `json:"accessed_at"`
-	Status       int       `gorm:"type:int;default:1" json:"status"` // enabled, disabled
-	UsedAmount   float64   `gorm:"bigint" json:"used_amount"`        // used amount
-	QPM          int64     `gorm:"bigint" json:"qpm"`                // queries per minute
-	RequestCount int       `gorm:"type:int" json:"request_count"`    // request number
+	Status       int       `gorm:"type:int;default:1;index" json:"status"` // enabled, disabled
+	UsedAmount   float64   `gorm:"bigint" json:"used_amount"`              // used amount
+	QPM          int64     `gorm:"bigint" json:"qpm"`                      // queries per minute
+	RequestCount int       `gorm:"type:int" json:"request_count"`          // request number
 	Tokens       []*Token  `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
 	Logs         []*Log    `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
 }

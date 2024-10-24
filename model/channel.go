@@ -24,12 +24,12 @@ const (
 )
 
 type Channel struct {
-	Id               int               `json:"id"`
+	Id               int               `gorm:"primaryKey" json:"id"`
 	CreatedAt        time.Time         `json:"created_at"`
-	Type             int               `json:"type" gorm:"default:0"`
-	Key              string            `json:"key" gorm:"type:text"`
-	Status           int               `json:"status" gorm:"default:1"`
-	Name             string            `json:"name" gorm:"index"`
+	Type             int               `gorm:"default:0;index" json:"type"`
+	Key              string            `gorm:"type:text" json:"key"`
+	Status           int               `gorm:"default:1;index" json:"status"`
+	Name             string            `gorm:"uniqueIndex" json:"name"`
 	TestAt           time.Time         `json:"test_at"`
 	ResponseDuration int64             `gorm:"bigint" json:"response_duration"` // in milliseconds
 	BaseURL          string            `json:"base_url"`
