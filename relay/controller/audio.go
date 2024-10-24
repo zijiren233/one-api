@@ -3,7 +3,6 @@ package controller
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -176,12 +175,14 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		amount = float64(openai.CountTokenText(text, audioModel))
 		resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
 	}
+
 	if resp.StatusCode != http.StatusOK {
-		return RelayErrorHandler(resp)
+		err := RelayErrorHandler(resp)
+		go billing.PostConsumeAmount(c.Request.Context(), resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenRemark, c.Request.URL.Path, err.Error.Message)
+		return err
 	}
-	defer func(ctx context.Context) {
-		go billing.PostConsumeAmount(ctx, resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenRemark, c.Request.URL.Path)
-	}(c.Request.Context())
+
+	go billing.PostConsumeAmount(c.Request.Context(), resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenRemark, c.Request.URL.Path, "")
 
 	for k, v := range resp.Header {
 		c.Writer.Header().Set(k, v[0])

@@ -65,20 +65,24 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	resp, err := adaptor.DoRequest(c, meta, requestBody)
 	if err != nil {
 		logger.Errorf(ctx, "DoRequest failed: %s", err.Error())
+		go postConsumeAmount(ctx, resp.StatusCode, c.Request.URL.Path, nil, meta, textRequest, price, err.Error())
 		return openai.ErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)
 	}
 	if isErrorHappened(meta, resp) {
-		return RelayErrorHandler(resp)
+		err := RelayErrorHandler(resp)
+		go postConsumeAmount(ctx, resp.StatusCode, c.Request.URL.Path, nil, meta, textRequest, price, err.Error.Message)
+		return err
 	}
 
 	// do response
 	usage, respErr := adaptor.DoResponse(c, resp, meta)
 	if respErr != nil {
 		logger.Errorf(ctx, "respErr is not nil: %+v", respErr)
+		go postConsumeAmount(ctx, resp.StatusCode, c.Request.URL.Path, usage, meta, textRequest, price, respErr.Error.Message)
 		return respErr
 	}
 	// post-consume amount
-	go postConsumeAmount(ctx, resp.StatusCode, c.Request.URL.Path, usage, meta, textRequest, price)
+	go postConsumeAmount(ctx, resp.StatusCode, c.Request.URL.Path, usage, meta, textRequest, price, "")
 	return nil
 }
 

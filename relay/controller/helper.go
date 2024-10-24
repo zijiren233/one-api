@@ -71,9 +71,14 @@ func preCheckGroupBalance(ctx context.Context, textRequest *relaymodel.GeneralOp
 	return true, nil
 }
 
-func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64) {
+func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64, content string) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
+		// Record log and usage count without consuming balance
+		model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, 0, 0, textRequest.Model, meta.TokenRemark, 0, price, 0, endpoint, content)
+		model.UpdateGroupUsedAmountAndRequestCount(meta.Group, 0, 1)
+		model.UpdateTokenUsedAmount(meta.TokenId, 0, 1)
+		model.UpdateChannelUsedAmount(meta.ChannelId, 0, 1)
 		return
 	}
 	completionPrice := billingPrice.GetCompletionPrice(textRequest.Model, meta.ChannelType)
@@ -86,11 +91,13 @@ func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *re
 		// we cannot just return, because we may have to return the pre-consumed amount
 		amount = 0
 	}
-	err := balance.Default.PostGroupConsume(ctx, meta.Group, amount)
-	if err != nil {
-		logger.Error(ctx, "error consuming token remain amount: "+err.Error())
+	if amount > 0 {
+		err := balance.Default.PostGroupConsume(ctx, meta.Group, amount)
+		if err != nil {
+			logger.Error(ctx, "error consuming token remain amount: "+err.Error())
+		}
 	}
-	model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenRemark, amount, price, completionPrice, endpoint)
+	model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenRemark, amount, price, completionPrice, endpoint, content)
 	model.UpdateGroupUsedAmountAndRequestCount(meta.Group, amount, 1)
 	model.UpdateTokenUsedAmount(meta.TokenId, amount, 1)
 	model.UpdateChannelUsedAmount(meta.ChannelId, amount, 1)

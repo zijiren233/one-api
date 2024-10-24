@@ -35,9 +35,10 @@ func GetLogs(c *gin.Context) {
 	channel, _ := strconv.Atoi(c.Query("channel"))
 	group := c.Query("group")
 	endpoint := c.Query("endpoint")
+	content := c.Query("content")
 	logs, total, err := model.GetLogs(
 		startTimestampTime, endTimestampTime,
-		code, modelName, group, tokenName, p*perPage, perPage, channel, endpoint)
+		code, modelName, group, tokenName, p*perPage, perPage, channel, endpoint, content)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -81,9 +82,10 @@ func GetGroupLogs(c *gin.Context) {
 	channel, _ := strconv.Atoi(c.Query("channel"))
 	group := c.Param("group")
 	endpoint := c.Query("endpoint")
+	content := c.Query("content")
 	logs, total, err := model.GetGroupLogs(group,
 		startTimestampTime, endTimestampTime,
-		code, modelName, tokenName, p*perPage, perPage, channel, endpoint)
+		code, modelName, tokenName, p*perPage, perPage, channel, endpoint, content)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
