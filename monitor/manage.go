@@ -9,7 +9,7 @@ import (
 )
 
 func ShouldDisableChannel(err *model.Error, statusCode int) bool {
-	if !config.AutomaticDisableChannelEnabled {
+	if !config.GetAutomaticDisableChannelEnabled() {
 		return false
 	}
 	if err == nil {
@@ -34,7 +34,7 @@ func ShouldDisableChannel(err *model.Error, statusCode int) bool {
 		strings.Contains(lowerMessage, "credit") ||
 		strings.Contains(lowerMessage, "balance") ||
 		strings.Contains(lowerMessage, "permission denied") ||
-  	strings.Contains(lowerMessage, "organization has been restricted") || // groq
+		strings.Contains(lowerMessage, "organization has been restricted") || // groq
 		strings.Contains(lowerMessage, "已欠费") {
 		return true
 	}
@@ -42,7 +42,7 @@ func ShouldDisableChannel(err *model.Error, statusCode int) bool {
 }
 
 func ShouldEnableChannel(err error, openAIErr *model.Error) bool {
-	if !config.AutomaticEnableChannelEnabled {
+	if !config.GetAutomaticEnableChannelWhenTestSucceedEnabled() {
 		return false
 	}
 	if err != nil {

@@ -13,6 +13,12 @@ import (
 
 var inMemoryRateLimiter common.InMemoryRateLimiter
 
+// 1. 使用Redis列表存储请求时间戳
+// 2. 列表长度代表当前窗口内的请求数
+// 3. 如果请求数未达到限制，直接添加新请求并返回成功
+// 4. 如果达到限制，则检查最老的请求是否已经过期
+// 5. 如果最老的请求已过期，移除它并添加新请求，否则拒绝新请求
+// 6. 通过EXPIRE命令设置键的过期时间，自动清理过期数据
 var luaScript = `
 local key = KEYS[1]
 local max_requests = tonumber(ARGV[1])
@@ -62,11 +68,12 @@ func RateLimit(ctx context.Context, key string, maxRequestNum int, duration time
 }
 
 func GlobalAPIRateLimit(c *gin.Context) {
-	if config.GlobalApiRateLimitNum == 0 {
+	globalApiRateLimitNum := config.GetGlobalApiRateLimitNum()
+	if globalApiRateLimitNum == 0 {
 		c.Next()
 		return
 	}
-	ok, err := RateLimit(c.Request.Context(), "global_qpm", config.GlobalApiRateLimitNum, time.Minute)
+	ok, err := RateLimit(c.Request.Context(), "global_qpm", int(globalApiRateLimitNum), time.Minute)
 	if err != nil {
 		fmt.Println(err.Error())
 		c.Status(http.StatusInternalServerError)

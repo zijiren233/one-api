@@ -72,7 +72,7 @@ func TokenAuth(c *gin.Context) {
 	}
 
 	if group.QPM == 0 {
-		group.QPM = int64(config.DefaultGroupQPM)
+		group.QPM = config.GetDefaultGroupQPM()
 	}
 
 	if group.QPM > 0 {

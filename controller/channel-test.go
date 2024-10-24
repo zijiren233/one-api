@@ -16,7 +16,6 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/gin-gonic/gin"
-	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/middleware"
@@ -181,10 +180,6 @@ func testChannels(onlyDisabled bool) error {
 	if err != nil {
 		return err
 	}
-	disableThreshold := int64(config.ChannelDisableThreshold * 1000)
-	if disableThreshold == 0 {
-		disableThreshold = 10000000 // a impossible value
-	}
 	go func() {
 		for _, channel := range channels {
 			isChannelEnabled := channel.Status == model.ChannelStatusEnabled
@@ -193,12 +188,6 @@ func testChannels(onlyDisabled bool) error {
 			err, openaiErr := testChannel(channel, testRequest)
 			tok := time.Now()
 			milliseconds := tok.Sub(tik).Milliseconds()
-			if isChannelEnabled && milliseconds > disableThreshold {
-				err = fmt.Errorf("响应时间 %.2fs 超过阈值 %.2fs", float64(milliseconds)/1000.0, float64(disableThreshold)/1000.0)
-				if config.AutomaticDisableChannelEnabled {
-					model.DisableChannelById(channel.Id)
-				}
-			}
 			if isChannelEnabled && monitor.ShouldDisableChannel(openaiErr, -1) {
 				model.DisableChannelById(channel.Id)
 			}

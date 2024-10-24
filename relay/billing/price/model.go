@@ -252,8 +252,14 @@ func ModelPrice2JSONString() string {
 }
 
 func UpdateModelPriceByJSONString(jsonStr string) error {
-	ModelPrice = make(map[string]float64)
-	return json.Unmarshal([]byte(jsonStr), &ModelPrice)
+	newModelPrice := make(map[string]float64)
+	err := json.Unmarshal([]byte(jsonStr), &newModelPrice)
+	if err != nil {
+		logger.SysError("error unmarshalling model price: " + err.Error())
+		return err
+	}
+	ModelPrice = newModelPrice
+	return nil
 }
 
 func GetModelPrice(name string, channelType int) float64 {
@@ -289,8 +295,14 @@ func CompletionPrice2JSONString() string {
 }
 
 func UpdateCompletionPriceByJSONString(jsonStr string) error {
-	CompletionPrice = make(map[string]float64)
-	return json.Unmarshal([]byte(jsonStr), &CompletionPrice)
+	newCompletionPrice := make(map[string]float64)
+	err := json.Unmarshal([]byte(jsonStr), &newCompletionPrice)
+	if err != nil {
+		logger.SysError("error unmarshalling completion price: " + err.Error())
+		return err
+	}
+	CompletionPrice = newCompletionPrice
+	return nil
 }
 
 func GetCompletionPrice(name string, channelType int) float64 {

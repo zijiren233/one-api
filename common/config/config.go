@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/songquanpeng/one-api/common/env"
@@ -20,19 +21,63 @@ var (
 )
 
 var (
-	// 渠道超时时的禁用阈值
-	ChannelDisableThreshold        = 5.0
-	AutomaticDisableChannelEnabled = false
-	AutomaticEnableChannelEnabled  = false
-	ApproximateTokenEnabled        = false
-	RetryTimes                     = 0
+	// 当测试或请求的时候发生错误是否自动禁用渠道
+	automaticDisableChannelEnabled uint32 = 0
+	// 当测试成功是否自动启用渠道
+	automaticEnableChannelWhenTestSucceedEnabled uint32 = 0
+	// 是否近似计算token
+	approximateTokenEnabled uint32 = 0
+	// 重试次数
+	retryTimes int64 = 0
 )
+
+func GetAutomaticDisableChannelEnabled() bool {
+	return atomic.LoadUint32(&automaticDisableChannelEnabled) == 1
+}
+
+func SetAutomaticDisableChannelEnabled(enabled bool) {
+	if enabled {
+		atomic.StoreUint32(&automaticDisableChannelEnabled, 1)
+	} else {
+		atomic.StoreUint32(&automaticDisableChannelEnabled, 0)
+	}
+}
+
+func GetAutomaticEnableChannelWhenTestSucceedEnabled() bool {
+	return atomic.LoadUint32(&automaticEnableChannelWhenTestSucceedEnabled) == 1
+}
+
+func SetAutomaticEnableChannelWhenTestSucceedEnabled(enabled bool) {
+	if enabled {
+		atomic.StoreUint32(&automaticEnableChannelWhenTestSucceedEnabled, 1)
+	} else {
+		atomic.StoreUint32(&automaticEnableChannelWhenTestSucceedEnabled, 0)
+	}
+}
+
+func GetApproximateTokenEnabled() bool {
+	return atomic.LoadUint32(&approximateTokenEnabled) == 1
+}
+
+func SetApproximateTokenEnabled(enabled bool) {
+	if enabled {
+		atomic.StoreUint32(&approximateTokenEnabled, 1)
+	} else {
+		atomic.StoreUint32(&approximateTokenEnabled, 0)
+	}
+}
+
+func GetRetryTimes() int64 {
+	return atomic.LoadInt64(&retryTimes)
+}
+
+func SetRetryTimes(times int64) {
+	atomic.StoreInt64(&retryTimes, times)
+}
 
 var DisableAutoMigrateDB = os.Getenv("DISABLE_AUTO_MIGRATE_DB") == "true"
 
 var RelayTimeout = env.Int("RELAY_TIMEOUT", 0) // unit is second
-
-var GeminiSafetySetting = env.String("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
 
 var RateLimitKeyExpirationDuration = 20 * time.Minute
 
@@ -49,8 +94,6 @@ var (
 	MetricFailChanSize = env.Int("METRIC_FAIL_CHAN_SIZE", 128)
 )
 
-var GeminiVersion = env.String("GEMINI_VERSION", "v1")
-
 var OnlyOneLogFile = env.Bool("ONLY_ONE_LOG_FILE", false)
 
 var (
@@ -65,8 +108,71 @@ var (
 var AdminKey = env.String("ADMIN_KEY", "")
 
 var (
-	GlobalApiRateLimitNum      = 0
-	DefaultChannelModels       map[int][]string
-	DefaultChannelModelMapping map[int]map[string]string
-	DefaultGroupQPM            = 120
+	globalApiRateLimitNum      int64 = 0
+	defaultChannelModels       atomic.Value
+	defaultChannelModelMapping atomic.Value
+	defaultGroupQPM            int64 = 120
 )
+
+func init() {
+	defaultChannelModels.Store(make(map[int][]string))
+	defaultChannelModelMapping.Store(make(map[int]map[string]string))
+}
+
+func GetGlobalApiRateLimitNum() int64 {
+	return atomic.LoadInt64(&globalApiRateLimitNum)
+}
+
+func SetGlobalApiRateLimitNum(num int64) {
+	atomic.StoreInt64(&globalApiRateLimitNum, num)
+}
+
+func GetDefaultGroupQPM() int64 {
+	return atomic.LoadInt64(&defaultGroupQPM)
+}
+
+func SetDefaultGroupQPM(qpm int64) {
+	atomic.StoreInt64(&defaultGroupQPM, qpm)
+}
+
+func GetDefaultChannelModels() map[int][]string {
+	return defaultChannelModels.Load().(map[int][]string)
+}
+
+func SetDefaultChannelModels(models map[int][]string) {
+	defaultChannelModels.Store(models)
+}
+
+func GetDefaultChannelModelMapping() map[int]map[string]string {
+	return defaultChannelModelMapping.Load().(map[int]map[string]string)
+}
+
+func SetDefaultChannelModelMapping(mapping map[int]map[string]string) {
+	defaultChannelModelMapping.Store(mapping)
+}
+
+var (
+	geminiSafetySetting atomic.Value
+	geminiVersion       atomic.Value
+)
+
+func init() {
+	geminiSafetySetting.Store("BLOCK_NONE")
+	geminiVersion.Store("v1")
+}
+
+func GetGeminiSafetySetting() string {
+	return geminiSafetySetting.Load().(string)
+}
+
+func SetGeminiSafetySetting(setting string) {
+	geminiSafetySetting.Store(setting)
+}
+
+func GetGeminiVersion() string {
+	return geminiVersion.Load().(string)
+}
+
+func SetGeminiVersion(version string) {
+	geminiVersion.Store(version)
+}

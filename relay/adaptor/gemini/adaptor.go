@@ -16,15 +16,13 @@ import (
 	"github.com/songquanpeng/one-api/relay/relaymode"
 )
 
-type Adaptor struct {
-}
+type Adaptor struct{}
 
 func (a *Adaptor) Init(meta *meta.Meta) {
-
 }
 
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
-	version := helper.AssignOrDefault(meta.Config.APIVersion, config.GeminiVersion)
+	version := helper.AssignOrDefault(meta.Config.APIVersion, config.GetGeminiVersion())
 	action := ""
 	switch meta.Mode {
 	case relaymode.Embeddings:

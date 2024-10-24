@@ -31,24 +31,25 @@ const (
 
 // Setting safety to the lowest possible values since Gemini is already powerless enough
 func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
+	safetySetting := config.GetGeminiSafetySetting()
 	geminiRequest := ChatRequest{
 		Contents: make([]ChatContent, 0, len(textRequest.Messages)),
 		SafetySettings: []ChatSafetySettings{
 			{
 				Category:  "HARM_CATEGORY_HARASSMENT",
-				Threshold: config.GeminiSafetySetting,
+				Threshold: safetySetting,
 			},
 			{
 				Category:  "HARM_CATEGORY_HATE_SPEECH",
-				Threshold: config.GeminiSafetySetting,
+				Threshold: safetySetting,
 			},
 			{
 				Category:  "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-				Threshold: config.GeminiSafetySetting,
+				Threshold: safetySetting,
 			},
 			{
 				Category:  "HARM_CATEGORY_DANGEROUS_CONTENT",
-				Threshold: config.GeminiSafetySetting,
+				Threshold: safetySetting,
 			},
 		},
 		GenerationConfig: ChatGenerationConfig{

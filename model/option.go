@@ -27,19 +27,20 @@ func AllOption() ([]*Option, error) {
 func InitOptionMap() {
 	config.OptionMapRWMutex.Lock()
 	config.OptionMap = make(map[string]string)
-	config.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(config.AutomaticDisableChannelEnabled)
-	config.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(config.AutomaticEnableChannelEnabled)
-	config.OptionMap["ApproximateTokenEnabled"] = strconv.FormatBool(config.ApproximateTokenEnabled)
-	config.OptionMap["ChannelDisableThreshold"] = strconv.FormatFloat(config.ChannelDisableThreshold, 'f', -1, 64)
+	config.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(config.GetAutomaticDisableChannelEnabled())
+	config.OptionMap["AutomaticEnableChannelWhenTestSucceedEnabled"] = strconv.FormatBool(config.GetAutomaticEnableChannelWhenTestSucceedEnabled())
+	config.OptionMap["ApproximateTokenEnabled"] = strconv.FormatBool(config.GetApproximateTokenEnabled())
 	config.OptionMap["ModelPrice"] = billingprice.ModelPrice2JSONString()
 	config.OptionMap["CompletionPrice"] = billingprice.CompletionPrice2JSONString()
-	config.OptionMap["RetryTimes"] = strconv.Itoa(config.RetryTimes)
-	config.OptionMap["GlobalApiRateLimitNum"] = strconv.Itoa(config.GlobalApiRateLimitNum)
-	config.OptionMap["DefaultGroupQPM"] = strconv.Itoa(config.DefaultGroupQPM)
-	defaultChannelModelsJSON, _ := json.Marshal(config.DefaultChannelModels)
+	config.OptionMap["RetryTimes"] = strconv.FormatInt(config.GetRetryTimes(), 10)
+	config.OptionMap["GlobalApiRateLimitNum"] = strconv.FormatInt(config.GetGlobalApiRateLimitNum(), 10)
+	config.OptionMap["DefaultGroupQPM"] = strconv.FormatInt(config.GetDefaultGroupQPM(), 10)
+	defaultChannelModelsJSON, _ := json.Marshal(config.GetDefaultChannelModels())
 	config.OptionMap["DefaultChannelModels"] = common.BytesToString(defaultChannelModelsJSON)
-	defaultChannelModelMappingJSON, _ := json.Marshal(config.DefaultChannelModelMapping)
+	defaultChannelModelMappingJSON, _ := json.Marshal(config.GetDefaultChannelModelMapping())
 	config.OptionMap["DefaultChannelModelMapping"] = common.BytesToString(defaultChannelModelMappingJSON)
+	config.OptionMap["GeminiSafetySetting"] = config.GetGeminiSafetySetting()
+	config.OptionMap["GeminiVersion"] = config.GetGeminiVersion()
 	config.OptionMapRWMutex.Unlock()
 	loadOptionsFromDatabase()
 }
@@ -89,40 +90,54 @@ func updateOptionMap(key string, value string) (err error) {
 		boolValue := value == "true"
 		switch key {
 		case "AutomaticDisableChannelEnabled":
-			config.AutomaticDisableChannelEnabled = boolValue
-		case "AutomaticEnableChannelEnabled":
-			config.AutomaticEnableChannelEnabled = boolValue
+			config.SetAutomaticDisableChannelEnabled(boolValue)
+		case "AutomaticEnableChannelWhenTestSucceedEnabled":
+			config.SetAutomaticEnableChannelWhenTestSucceedEnabled(boolValue)
 		case "ApproximateTokenEnabled":
-			config.ApproximateTokenEnabled = boolValue
+			config.SetApproximateTokenEnabled(boolValue)
 		}
 	}
 	switch key {
+	case "GeminiSafetySetting":
+		config.SetGeminiSafetySetting(value)
+	case "GeminiVersion":
+		config.SetGeminiVersion(value)
 	case "GlobalApiRateLimitNum":
-		config.GlobalApiRateLimitNum, _ = strconv.Atoi(value)
+		globalApiRateLimitNum, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return err
+		}
+		config.SetGlobalApiRateLimitNum(globalApiRateLimitNum)
 	case "DefaultGroupQPM":
-		config.DefaultGroupQPM, _ = strconv.Atoi(value)
+		defaultGroupQPM, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return err
+		}
+		config.SetDefaultGroupQPM(defaultGroupQPM)
 	case "DefaultChannelModels":
 		var newModules map[int][]string
 		err := json.Unmarshal(common.StringToBytes(value), &newModules)
 		if err != nil {
 			return err
 		}
-		config.DefaultChannelModels = newModules
+		config.SetDefaultChannelModels(newModules)
 	case "DefaultChannelModelMapping":
 		var newMapping map[int]map[string]string
 		err := json.Unmarshal(common.StringToBytes(value), &newMapping)
 		if err != nil {
 			return err
 		}
-		config.DefaultChannelModelMapping = newMapping
+		config.SetDefaultChannelModelMapping(newMapping)
 	case "RetryTimes":
-		config.RetryTimes, _ = strconv.Atoi(value)
+		retryTimes, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return err
+		}
+		config.SetRetryTimes(retryTimes)
 	case "ModelPrice":
 		err = billingprice.UpdateModelPriceByJSONString(value)
 	case "CompletionPrice":
 		err = billingprice.UpdateCompletionPriceByJSONString(value)
-	case "ChannelDisableThreshold":
-		config.ChannelDisableThreshold, _ = strconv.ParseFloat(value, 64)
 	}
 	return err
 }

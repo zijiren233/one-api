@@ -260,10 +260,10 @@ func InitChannelCache() {
 	DB.Where("status = ?", ChannelStatusEnabled).Find(&channels)
 	for _, channel := range channels {
 		if len(channel.Models) == 0 {
-			channel.Models = config.DefaultChannelModels[channel.Type]
+			channel.Models = config.GetDefaultChannelModels()[channel.Type]
 		}
 		if len(channel.ModelMapping) == 0 {
-			channel.ModelMapping = config.DefaultChannelModelMapping[channel.Type]
+			channel.ModelMapping = config.GetDefaultChannelModelMapping()[channel.Type]
 		}
 		newChannelId2channel[channel.Id] = channel
 	}
