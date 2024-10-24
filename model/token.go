@@ -444,3 +444,47 @@ func UpdateTokenUsedAmount(id int, amount float64, requestCount int) (err error)
 		)
 	return HandleUpdateResult(result, ErrTokenNotFound)
 }
+
+func UpdateTokenRemark(id int, remark string) (err error) {
+	token := &Token{Id: id}
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteToken(token.Key)
+		}
+	}()
+	result := DB.
+		Model(token).
+		Clauses(clause.Returning{
+			Columns: []clause.Column{
+				{Name: "key"},
+			},
+		}).
+		Where("id = ?", id).
+		Update("remark", remark)
+	if result.Error != nil && errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+		return errors.New("token remark already exists in this group")
+	}
+	return HandleUpdateResult(result, ErrTokenNotFound)
+}
+
+func UpdateGroupTokenRemark(group string, id int, remark string) (err error) {
+	token := &Token{Id: id, GroupId: group}
+	defer func() {
+		if err == nil {
+			_ = CacheDeleteToken(token.Key)
+		}
+	}()
+	result := DB.
+		Model(token).
+		Clauses(clause.Returning{
+			Columns: []clause.Column{
+				{Name: "key"},
+			},
+		}).
+		Where("id = ? and group_id = ?", id, group).
+		Update("remark", remark)
+	if result.Error != nil && errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+		return errors.New("token remark already exists in this group")
+	}
+	return HandleUpdateResult(result, ErrTokenNotFound)
+}

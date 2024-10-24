@@ -547,3 +547,68 @@ func UpdateGroupTokenStatus(c *gin.Context) {
 	})
 	return
 }
+
+type UpdateTokenRemarkRequest struct {
+	Remark string `json:"remark"`
+}
+
+func UpdateTokenRemark(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+	remark := UpdateTokenRemarkRequest{}
+	err = c.ShouldBindJSON(&remark)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+	err = model.UpdateTokenRemark(id, remark.Remark)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
+	return
+}
+
+func UpdateGroupTokenRemark(c *gin.Context) {
+	group := c.Param("group")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+	remark := UpdateTokenRemarkRequest{}
+	err = c.ShouldBindJSON(&remark)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+	err = model.UpdateGroupTokenRemark(group, id, remark.Remark)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
+	return
+}
