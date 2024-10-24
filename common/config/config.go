@@ -112,6 +112,7 @@ var (
 	defaultChannelModels       atomic.Value
 	defaultChannelModelMapping atomic.Value
 	defaultGroupQPM            int64 = 120
+	groupMaxTokenNum           int32 = 0
 )
 
 func init() {
@@ -149,6 +150,14 @@ func GetDefaultChannelModelMapping() map[int]map[string]string {
 
 func SetDefaultChannelModelMapping(mapping map[int]map[string]string) {
 	defaultChannelModelMapping.Store(mapping)
+}
+
+func GetGroupMaxTokenNum() int32 {
+	return atomic.LoadInt32(&groupMaxTokenNum)
+}
+
+func SetGroupMaxTokenNum(num int32) {
+	atomic.StoreInt32(&groupMaxTokenNum, num)
 }
 
 var (

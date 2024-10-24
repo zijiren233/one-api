@@ -41,6 +41,7 @@ func InitOptionMap() {
 	config.OptionMap["DefaultChannelModelMapping"] = common.BytesToString(defaultChannelModelMappingJSON)
 	config.OptionMap["GeminiSafetySetting"] = config.GetGeminiSafetySetting()
 	config.OptionMap["GeminiVersion"] = config.GetGeminiVersion()
+	config.OptionMap["GroupMaxTokenNum"] = strconv.FormatInt(int64(config.GetGroupMaxTokenNum()), 10)
 	config.OptionMapRWMutex.Unlock()
 	loadOptionsFromDatabase()
 }
@@ -98,6 +99,12 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 	}
 	switch key {
+	case "GroupMaxTokenNum":
+		groupMaxTokenNum, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return err
+		}
+		config.SetGroupMaxTokenNum(int32(groupMaxTokenNum))
 	case "GeminiSafetySetting":
 		config.SetGeminiSafetySetting(value)
 	case "GeminiVersion":

@@ -8,6 +8,7 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -65,7 +66,20 @@ func InsertToken(token *Token, autoCreateGroup bool) error {
 			return err
 		}
 	}
-	err := DB.Create(token).Error
+	maxTokenNum := config.GetGroupMaxTokenNum()
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		if maxTokenNum > 0 {
+			var count int64
+			err := tx.Model(&Token{}).Where("group_id = ?", token.GroupId).Count(&count).Error
+			if err != nil {
+				return err
+			}
+			if count >= int64(maxTokenNum) {
+				return errors.New("group max token num reached")
+			}
+		}
+		return tx.Create(token).Error
+	})
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return errors.New("token name already exists in this group")
