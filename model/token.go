@@ -26,20 +26,20 @@ const (
 )
 
 type Token struct {
-	Id           int       `gorm:"primaryKey" json:"id"`
-	GroupId      string    `gorm:"index;uniqueIndex:idx_group_name" json:"group"`
-	Group        *Group    `gorm:"foreignKey:GroupId" json:"-"`
-	Key          string    `gorm:"type:char(48);uniqueIndex" json:"key"`
-	Status       int       `gorm:"default:1" json:"status"`
-	Name         string    `gorm:"index;uniqueIndex:idx_group_name" json:"name"`
-	CreatedAt    time.Time `json:"created_at"`
-	AccessedAt   time.Time `json:"accessed_at"`
-	ExpiredAt    time.Time `json:"expired_at"`
-	Quota        float64   `gorm:"bigint" json:"quota"`
-	UsedAmount   float64   `gorm:"bigint" json:"used_amount"` // used amount
-	RequestCount int       `gorm:"type:int" json:"request_count"`
-	Models       []string  `gorm:"serializer:json;type:text" json:"models"` // allowed models
-	Subnet       string    `json:"subnet"`                                  // allowed subnet
+	Id           int             `gorm:"primaryKey" json:"id"`
+	GroupId      string          `gorm:"index;uniqueIndex:idx_group_remark" json:"group"`
+	Group        *Group          `gorm:"foreignKey:GroupId" json:"-"`
+	Key          string          `gorm:"type:char(48);uniqueIndex" json:"key"`
+	Status       int             `gorm:"default:1" json:"status"`
+	Remark       EmptyNullString `gorm:"index;uniqueIndex:idx_group_remark" json:"remark"`
+	CreatedAt    time.Time       `json:"created_at"`
+	AccessedAt   time.Time       `json:"accessed_at"`
+	ExpiredAt    time.Time       `json:"expired_at"`
+	Quota        float64         `gorm:"bigint" json:"quota"`
+	UsedAmount   float64         `gorm:"bigint" json:"used_amount"` // used amount
+	RequestCount int             `gorm:"type:int" json:"request_count"`
+	Models       []string        `gorm:"serializer:json;type:text" json:"models"` // allowed models
+	Subnet       string          `json:"subnet"`                                  // allowed subnet
 }
 
 func (t *Token) MarshalJSON() ([]byte, error) {
@@ -82,7 +82,7 @@ func InsertToken(token *Token, autoCreateGroup bool) error {
 	})
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return errors.New("token name already exists in this group")
+			return errors.New("token remark already exists in this group")
 		}
 		return err
 	}
@@ -142,9 +142,9 @@ func GetGroupTokens(group string, startIdx int, num int, order string) (tokens [
 func SearchTokens(keyword string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
 	tx := DB.Model(&Token{})
 	if common.UsingPostgreSQL {
-		tx = tx.Where("`name` ILIKE ? or key ILIKE ? or group_id ILIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+		tx = tx.Where("remark ILIKE ? or key ILIKE ? or group_id ILIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	} else {
-		tx = tx.Where("`name` LIKE ? or key LIKE ? or group_id LIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+		tx = tx.Where("remark LIKE ? or key LIKE ? or group_id LIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	}
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -169,9 +169,9 @@ func SearchGroupTokens(group string, keyword string, startIdx int, num int, orde
 	}
 	tx := DB.Model(&Token{}).Where("group_id = ?", group)
 	if common.UsingPostgreSQL {
-		tx = tx.Where("`name` ILIKE ? or key ILIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+		tx = tx.Where("remark ILIKE ? or key ILIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	} else {
-		tx = tx.Where("`name` LIKE ? or key LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+		tx = tx.Where("remark LIKE ? or key LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -212,15 +212,15 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("无效的令牌")
 		}
-		return nil, errors.New("令牌验证失败")
+		return nil, fmt.Errorf("令牌验证失败")
 	}
 	if token.Status == TokenStatusExhausted {
-		return nil, fmt.Errorf("令牌 %s（#%d）额度已用尽", token.Name, token.Id)
+		return nil, fmt.Errorf("令牌 (%d) 额度已用尽", token.Id)
 	} else if token.Status == TokenStatusExpired {
-		return nil, errors.New("该令牌已过期")
+		return nil, fmt.Errorf("令牌 (%d) 已过期", token.Id)
 	}
 	if token.Status != TokenStatusEnabled {
-		return nil, errors.New("该令牌状态不可用")
+		return nil, fmt.Errorf("令牌 (%d) 状态不可用", token.Id)
 	}
 	if !token.ExpiredAt.IsZero() && token.ExpiredAt.Before(time.Now()) {
 		if !common.RedisEnabled {
@@ -229,7 +229,7 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 				logger.SysError("failed to update token status" + err.Error())
 			}
 		}
-		return nil, errors.New("该令牌已过期")
+		return nil, fmt.Errorf("令牌 (%d) 已过期", token.Id)
 	}
 	if token.Quota > 0 {
 		usedAmount, err := CacheGetTokenUsedAmount(token.Id)
@@ -242,7 +242,7 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 			if err != nil {
 				logger.SysError("failed to update token status" + err.Error())
 			}
-			return nil, errors.New("该令牌额度已用尽")
+			return nil, fmt.Errorf("令牌 (%d) 额度已用尽", token.Id)
 		}
 	}
 	return token, nil
@@ -414,7 +414,7 @@ func UpdateToken(token *Token) (err error) {
 	result := DB.Omit("created_at", "status", "key", "group_id", "used_amount", "request_count").Save(token)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
-			return errors.New("token name already exists in this group")
+			return errors.New("token remark already exists in this group")
 		}
 	}
 	return HandleUpdateResult(result, ErrTokenNotFound)

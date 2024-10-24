@@ -185,8 +185,8 @@ func GetGroupToken(c *gin.Context) {
 }
 
 func validateToken(token AddTokenRequest) error {
-	if len(token.Name) > 30 {
-		return fmt.Errorf("令牌名称过长")
+	if len(token.Remark) > 30 {
+		return fmt.Errorf("令牌备注过长")
 	}
 	if token.Subnet != "" {
 		err := network.IsValidSubnets(token.Subnet)
@@ -198,7 +198,7 @@ func validateToken(token AddTokenRequest) error {
 }
 
 type AddTokenRequest struct {
-	Name      string   `json:"name"`
+	Remark    string   `json:"remark"`
 	ExpiredAt int64    `json:"expired_at"`
 	Quota     float64  `json:"quota"`
 	Models    []string `json:"models"`
@@ -234,7 +234,7 @@ func AddToken(c *gin.Context) {
 
 	cleanToken := &model.Token{
 		GroupId:   group,
-		Name:      token.Name,
+		Remark:    model.EmptyNullString(token.Remark),
 		Key:       random.GenerateKey(),
 		ExpiredAt: expiredAt,
 		Quota:     token.Quota,
@@ -344,7 +344,7 @@ func UpdateToken(c *gin.Context) {
 	if token.ExpiredAt != 0 {
 		expiredAt = time.UnixMilli(token.ExpiredAt)
 	}
-	cleanToken.Name = token.Name
+	cleanToken.Remark = model.EmptyNullString(token.Remark)
 	cleanToken.ExpiredAt = expiredAt
 	cleanToken.Quota = token.Quota
 	cleanToken.Models = token.Models
@@ -404,7 +404,7 @@ func UpdateGroupToken(c *gin.Context) {
 	if token.ExpiredAt != 0 {
 		expiredAt = time.UnixMilli(token.ExpiredAt)
 	}
-	cleanToken.Name = token.Name
+	cleanToken.Remark = model.EmptyNullString(token.Remark)
 	cleanToken.ExpiredAt = expiredAt
 	cleanToken.Quota = token.Quota
 	cleanToken.Models = token.Models

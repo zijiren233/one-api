@@ -90,7 +90,7 @@ func postConsumeAmount(ctx context.Context, usage *relaymodel.Usage, meta *meta.
 	if err != nil {
 		logger.Error(ctx, "error consuming token remain amount: "+err.Error())
 	}
-	model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenName, amount, price, completionPrice, "")
+	model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenRemark, amount, price, completionPrice, "")
 	model.UpdateGroupUsedAmountAndRequestCount(meta.Group, amount, 1)
 	model.UpdateTokenUsedAmount(meta.TokenId, amount, 1)
 	model.UpdateChannelUsedAmount(meta.ChannelId, amount, 1)

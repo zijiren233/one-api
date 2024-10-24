@@ -23,7 +23,7 @@ type Log struct {
 	UsedAmount       float64   `json:"used_amount"`
 	Price            float64   `json:"price"`
 	CompletionPrice  float64   `json:"completion_price"`
-	TokenName        string    `gorm:"index" json:"token_name"`
+	TokenRemark      string    `gorm:"index" json:"token_remark"`
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
 	ChannelId        int       `gorm:"index" json:"channel"`
@@ -62,8 +62,8 @@ func RecordLog(group string, logType int, content string) {
 	}
 }
 
-func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTokens int, completionTokens int, modelName string, tokenName string, usedAmount float64, price float64, completionPrice float64, content string) {
-	logger.Info(ctx, fmt.Sprintf("record consume log: group=%s, channelId=%d, promptTokens=%d, completionTokens=%d, modelName=%s, tokenName=%s, usedAmount=%f, price=%f, completionPrice=%f, content=%s", group, channelId, promptTokens, completionTokens, modelName, tokenName, usedAmount, price, completionPrice, content))
+func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTokens int, completionTokens int, modelName string, tokenRemark string, usedAmount float64, price float64, completionPrice float64, content string) {
+	logger.Info(ctx, fmt.Sprintf("record consume log: group=%s, channelId=%d, promptTokens=%d, completionTokens=%d, modelName=%s, tokenRemark=%s, usedAmount=%f, price=%f, completionPrice=%f, content=%s", group, channelId, promptTokens, completionTokens, modelName, tokenRemark, usedAmount, price, completionPrice, content))
 	log := &Log{
 		GroupId:          group,
 		CreatedAt:        time.Now(),
@@ -71,7 +71,7 @@ func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTo
 		Content:          content,
 		PromptTokens:     promptTokens,
 		CompletionTokens: completionTokens,
-		TokenName:        tokenName,
+		TokenRemark:      tokenRemark,
 		Model:            modelName,
 		UsedAmount:       usedAmount,
 		Price:            price,
@@ -84,7 +84,7 @@ func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTo
 	}
 }
 
-func GetLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenName string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
+func GetLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenRemark string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{})
 	if logType != LogTypeUnknown {
 		tx = tx.Where("type = ?", logType)
@@ -95,8 +95,8 @@ func GetLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, mode
 	if group != "" {
 		tx = tx.Where("group_id = ?", group)
 	}
-	if tokenName != "" {
-		tx = tx.Where("token_name = ?", tokenName)
+	if tokenRemark != "" {
+		tx = tx.Where("token_remark = ?", tokenRemark)
 	}
 	if !startTimestamp.IsZero() {
 		tx = tx.Where("created_at >= ?", startTimestamp)
@@ -118,7 +118,7 @@ func GetLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, mode
 	return logs, total, err
 }
 
-func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, tokenName string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
+func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, tokenRemark string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{}).Where("group_id = ?", group)
 	if logType != LogTypeUnknown {
 		tx = tx.Where("type = ?", logType)
@@ -126,8 +126,8 @@ func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimest
 	if modelName != "" {
 		tx = tx.Where("model_name = ?", modelName)
 	}
-	if tokenName != "" {
-		tx = tx.Where("token_name = ?", tokenName)
+	if tokenRemark != "" {
+		tx = tx.Where("token_remark = ?", tokenRemark)
 	}
 	if !startTimestamp.IsZero() {
 		tx = tx.Where("created_at >= ?", startTimestamp)
@@ -197,7 +197,7 @@ func SearchGroupLogs(group string, keyword string, page int, perPage int) (logs 
 	return logs, total, err
 }
 
-func SumUsedQuota(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenName string, channel int) (quota int64) {
+func SumUsedQuota(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenRemark string, channel int) (quota int64) {
 	ifnull := "ifnull"
 	if common.UsingPostgreSQL {
 		ifnull = "COALESCE"
@@ -206,8 +206,8 @@ func SumUsedQuota(logType int, startTimestamp time.Time, endTimestamp time.Time,
 	if group != "" {
 		tx = tx.Where("group_id = ?", group)
 	}
-	if tokenName != "" {
-		tx = tx.Where("token_name = ?", tokenName)
+	if tokenRemark != "" {
+		tx = tx.Where("token_remark = ?", tokenRemark)
 	}
 	if !startTimestamp.IsZero() {
 		tx = tx.Where("created_at >= ?", startTimestamp)
@@ -225,7 +225,7 @@ func SumUsedQuota(logType int, startTimestamp time.Time, endTimestamp time.Time,
 	return quota
 }
 
-func SumUsedToken(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenName string) (token int) {
+func SumUsedToken(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenRemark string) (token int) {
 	ifnull := "ifnull"
 	if common.UsingPostgreSQL {
 		ifnull = "COALESCE"
@@ -234,8 +234,8 @@ func SumUsedToken(logType int, startTimestamp time.Time, endTimestamp time.Time,
 	if group != "" {
 		tx = tx.Where("group_id = ?", group)
 	}
-	if tokenName != "" {
-		tx = tx.Where("token_name = ?", tokenName)
+	if tokenRemark != "" {
+		tx = tx.Where("token_remark = ?", tokenRemark)
 	}
 	if !startTimestamp.IsZero() {
 		tx = tx.Where("created_at >= ?", startTimestamp)

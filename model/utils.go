@@ -1,6 +1,7 @@
 package model
 
 import (
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"strings"
@@ -37,4 +38,35 @@ func OnConflictDoNothing() *gorm.DB {
 	return DB.Clauses(clause.OnConflict{
 		DoNothing: true,
 	})
+}
+
+type EmptyNullString string
+
+func (ns EmptyNullString) String() string {
+	return string(ns)
+}
+
+// Scan implements the [Scanner] interface.
+func (ns *EmptyNullString) Scan(value any) error {
+	if value == nil {
+		*ns = ""
+		return nil
+	}
+	switch v := value.(type) {
+	case []byte:
+		*ns = EmptyNullString(v)
+	case string:
+		*ns = EmptyNullString(v)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
+	return nil
+}
+
+// Value implements the [driver.Valuer] interface.
+func (ns EmptyNullString) Value() (driver.Value, error) {
+	if ns == "" {
+		return nil, nil
+	}
+	return string(ns), nil
 }

@@ -28,7 +28,7 @@ type TokenCache struct {
 	Id        int       `json:"id"`
 	Group     string    `json:"group"`
 	Key       string    `json:"-"`
-	Name      string    `json:"name"`
+	Remark    string    `json:"remark"`
 	Models    []string  `json:"models"`
 	Subnet    string    `json:"subnet"`
 	Status    int       `json:"status"`
@@ -40,7 +40,7 @@ func (t *Token) ToTokenCache() *TokenCache {
 	return &TokenCache{
 		Id:        t.Id,
 		Group:     t.GroupId,
-		Name:      t.Name,
+		Remark:    t.Remark.String(),
 		Models:    t.Models,
 		Subnet:    t.Subnet,
 		Status:    t.Status,

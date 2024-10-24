@@ -13,7 +13,7 @@ const (
 	ModelMapping      = "model_mapping"
 	ChannelName       = "channel_name"
 	TokenId           = "token_id"
-	TokenName         = "token_name"
+	TokenRemark       = "token_remark"
 	BaseURL           = "base_url"
 	AvailableModels   = "available_models"
 	KeyRequestBody    = "key_request_body"

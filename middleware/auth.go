@@ -89,7 +89,7 @@ func TokenAuth(c *gin.Context) {
 
 	c.Set(ctxkey.Group, token.Group)
 	c.Set(ctxkey.TokenId, token.Id)
-	c.Set(ctxkey.TokenName, token.Name)
+	c.Set(ctxkey.TokenRemark, token.Remark)
 	if len(parts) > 1 {
 		// c.Set(ctxkey.SpecificChannelId, parts[1])
 	}

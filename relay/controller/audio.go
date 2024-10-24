@@ -34,7 +34,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	channelType := c.GetInt(ctxkey.Channel)
 	channelId := c.GetInt(ctxkey.ChannelId)
 	group := c.GetString(ctxkey.Group)
-	tokenName := c.GetString(ctxkey.TokenName)
+	tokenRemark := c.GetString(ctxkey.TokenRemark)
 
 	var ttsRequest openai.TextToSpeechRequest
 	if relayMode == relaymode.AudioSpeech {
@@ -180,7 +180,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return RelayErrorHandler(resp)
 	}
 	defer func(ctx context.Context) {
-		go billing.PostConsumeAmount(ctx, tokenId, amount, group, channelId, price, audioModel, tokenName)
+		go billing.PostConsumeAmount(ctx, tokenId, amount, group, channelId, price, audioModel, tokenRemark)
 	}(c.Request.Context())
 
 	for k, v := range resp.Header {
