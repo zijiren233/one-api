@@ -221,3 +221,33 @@ func UpdateChannel(c *gin.Context) {
 	})
 	return
 }
+
+type UpdateChannelStatusRequest struct {
+	Status int `json:"status"`
+}
+
+func UpdateChannelStatus(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	status := UpdateChannelStatusRequest{}
+	err := c.ShouldBindJSON(&status)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	err = model.UpdateChannelStatus(id, status.Status)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
+	return
+}

@@ -195,3 +195,8 @@ func DeleteDisabledChannel() error {
 	result := DB.Where("status = ? or status = ?", ChannelStatusAutoDisabled, ChannelStatusManuallyDisabled).Delete(&Channel{})
 	return HandleUpdateResult(result, ErrChannelNotFound)
 }
+
+func UpdateChannelStatus(id int, status int) error {
+	result := DB.Model(&Channel{}).Where("id = ?", id).Update("status", status)
+	return HandleUpdateResult(result, ErrChannelNotFound)
+}
