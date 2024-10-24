@@ -64,7 +64,7 @@ func TokenAuth(c *gin.Context) {
 	c.Set(ctxkey.RequestModel, requestModel)
 	if len(token.Models) == 0 {
 		token.Models = model.CacheGetAllModels()
-		if len(token.Models) == 0 {
+		if requestModel != "" && len(token.Models) == 0 {
 			abortWithMessage(c, http.StatusForbidden, "该令牌无权使用任何模型")
 			return
 		}

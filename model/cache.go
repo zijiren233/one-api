@@ -1,15 +1,17 @@
 package model
 
 import (
+	"context"
+	"encoding"
 	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
 
 	json "github.com/json-iterator/go"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
@@ -18,34 +20,50 @@ import (
 )
 
 const (
-	SyncFrequency           = time.Minute
-	TokenCacheKey           = "token:%s"
-	TokenUsedAmountCacheKey = "token_used_amount:%d"
-	GroupCacheKey           = "group:%s"
+	SyncFrequency = time.Minute
+	TokenCacheKey = "token:%s"
+	GroupCacheKey = "group:%s"
 )
 
+var (
+	_ encoding.BinaryMarshaler = (*redisStringSlice)(nil)
+	_ redis.Scanner            = (*redisStringSlice)(nil)
+)
+
+type redisStringSlice []string
+
+func (r *redisStringSlice) ScanRedis(value string) error {
+	return json.Unmarshal(common.StringToBytes(value), r)
+}
+
+func (r redisStringSlice) MarshalBinary() ([]byte, error) {
+	return json.Marshal(r)
+}
+
 type TokenCache struct {
-	Id        int       `json:"id"`
-	Group     string    `json:"group"`
-	Key       string    `json:"-"`
-	Remark    string    `json:"remark"`
-	Models    []string  `json:"models"`
-	Subnet    string    `json:"subnet"`
-	Status    int       `json:"status"`
-	ExpiredAt time.Time `json:"expired_at"`
-	Quota     float64   `json:"quota"`
+	Id         int              `json:"id" redis:"i"`
+	Group      string           `json:"group" redis:"g"`
+	Key        string           `json:"-" redis:"-"`
+	Remark     string           `json:"remark" redis:"r"`
+	Models     redisStringSlice `json:"models" redis:"m"`
+	Subnet     string           `json:"subnet" redis:"s"`
+	Status     int              `json:"status" redis:"st"`
+	ExpiredAt  time.Time        `json:"expired_at" redis:"e"`
+	Quota      float64          `json:"quota" redis:"q"`
+	UsedAmount float64          `json:"used_amount" redis:"u"`
 }
 
 func (t *Token) ToTokenCache() *TokenCache {
 	return &TokenCache{
-		Id:        t.Id,
-		Group:     t.GroupId,
-		Remark:    t.Remark.String(),
-		Models:    t.Models,
-		Subnet:    t.Subnet,
-		Status:    t.Status,
-		ExpiredAt: t.ExpiredAt,
-		Quota:     t.Quota,
+		Id:         t.Id,
+		Group:      t.GroupId,
+		Remark:     t.Remark.String(),
+		Models:     t.Models,
+		Subnet:     t.Subnet,
+		Status:     t.Status,
+		ExpiredAt:  t.ExpiredAt,
+		Quota:      t.Quota,
+		UsedAmount: t.UsedAmount,
 	}
 }
 
@@ -60,101 +78,61 @@ func CacheSetToken(token *Token) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	jsonBytes, err := json.Marshal(token.ToTokenCache())
-	if err != nil {
-		return err
-	}
-	return common.RedisSet(fmt.Sprintf(TokenCacheKey, token.Key), common.BytesToString(jsonBytes), SyncFrequency)
+	key := fmt.Sprintf(TokenCacheKey, token.Key)
+	pipe := common.RDB.Pipeline()
+	pipe.HSet(context.Background(), key, token.ToTokenCache())
+	pipe.Expire(context.Background(), key, SyncFrequency)
+	_, err := pipe.Exec(context.Background())
+	return err
 }
 
 func CacheGetTokenByKey(key string) (*TokenCache, error) {
 	if !common.RedisEnabled {
-		return getTokenFromDB(key)
+		token, err := GetTokenByKey(key)
+		if err != nil {
+			return nil, err
+		}
+		return token.ToTokenCache(), nil
 	}
 
 	cacheKey := fmt.Sprintf(TokenCacheKey, key)
-	tokenObjectString, err := common.RedisGet(cacheKey)
-	if err == nil {
-		return unmarshalToken(tokenObjectString, key)
+	tokenCache := &TokenCache{}
+	err := common.RDB.HGetAll(context.Background(), cacheKey).Scan(tokenCache)
+	if err == nil && tokenCache.Id != 0 {
+		tokenCache.Key = key
+		return tokenCache, nil
 	}
 
-	token, err := getTokenFromDB(key)
+	logger.SysLog("token not found in redis, getting from database")
+
+	token, err := GetTokenByKey(key)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := cacheToken(cacheKey, token); err != nil {
+	if err := CacheSetToken(token); err != nil {
 		logger.SysError("Redis set token error: " + err.Error())
 	}
 
-	return token, nil
-}
-
-func getTokenFromDB(key string) (*TokenCache, error) {
-	keyCol := "`key`"
-	if common.UsingPostgreSQL {
-		keyCol = `"key"`
-	}
-	var token Token
-	if err := DB.Where(keyCol+" = ?", key).First(&token).Error; err != nil {
-		return nil, err
-	}
 	return token.ToTokenCache(), nil
 }
 
-func unmarshalToken(tokenString, key string) (*TokenCache, error) {
-	var token TokenCache
-	if err := json.Unmarshal(common.StringToBytes(tokenString), &token); err != nil {
-		return nil, err
-	}
-	token.Key = key
-	return &token, nil
-}
-
-func cacheToken(cacheKey string, token *TokenCache) error {
-	jsonBytes, err := json.Marshal(token)
-	if err != nil {
-		return err
-	}
-	return common.RedisSet(cacheKey, common.BytesToString(jsonBytes), SyncFrequency)
-}
-
-func CacheGetTokenUsedAmount(id int) (float64, error) {
-	if !common.RedisEnabled {
-		return GetTokenUsedAmount(id)
-	}
-	amountString, err := common.RedisGet(fmt.Sprintf(TokenUsedAmountCacheKey, id))
-	if err == nil {
-		return strconv.ParseFloat(amountString, 64)
-	}
-	amount, err := GetTokenUsedAmount(id)
-	if err != nil {
-		return 0, err
-	}
-	if err := CacheUpdateTokenUsedAmount(id, amount); err != nil {
-		logger.SysError("Redis set token used amount error: " + err.Error())
-	}
-	return amount, nil
-}
-
-func CacheUpdateTokenUsedAmount(id int, amount float64) error {
+func CacheUpdateTokenUsedAmount(key string, amount float64) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	return common.RedisSet(fmt.Sprintf(TokenUsedAmountCacheKey, id), fmt.Sprintf("%f", amount), SyncFrequency)
-}
-
-func CacheDeleteTokenUsedAmount(id int) error {
-	if !common.RedisEnabled {
-		return nil
-	}
-	return common.RedisDel(fmt.Sprintf(TokenUsedAmountCacheKey, id))
+	cacheKey := fmt.Sprintf(TokenCacheKey, key)
+	pipe := common.RDB.Pipeline()
+	pipe.HSet(context.Background(), cacheKey, "used_amount", amount)
+	pipe.Expire(context.Background(), cacheKey, SyncFrequency)
+	_, err := pipe.Exec(context.Background())
+	return err
 }
 
 type GroupCache struct {
-	Id     string `json:"-"`
-	Status int    `json:"status"`
-	QPM    int64  `json:"qpm"`
+	Id     string `json:"-" redis:"-"`
+	Status int    `json:"status" redis:"st"`
+	QPM    int64  `json:"qpm" redis:"q"`
 }
 
 func (g *Group) ToGroupCache() *GroupCache {
@@ -176,11 +154,12 @@ func CacheSetGroup(group *Group) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	jsonBytes, err := json.Marshal(group.ToGroupCache())
-	if err != nil {
-		return err
-	}
-	return common.RedisSet(fmt.Sprintf(GroupCacheKey, group.Id), common.BytesToString(jsonBytes), SyncFrequency)
+	key := fmt.Sprintf(GroupCacheKey, group.Id)
+	pipe := common.RDB.Pipeline()
+	pipe.HSet(context.Background(), key, group.ToGroupCache())
+	pipe.Expire(context.Background(), key, SyncFrequency)
+	_, err := pipe.Exec(context.Background())
+	return err
 }
 
 func CacheGetGroup(id string) (*GroupCache, error) {
@@ -189,9 +168,11 @@ func CacheGetGroup(id string) (*GroupCache, error) {
 	}
 
 	cacheKey := fmt.Sprintf(GroupCacheKey, id)
-	groupObjectString, err := common.RedisGet(cacheKey)
-	if err == nil {
-		return unmarshalGroup(groupObjectString, id)
+	groupCache := &GroupCache{}
+	err := common.RDB.HGetAll(context.Background(), cacheKey).Scan(groupCache)
+	if err == nil && groupCache.Status != 0 {
+		groupCache.Id = id
+		return groupCache, nil
 	}
 
 	group, err := getGroupFromDB(id)
@@ -199,7 +180,7 @@ func CacheGetGroup(id string) (*GroupCache, error) {
 		return nil, err
 	}
 
-	if err := cacheGroup(cacheKey, group); err != nil {
+	if err := CacheSetGroup(&Group{Id: id, Status: group.Status, QPM: group.QPM}); err != nil {
 		logger.SysError("Redis set group error: " + err.Error())
 	}
 
@@ -212,23 +193,6 @@ func getGroupFromDB(id string) (*GroupCache, error) {
 		return nil, err
 	}
 	return group.ToGroupCache(), nil
-}
-
-func unmarshalGroup(groupString, id string) (*GroupCache, error) {
-	var group GroupCache
-	if err := json.Unmarshal(common.StringToBytes(groupString), &group); err != nil {
-		return nil, err
-	}
-	group.Id = id
-	return &group, nil
-}
-
-func cacheGroup(cacheKey string, group *GroupCache) error {
-	jsonBytes, err := json.Marshal(group)
-	if err != nil {
-		return err
-	}
-	return common.RedisSet(cacheKey, common.BytesToString(jsonBytes), SyncFrequency)
 }
 
 var (

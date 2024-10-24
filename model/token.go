@@ -190,6 +190,12 @@ func SearchGroupTokens(group string, keyword string, startIdx int, num int, orde
 	return tokens, total, err
 }
 
+func GetTokenByKey(key string) (*Token, error) {
+	var token Token
+	err := DB.Where("key = ?", key).First(&token).Error
+	return &token, HandleNotFound(err, ErrTokenNotFound)
+}
+
 func GetTokenUsedAmount(id int) (float64, error) {
 	var amount float64
 	err := DB.Model(&Token{}).Where("id = ?", id).Select("used_amount").Scan(&amount).Error
@@ -231,19 +237,13 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 		}
 		return nil, fmt.Errorf("令牌 (%d) 已过期", token.Id)
 	}
-	if token.Quota > 0 {
-		usedAmount, err := CacheGetTokenUsedAmount(token.Id)
+	if token.Quota > 0 && token.UsedAmount >= token.Quota {
+		// in this case, we can make sure the token is exhausted
+		err := UpdateTokenStatusAndAccessedAt(token.Id, TokenStatusExhausted)
 		if err != nil {
-			logger.SysError("CacheGetTokenUsedAmount failed: " + err.Error())
+			logger.SysError("failed to update token status" + err.Error())
 		}
-		if usedAmount >= token.Quota {
-			// in this case, we can make sure the token is exhausted
-			err := UpdateTokenStatusAndAccessedAt(token.Id, TokenStatusExhausted)
-			if err != nil {
-				logger.SysError("failed to update token status" + err.Error())
-			}
-			return nil, fmt.Errorf("令牌 (%d) 额度已用尽", token.Id)
-		}
+		return nil, fmt.Errorf("令牌 (%d) 额度已用尽", token.Id)
 	}
 	return token, nil
 }
@@ -369,7 +369,6 @@ func DeleteTokenByIdAndGroupId(id int, groupId string) (err error) {
 	defer func() {
 		if err == nil {
 			_ = CacheDeleteToken(token.Key)
-			_ = CacheDeleteTokenUsedAmount(id)
 		}
 	}()
 	result := DB.
@@ -391,7 +390,6 @@ func DeleteTokenById(id int) (err error) {
 	defer func() {
 		if err == nil {
 			_ = CacheDeleteToken(token.Key)
-			_ = CacheDeleteTokenUsedAmount(id)
 		}
 	}()
 	result := DB.
@@ -424,13 +422,14 @@ func UpdateTokenUsedAmount(id int, amount float64, requestCount int) (err error)
 	token := &Token{Id: id}
 	defer func() {
 		if err == nil {
-			_ = CacheUpdateTokenUsedAmount(id, token.UsedAmount)
+			_ = CacheUpdateTokenUsedAmount(token.Key, token.UsedAmount)
 		}
 	}()
 	result := DB.
 		Model(token).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
+				{Name: "key"},
 				{Name: "used_amount"},
 			},
 		}).
