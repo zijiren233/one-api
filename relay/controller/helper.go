@@ -72,16 +72,16 @@ func preCheckGroupBalance(ctx context.Context, textRequest *relaymodel.GeneralOp
 }
 
 func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64, content string) {
+	completionPrice := billingPrice.GetCompletionPrice(textRequest.Model, meta.ChannelType)
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		// Record log and usage count without consuming balance
-		model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, 0, 0, textRequest.Model, meta.TokenRemark, 0, price, 0, endpoint, content)
+		model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, 0, 0, textRequest.Model, meta.TokenRemark, 0, price, completionPrice, endpoint, content)
 		model.UpdateGroupUsedAmountAndRequestCount(meta.Group, 0, 1)
 		model.UpdateTokenUsedAmount(meta.TokenId, 0, 1)
 		model.UpdateChannelUsedAmount(meta.ChannelId, 0, 1)
 		return
 	}
-	completionPrice := billingPrice.GetCompletionPrice(textRequest.Model, meta.ChannelType)
 	promptTokens := usage.PromptTokens
 	completionTokens := usage.CompletionTokens
 	amount := (float64(promptTokens) + float64(completionTokens)*completionPrice) * price / billingPrice.PriceUnit
