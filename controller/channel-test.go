@@ -16,6 +16,7 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/gin-gonic/gin"
+	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/middleware"
@@ -47,7 +48,10 @@ func buildTestRequest(model string) *relaymodel.GeneralOpenAIRequest {
 
 func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIRequest) (err error, openaiErr *relaymodel.Error) {
 	if len(channel.Models) == 0 {
-		return errors.New("no models"), nil
+		channel.Models = config.GetDefaultChannelModels()[channel.Type]
+		if len(channel.Models) == 0 {
+			return errors.New("no models"), nil
+		}
 	}
 	modelName := request.Model
 	if modelName == "" {
