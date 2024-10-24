@@ -56,7 +56,15 @@ func (t *Token) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func InsertToken(token *Token) error {
+func InsertToken(token *Token, autoCreateGroup bool) error {
+	if autoCreateGroup {
+		group := &Group{
+			Id: token.GroupId,
+		}
+		if err := OnConflictDoNothing().Create(group).Error; err != nil {
+			return err
+		}
+	}
 	return DB.Create(token).Error
 }
 

@@ -71,6 +71,10 @@ func TokenAuth(c *gin.Context) {
 		return
 	}
 
+	if group.QPM == 0 {
+		group.QPM = int64(config.DefaultGroupQPM)
+	}
+
 	if group.QPM > 0 {
 		ok, err := RateLimit(ctx, fmt.Sprintf("group_qpm:%s", group.Id), int(group.QPM), time.Minute)
 		if err != nil {

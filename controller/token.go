@@ -241,7 +241,7 @@ func AddToken(c *gin.Context) {
 		Models:    token.Models,
 		Subnet:    token.Subnet,
 	}
-	err = model.InsertToken(cleanToken)
+	err = model.InsertToken(cleanToken, c.Query("auto_create_group") == "true")
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

@@ -34,12 +34,6 @@ var RelayTimeout = env.Int("RELAY_TIMEOUT", 0) // unit is second
 
 var GeminiSafetySetting = env.String("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
 
-// All duration's unit is seconds
-// Shouldn't larger then RateLimitKeyExpirationDuration
-var (
-	GlobalApiRateLimitNum = env.Int("GLOBAL_API_RATE_LIMIT", 240)
-)
-
 var RateLimitKeyExpirationDuration = 20 * time.Minute
 
 var (
@@ -71,6 +65,8 @@ var (
 var AdminKey = env.String("ADMIN_KEY", "")
 
 var (
+	GlobalApiRateLimitNum      = 0
 	DefaultChannelModels       map[int][]string
 	DefaultChannelModelMapping map[int]map[string]string
+	DefaultGroupQPM            = 120
 )

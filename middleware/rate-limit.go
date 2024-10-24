@@ -61,23 +61,21 @@ func RateLimit(ctx context.Context, key string, maxRequestNum int, duration time
 	}
 }
 
-func rateLimitFactory(maxRequestNum int, duration time.Duration) func(c *gin.Context) {
-	return func(c *gin.Context) {
-		ok, err := RateLimit(c.Request.Context(), "ip"+c.ClientIP(), maxRequestNum, duration)
-		if err != nil {
-			fmt.Println(err.Error())
-			c.Status(http.StatusInternalServerError)
-			c.Abort()
-			return
-		}
-		if !ok {
-			c.Status(http.StatusTooManyRequests)
-			c.Abort()
-		}
+func GlobalAPIRateLimit(c *gin.Context) {
+	if config.GlobalApiRateLimitNum == 0 {
 		c.Next()
+		return
 	}
-}
-
-func GlobalAPIRateLimit() func(c *gin.Context) {
-	return rateLimitFactory(config.GlobalApiRateLimitNum, time.Minute)
+	ok, err := RateLimit(c.Request.Context(), "global_qpm", config.GlobalApiRateLimitNum, time.Minute)
+	if err != nil {
+		fmt.Println(err.Error())
+		c.Status(http.StatusInternalServerError)
+		c.Abort()
+		return
+	}
+	if !ok {
+		c.Status(http.StatusTooManyRequests)
+		c.Abort()
+	}
+	c.Next()
 }

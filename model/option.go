@@ -7,6 +7,7 @@ import (
 
 	json "github.com/json-iterator/go"
 
+	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"
 	billingprice "github.com/songquanpeng/one-api/relay/billing/price"
@@ -33,8 +34,12 @@ func InitOptionMap() {
 	config.OptionMap["ModelPrice"] = billingprice.ModelPrice2JSONString()
 	config.OptionMap["CompletionPrice"] = billingprice.CompletionPrice2JSONString()
 	config.OptionMap["RetryTimes"] = strconv.Itoa(config.RetryTimes)
-	config.OptionMap["DefaultChannelModels"] = "{}"
-	config.OptionMap["DefaultChannelModelMapping"] = "{}"
+	config.OptionMap["GlobalApiRateLimitNum"] = strconv.Itoa(config.GlobalApiRateLimitNum)
+	config.OptionMap["DefaultGroupQPM"] = strconv.Itoa(config.DefaultGroupQPM)
+	defaultChannelModelsJSON, _ := json.Marshal(config.DefaultChannelModels)
+	config.OptionMap["DefaultChannelModels"] = common.BytesToString(defaultChannelModelsJSON)
+	defaultChannelModelMappingJSON, _ := json.Marshal(config.DefaultChannelModelMapping)
+	config.OptionMap["DefaultChannelModelMapping"] = common.BytesToString(defaultChannelModelMappingJSON)
 	config.OptionMapRWMutex.Unlock()
 	loadOptionsFromDatabase()
 }
@@ -92,16 +97,20 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 	}
 	switch key {
+	case "GlobalApiRateLimitNum":
+		config.GlobalApiRateLimitNum, _ = strconv.Atoi(value)
+	case "DefaultGroupQPM":
+		config.DefaultGroupQPM, _ = strconv.Atoi(value)
 	case "DefaultChannelModels":
 		var newModules map[int][]string
-		err := json.Unmarshal([]byte(value), &newModules)
+		err := json.Unmarshal(common.StringToBytes(value), &newModules)
 		if err != nil {
 			return err
 		}
 		config.DefaultChannelModels = newModules
 	case "DefaultChannelModelMapping":
 		var newMapping map[int]map[string]string
-		err := json.Unmarshal([]byte(value), &newMapping)
+		err := json.Unmarshal(common.StringToBytes(value), &newMapping)
 		if err != nil {
 			return err
 		}
