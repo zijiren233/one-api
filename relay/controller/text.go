@@ -78,7 +78,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return respErr
 	}
 	// post-consume amount
-	go postConsumeAmount(ctx, usage, meta, textRequest, price)
+	go postConsumeAmount(ctx, resp.StatusCode, c.Request.URL.Path, usage, meta, textRequest, price)
 	return nil
 }
 

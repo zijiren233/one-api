@@ -15,8 +15,7 @@ import (
 type Log struct {
 	Id               int       `json:"id"`
 	CreatedAt        time.Time `json:"created_at"`
-	Type             int       `json:"type" gorm:"index:idx_created_at_type"`
-	Content          string    `json:"content"`
+	Code             int       `json:"code"`
 	GroupId          string    `gorm:"index;index:idx_group_model_name,priority:2" json:"group"`
 	Group            *Group    `gorm:"foreignKey:GroupId" json:"-"`
 	Model            string    `gorm:"index;index:idx_group_model_name,priority:1" json:"model"`
@@ -27,6 +26,7 @@ type Log struct {
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
 	ChannelId        int       `gorm:"index" json:"channel"`
+	Endpoint         string    `gorm:"index" json:"endpoint"`
 }
 
 func (l *Log) MarshalJSON() ([]byte, error) {
@@ -40,35 +40,12 @@ func (l *Log) MarshalJSON() ([]byte, error) {
 	})
 }
 
-const (
-	LogTypeUnknown = iota
-	LogTypeConsume
-	LogTypeSystem
-)
-
-func RecordLog(group string, logType int, content string) {
-	if logType == LogTypeConsume {
-		return
-	}
-	log := &Log{
-		GroupId:   group,
-		CreatedAt: time.Now(),
-		Type:      logType,
-		Content:   content,
-	}
-	err := LOG_DB.Create(log).Error
-	if err != nil {
-		logger.SysError("failed to record log: " + err.Error())
-	}
-}
-
-func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTokens int, completionTokens int, modelName string, tokenRemark string, usedAmount float64, price float64, completionPrice float64, content string) {
-	logger.Info(ctx, fmt.Sprintf("record consume log: group=%s, channelId=%d, promptTokens=%d, completionTokens=%d, modelName=%s, tokenRemark=%s, usedAmount=%f, price=%f, completionPrice=%f, content=%s", group, channelId, promptTokens, completionTokens, modelName, tokenRemark, usedAmount, price, completionPrice, content))
+func RecordConsumeLog(ctx context.Context, group string, code int, channelId int, promptTokens int, completionTokens int, modelName string, tokenRemark string, usedAmount float64, price float64, completionPrice float64, endpoint string) {
+	logger.Info(ctx, fmt.Sprintf("record consume log: group=%s, code=%d, channelId=%d, promptTokens=%d, completionTokens=%d, modelName=%s, tokenRemark=%s, usedAmount=%f, price=%f, completionPrice=%f, endpoint=%s", group, code, channelId, promptTokens, completionTokens, modelName, tokenRemark, usedAmount, price, completionPrice, endpoint))
 	log := &Log{
 		GroupId:          group,
 		CreatedAt:        time.Now(),
-		Type:             LogTypeConsume,
-		Content:          content,
+		Code:             code,
 		PromptTokens:     promptTokens,
 		CompletionTokens: completionTokens,
 		TokenRemark:      tokenRemark,
@@ -77,6 +54,7 @@ func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTo
 		Price:            price,
 		CompletionPrice:  completionPrice,
 		ChannelId:        channelId,
+		Endpoint:         endpoint,
 	}
 	err := LOG_DB.Create(log).Error
 	if err != nil {
@@ -84,11 +62,8 @@ func RecordConsumeLog(ctx context.Context, group string, channelId int, promptTo
 	}
 }
 
-func GetLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenRemark string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
+func GetLogs(startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, group string, tokenRemark string, startIdx int, num int, channel int, endpoint string) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{})
-	if logType != LogTypeUnknown {
-		tx = tx.Where("type = ?", logType)
-	}
 	if modelName != "" {
 		tx = tx.Where("model_name = ?", modelName)
 	}
@@ -107,6 +82,12 @@ func GetLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, mode
 	if channel != 0 {
 		tx = tx.Where("channel_id = ?", channel)
 	}
+	if endpoint != "" {
+		tx = tx.Where("endpoint = ?", endpoint)
+	}
+	if code != 0 {
+		tx = tx.Where("code = ?", code)
+	}
 	err = tx.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
@@ -118,11 +99,8 @@ func GetLogs(logType int, startTimestamp time.Time, endTimestamp time.Time, mode
 	return logs, total, err
 }
 
-func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, tokenRemark string, startIdx int, num int, channel int) (logs []*Log, total int64, err error) {
+func GetGroupLogs(group string, startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, tokenRemark string, startIdx int, num int, channel int, endpoint string) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{}).Where("group_id = ?", group)
-	if logType != LogTypeUnknown {
-		tx = tx.Where("type = ?", logType)
-	}
 	if modelName != "" {
 		tx = tx.Where("model_name = ?", modelName)
 	}
@@ -137,6 +115,12 @@ func GetGroupLogs(group string, logType int, startTimestamp time.Time, endTimest
 	}
 	if channel != 0 {
 		tx = tx.Where("channel_id = ?", channel)
+	}
+	if endpoint != "" {
+		tx = tx.Where("endpoint = ?", endpoint)
+	}
+	if code != 0 {
+		tx = tx.Where("code = ?", code)
 	}
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -153,9 +137,9 @@ func SearchLogs(keyword string, page int, perPage int) (logs []*Log, total int64
 	tx := LOG_DB.Model(&Log{})
 	if keyword != "" {
 		if common.UsingPostgreSQL {
-			tx = tx.Where("type = ? or content ILIKE ? or group_id ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
+			tx = tx.Where("code = ? or group_id ILIKE ? or endpoint ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
 		} else {
-			tx = tx.Where("type = ? or content LIKE ? or group_id LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
+			tx = tx.Where("code = ? or group_id LIKE ? or endpoint LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
 		}
 	}
 	err = tx.Count(&total).Error
@@ -181,9 +165,9 @@ func SearchGroupLogs(group string, keyword string, page int, perPage int) (logs 
 	}
 	if keyword != "" {
 		if common.UsingPostgreSQL {
-			tx = tx.Where("content ILIKE ?", "%"+keyword+"%")
+			tx = tx.Where("code = ? or group_id ILIKE ? or endpoint ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
 		} else {
-			tx = tx.Where("content LIKE ?", "%"+keyword+"%")
+			tx = tx.Where("code = ? or group_id LIKE ? or endpoint LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
 		}
 	}
 	err = tx.Count(&total).Error
@@ -197,7 +181,7 @@ func SearchGroupLogs(group string, keyword string, page int, perPage int) (logs 
 	return logs, total, err
 }
 
-func SumUsedQuota(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenRemark string, channel int) (quota int64) {
+func SumUsedQuota(startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenRemark string, channel int, endpoint string) (quota int64) {
 	ifnull := "ifnull"
 	if common.UsingPostgreSQL {
 		ifnull = "COALESCE"
@@ -221,11 +205,14 @@ func SumUsedQuota(logType int, startTimestamp time.Time, endTimestamp time.Time,
 	if channel != 0 {
 		tx = tx.Where("channel_id = ?", channel)
 	}
-	tx.Where("type = ?", LogTypeConsume).Scan(&quota)
+	if endpoint != "" {
+		tx = tx.Where("endpoint = ?", endpoint)
+	}
+	tx.Scan(&quota)
 	return quota
 }
 
-func SumUsedToken(logType int, startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenRemark string) (token int) {
+func SumUsedToken(startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenRemark string, endpoint string) (token int) {
 	ifnull := "ifnull"
 	if common.UsingPostgreSQL {
 		ifnull = "COALESCE"
@@ -246,7 +233,10 @@ func SumUsedToken(logType int, startTimestamp time.Time, endTimestamp time.Time,
 	if modelName != "" {
 		tx = tx.Where("model_name = ?", modelName)
 	}
-	tx.Where("type = ?", LogTypeConsume).Scan(&token)
+	if endpoint != "" {
+		tx = tx.Where("endpoint = ?", endpoint)
+	}
+	tx.Scan(&token)
 	return token
 }
 
@@ -280,8 +270,7 @@ func SearchLogsByDayAndModel(group string, start time.Time, end time.Time) (LogS
 		sum(prompt_tokens) as prompt_tokens,
 		sum(completion_tokens) as completion_tokens
 		FROM logs
-		WHERE type=2
-		AND group= ?
+		AND group_id= ?
 		AND created_at BETWEEN ? AND ?
 		GROUP BY day, model
 		ORDER BY day, model

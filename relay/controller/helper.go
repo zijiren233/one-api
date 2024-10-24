@@ -71,7 +71,7 @@ func preCheckGroupBalance(ctx context.Context, textRequest *relaymodel.GeneralOp
 	return true, nil
 }
 
-func postConsumeAmount(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64) {
+func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		return
@@ -90,7 +90,7 @@ func postConsumeAmount(ctx context.Context, usage *relaymodel.Usage, meta *meta.
 	if err != nil {
 		logger.Error(ctx, "error consuming token remain amount: "+err.Error())
 	}
-	model.RecordConsumeLog(ctx, meta.Group, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenRemark, amount, price, completionPrice, "")
+	model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenRemark, amount, price, completionPrice, endpoint)
 	model.UpdateGroupUsedAmountAndRequestCount(meta.Group, amount, 1)
 	model.UpdateTokenUsedAmount(meta.TokenId, amount, 1)
 	model.UpdateChannelUsedAmount(meta.ChannelId, amount, 1)

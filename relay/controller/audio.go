@@ -180,7 +180,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return RelayErrorHandler(resp)
 	}
 	defer func(ctx context.Context) {
-		go billing.PostConsumeAmount(ctx, tokenId, amount, group, channelId, price, audioModel, tokenRemark)
+		go billing.PostConsumeAmount(ctx, resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenRemark, c.Request.URL.Path)
 	}(c.Request.Context())
 
 	for k, v := range resp.Header {
