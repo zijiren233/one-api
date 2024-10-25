@@ -68,8 +68,6 @@ func main() {
 	// Initialize HTTP server
 	server := gin.New()
 	server.Use(gin.Recovery())
-	// This will cause SSE not to work!!!
-	// server.Use(gzip.Gzip(gzip.DefaultCompression))
 	server.Use(middleware.RequestId())
 	middleware.SetUpLogger(server)
 	// Initialize session store
