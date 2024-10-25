@@ -237,7 +237,7 @@ func UpdateChannelStatus(c *gin.Context) {
 		})
 		return
 	}
-	err = model.UpdateChannelStatus(id, status.Status)
+	err = model.UpdateChannelStatusById(id, status.Status)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

@@ -164,7 +164,11 @@ func CacheSetGroup(group *Group) error {
 
 func CacheGetGroup(id string) (*GroupCache, error) {
 	if !common.RedisEnabled {
-		return getGroupFromDB(id)
+		group, err := GetGroupById(id)
+		if err != nil {
+			return nil, err
+		}
+		return group.ToGroupCache(), nil
 	}
 
 	cacheKey := fmt.Sprintf(GroupCacheKey, id)
@@ -175,23 +179,15 @@ func CacheGetGroup(id string) (*GroupCache, error) {
 		return groupCache, nil
 	}
 
-	group, err := getGroupFromDB(id)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := CacheSetGroup(&Group{Id: id, Status: group.Status, QPM: group.QPM}); err != nil {
-		logger.SysError("Redis set group error: " + err.Error())
-	}
-
-	return group, nil
-}
-
-func getGroupFromDB(id string) (*GroupCache, error) {
 	group, err := GetGroupById(id)
 	if err != nil {
 		return nil, err
 	}
+
+	if err := CacheSetGroup(group); err != nil {
+		logger.SysError("Redis set group error: " + err.Error())
+	}
+
 	return group.ToGroupCache(), nil
 }
 
