@@ -44,7 +44,7 @@ type TokenCache struct {
 	Id         int              `json:"id" redis:"i"`
 	Group      string           `json:"group" redis:"g"`
 	Key        string           `json:"-" redis:"-"`
-	Remark     string           `json:"remark" redis:"r"`
+	Name       string           `json:"name" redis:"n"`
 	Models     redisStringSlice `json:"models" redis:"m"`
 	Subnet     string           `json:"subnet" redis:"s"`
 	Status     int              `json:"status" redis:"st"`
@@ -57,7 +57,7 @@ func (t *Token) ToTokenCache() *TokenCache {
 	return &TokenCache{
 		Id:         t.Id,
 		Group:      t.GroupId,
-		Remark:     t.Remark.String(),
+		Name:       t.Name.String(),
 		Models:     t.Models,
 		Subnet:     t.Subnet,
 		Status:     t.Status,

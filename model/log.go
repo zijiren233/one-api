@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	json "github.com/json-iterator/go"
@@ -23,11 +24,12 @@ type Log struct {
 	UsedAmount       float64   `json:"used_amount"`
 	Price            float64   `json:"price"`
 	CompletionPrice  float64   `json:"completion_price"`
-	TokenRemark      string    `json:"token_remark"`
+	TokenId          int       `json:"token_id"`
+	TokenName        string    `json:"token_name"`
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
 	ChannelId        int       `gorm:"index" json:"channel"`
-	Endpoint         string    `json:"endpoint"`
+	Endpoint         string    `gorm:"index" json:"endpoint"`
 }
 
 func (l *Log) MarshalJSON() ([]byte, error) {
@@ -41,15 +43,16 @@ func (l *Log) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func RecordConsumeLog(ctx context.Context, group string, code int, channelId int, promptTokens int, completionTokens int, modelName string, tokenRemark string, usedAmount float64, price float64, completionPrice float64, endpoint string, content string) {
-	logger.Info(ctx, fmt.Sprintf("record consume log: group=%s, code=%d, channelId=%d, promptTokens=%d, completionTokens=%d, modelName=%s, tokenRemark=%s, usedAmount=%f, price=%f, completionPrice=%f, endpoint=%s, content=%s", group, code, channelId, promptTokens, completionTokens, modelName, tokenRemark, usedAmount, price, completionPrice, endpoint, content))
+func RecordConsumeLog(ctx context.Context, group string, code int, channelId int, promptTokens int, completionTokens int, modelName string, tokenId int, tokenName string, usedAmount float64, price float64, completionPrice float64, endpoint string, content string) {
+	logger.Info(ctx, fmt.Sprintf("record consume log: group=%s, code=%d, channelId=%d, promptTokens=%d, completionTokens=%d, modelName=%s, tokenId=%d, tokenName=%s, usedAmount=%f, price=%f, completionPrice=%f, endpoint=%s, content=%s", group, code, channelId, promptTokens, completionTokens, modelName, tokenId, tokenName, usedAmount, price, completionPrice, endpoint, content))
 	log := &Log{
 		GroupId:          group,
 		CreatedAt:        time.Now(),
 		Code:             code,
 		PromptTokens:     promptTokens,
 		CompletionTokens: completionTokens,
-		TokenRemark:      tokenRemark,
+		TokenId:          tokenId,
+		TokenName:        tokenName,
 		Model:            modelName,
 		UsedAmount:       usedAmount,
 		Price:            price,
@@ -64,7 +67,7 @@ func RecordConsumeLog(ctx context.Context, group string, code int, channelId int
 	}
 }
 
-func GetLogs(startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, group string, tokenRemark string, startIdx int, num int, channel int, endpoint string, content string) (logs []*Log, total int64, err error) {
+func GetLogs(startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, group string, tokenId int, tokenName string, startIdx int, num int, channel int, endpoint string, content string) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{})
 	if modelName != "" {
 		tx = tx.Where("model = ?", modelName)
@@ -72,8 +75,11 @@ func GetLogs(startTimestamp time.Time, endTimestamp time.Time, code int, modelNa
 	if group != "" {
 		tx = tx.Where("group_id = ?", group)
 	}
-	if tokenRemark != "" {
-		tx = tx.Where("token_remark = ?", tokenRemark)
+	if tokenId != 0 {
+		tx = tx.Where("token_id = ?", tokenId)
+	}
+	if tokenName != "" {
+		tx = tx.Where("token_name = ?", tokenName)
 	}
 	if !startTimestamp.IsZero() {
 		tx = tx.Where("created_at >= ?", startTimestamp)
@@ -104,13 +110,16 @@ func GetLogs(startTimestamp time.Time, endTimestamp time.Time, code int, modelNa
 	return logs, total, err
 }
 
-func GetGroupLogs(group string, startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, tokenRemark string, startIdx int, num int, channel int, endpoint string, content string) (logs []*Log, total int64, err error) {
+func GetGroupLogs(group string, startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, tokenId int, tokenName string, startIdx int, num int, channel int, endpoint string, content string) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{}).Where("group_id = ?", group)
 	if modelName != "" {
 		tx = tx.Where("model = ?", modelName)
 	}
-	if tokenRemark != "" {
-		tx = tx.Where("token_remark = ?", tokenRemark)
+	if tokenId != 0 {
+		tx = tx.Where("token_id = ?", tokenId)
+	}
+	if tokenName != "" {
+		tx = tx.Where("token_name = ?", tokenName)
 	}
 	if !startTimestamp.IsZero() {
 		tx = tx.Where("created_at >= ?", startTimestamp)
@@ -141,15 +150,100 @@ func GetGroupLogs(group string, startTimestamp time.Time, endTimestamp time.Time
 	return logs, total, err
 }
 
-func SearchLogs(keyword string, page int, perPage int) (logs []*Log, total int64, err error) {
+func SearchLogs(keyword string, page int, perPage int, code int, endpoint string, groupId string, tokenId int, tokenName string, modelName string, content string, startTimestamp time.Time, endTimestamp time.Time, channel int) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{})
+
+	// Handle exact match conditions for non-zero values
+	if code != 0 {
+		tx = tx.Where("code = ?", code)
+	}
+	if endpoint != "" {
+		tx = tx.Where("endpoint = ?", endpoint)
+	}
+	if groupId != "" {
+		tx = tx.Where("group_id = ?", groupId)
+	}
+	if tokenId != 0 {
+		tx = tx.Where("token_id = ?", tokenId)
+	}
+	if tokenName != "" {
+		tx = tx.Where("token_name = ?", tokenName)
+	}
+	if modelName != "" {
+		tx = tx.Where("model = ?", modelName)
+	}
+	if content != "" {
+		tx = tx.Where("content = ?", content)
+	}
+	if !startTimestamp.IsZero() {
+		tx = tx.Where("created_at >= ?", startTimestamp)
+	}
+	if !endTimestamp.IsZero() {
+		tx = tx.Where("created_at <= ?", endTimestamp)
+	}
+	if channel != 0 {
+		tx = tx.Where("channel_id = ?", channel)
+	}
+
+	// Handle keyword search for zero value fields
 	if keyword != "" {
-		if common.UsingPostgreSQL {
-			tx = tx.Where("code::text = ? or group_id ILIKE ? or endpoint ILIKE ? or content ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
-		} else {
-			tx = tx.Where("code = ? or group_id LIKE ? or endpoint LIKE ? or content LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+		var conditions []string
+		var values []interface{}
+
+		if code == 0 {
+			conditions = append(conditions, "code = ?")
+			values = append(values, keyword)
+		}
+		if channel == 0 {
+			conditions = append(conditions, "channel_id = ?")
+			values = append(values, keyword)
+		}
+		if endpoint == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "endpoint ILIKE ?")
+			} else {
+				conditions = append(conditions, "endpoint LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if groupId == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "group_id ILIKE ?")
+			} else {
+				conditions = append(conditions, "group_id LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if tokenName == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "token_name ILIKE ?")
+			} else {
+				conditions = append(conditions, "token_name LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if modelName == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "model ILIKE ?")
+			} else {
+				conditions = append(conditions, "model LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if content == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "content ILIKE ?")
+			} else {
+				conditions = append(conditions, "content LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+
+		if len(conditions) > 0 {
+			tx = tx.Where(fmt.Sprintf("(%s)", strings.Join(conditions, " OR ")), values...)
 		}
 	}
+
 	err = tx.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
@@ -161,18 +255,92 @@ func SearchLogs(keyword string, page int, perPage int) (logs []*Log, total int64
 	return logs, total, err
 }
 
-func SearchGroupLogs(group string, keyword string, page int, perPage int) (logs []*Log, total int64, err error) {
+func SearchGroupLogs(group string, keyword string, page int, perPage int, code int, endpoint string, tokenId int, tokenName string, modelName string, content string, startTimestamp time.Time, endTimestamp time.Time, channel int) (logs []*Log, total int64, err error) {
 	if group == "" {
 		return nil, 0, errors.New("group is empty")
 	}
 	tx := LOG_DB.Model(&Log{}).Where("group_id = ?", group)
+
+	// Handle exact match conditions for non-zero values
+	if code != 0 {
+		tx = tx.Where("code = ?", code)
+	}
+	if endpoint != "" {
+		tx = tx.Where("endpoint = ?", endpoint)
+	}
+	if tokenId != 0 {
+		tx = tx.Where("token_id = ?", tokenId)
+	}
+	if tokenName != "" {
+		tx = tx.Where("token_name = ?", tokenName)
+	}
+	if modelName != "" {
+		tx = tx.Where("model = ?", modelName)
+	}
+	if content != "" {
+		tx = tx.Where("content = ?", content)
+	}
+	if !startTimestamp.IsZero() {
+		tx = tx.Where("created_at >= ?", startTimestamp)
+	}
+	if !endTimestamp.IsZero() {
+		tx = tx.Where("created_at <= ?", endTimestamp)
+	}
+	if channel != 0 {
+		tx = tx.Where("channel_id = ?", channel)
+	}
+
+	// Handle keyword search for zero value fields
 	if keyword != "" {
-		if common.UsingPostgreSQL {
-			tx = tx.Where("code::text = ? or endpoint ILIKE ? or content ILIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
-		} else {
-			tx = tx.Where("code = ? or endpoint LIKE ? or content LIKE ?", keyword, "%"+keyword+"%", "%"+keyword+"%")
+		var conditions []string
+		var values []interface{}
+
+		if code == 0 {
+			conditions = append(conditions, "code = ?")
+			values = append(values, keyword)
+		}
+		if channel == 0 {
+			conditions = append(conditions, "channel_id = ?")
+			values = append(values, keyword)
+		}
+		if endpoint == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "endpoint ILIKE ?")
+			} else {
+				conditions = append(conditions, "endpoint LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if tokenName == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "token_name ILIKE ?")
+			} else {
+				conditions = append(conditions, "token_name LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if modelName == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "model ILIKE ?")
+			} else {
+				conditions = append(conditions, "model LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if content == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "content ILIKE ?")
+			} else {
+				conditions = append(conditions, "content LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+
+		if len(conditions) > 0 {
+			tx = tx.Where(fmt.Sprintf("(%s)", strings.Join(conditions, " OR ")), values...)
 		}
 	}
+
 	err = tx.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
@@ -184,7 +352,7 @@ func SearchGroupLogs(group string, keyword string, page int, perPage int) (logs 
 	return logs, total, err
 }
 
-func SumUsedQuota(startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenRemark string, channel int, endpoint string) (quota int64) {
+func SumUsedQuota(startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenName string, channel int, endpoint string) (quota int64) {
 	ifnull := "ifnull"
 	if common.UsingPostgreSQL {
 		ifnull = "COALESCE"
@@ -193,8 +361,8 @@ func SumUsedQuota(startTimestamp time.Time, endTimestamp time.Time, modelName st
 	if group != "" {
 		tx = tx.Where("group_id = ?", group)
 	}
-	if tokenRemark != "" {
-		tx = tx.Where("token_remark = ?", tokenRemark)
+	if tokenName != "" {
+		tx = tx.Where("token_name = ?", tokenName)
 	}
 	if !startTimestamp.IsZero() {
 		tx = tx.Where("created_at >= ?", startTimestamp)
@@ -215,7 +383,7 @@ func SumUsedQuota(startTimestamp time.Time, endTimestamp time.Time, modelName st
 	return quota
 }
 
-func SumUsedToken(startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenRemark string, endpoint string) (token int) {
+func SumUsedToken(startTimestamp time.Time, endTimestamp time.Time, modelName string, group string, tokenName string, endpoint string) (token int) {
 	ifnull := "ifnull"
 	if common.UsingPostgreSQL {
 		ifnull = "COALESCE"
@@ -224,8 +392,8 @@ func SumUsedToken(startTimestamp time.Time, endTimestamp time.Time, modelName st
 	if group != "" {
 		tx = tx.Where("group_id = ?", group)
 	}
-	if tokenRemark != "" {
-		tx = tx.Where("token_remark = ?", tokenRemark)
+	if tokenName != "" {
+		tx = tx.Where("token_name = ?", tokenName)
 	}
 	if !startTimestamp.IsZero() {
 		tx = tx.Where("created_at >= ?", startTimestamp)

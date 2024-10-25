@@ -185,8 +185,11 @@ func GetGroupToken(c *gin.Context) {
 }
 
 func validateToken(token AddTokenRequest) error {
-	if len(token.Remark) > 30 {
-		return fmt.Errorf("令牌备注过长")
+	if token.Name == "" {
+		return fmt.Errorf("令牌名称不能为空")
+	}
+	if len(token.Name) > 30 {
+		return fmt.Errorf("令牌名称过长")
 	}
 	if token.Subnet != "" {
 		err := network.IsValidSubnets(token.Subnet)
@@ -198,7 +201,7 @@ func validateToken(token AddTokenRequest) error {
 }
 
 type AddTokenRequest struct {
-	Remark    string   `json:"remark"`
+	Name      string   `json:"name"`
 	ExpiredAt int64    `json:"expired_at"`
 	Quota     float64  `json:"quota"`
 	Models    []string `json:"models"`
@@ -234,7 +237,7 @@ func AddToken(c *gin.Context) {
 
 	cleanToken := &model.Token{
 		GroupId:   group,
-		Remark:    model.EmptyNullString(token.Remark),
+		Name:      model.EmptyNullString(token.Name),
 		Key:       random.GenerateKey(),
 		ExpiredAt: expiredAt,
 		Quota:     token.Quota,
@@ -344,7 +347,7 @@ func UpdateToken(c *gin.Context) {
 	if token.ExpiredAt != 0 {
 		expiredAt = time.UnixMilli(token.ExpiredAt)
 	}
-	cleanToken.Remark = model.EmptyNullString(token.Remark)
+	cleanToken.Name = model.EmptyNullString(token.Name)
 	cleanToken.ExpiredAt = expiredAt
 	cleanToken.Quota = token.Quota
 	cleanToken.Models = token.Models
@@ -404,7 +407,7 @@ func UpdateGroupToken(c *gin.Context) {
 	if token.ExpiredAt != 0 {
 		expiredAt = time.UnixMilli(token.ExpiredAt)
 	}
-	cleanToken.Remark = model.EmptyNullString(token.Remark)
+	cleanToken.Name = model.EmptyNullString(token.Name)
 	cleanToken.ExpiredAt = expiredAt
 	cleanToken.Quota = token.Quota
 	cleanToken.Models = token.Models
@@ -548,11 +551,11 @@ func UpdateGroupTokenStatus(c *gin.Context) {
 	return
 }
 
-type UpdateTokenRemarkRequest struct {
-	Remark string `json:"remark"`
+type UpdateTokenNameRequest struct {
+	Name string `json:"name"`
 }
 
-func UpdateTokenRemark(c *gin.Context) {
+func UpdateTokenName(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -560,15 +563,15 @@ func UpdateTokenRemark(c *gin.Context) {
 			"message": err.Error(),
 		})
 	}
-	remark := UpdateTokenRemarkRequest{}
-	err = c.ShouldBindJSON(&remark)
+	name := UpdateTokenNameRequest{}
+	err = c.ShouldBindJSON(&name)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),
 		})
 	}
-	err = model.UpdateTokenRemark(id, remark.Remark)
+	err = model.UpdateTokenName(id, name.Name)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -582,7 +585,7 @@ func UpdateTokenRemark(c *gin.Context) {
 	return
 }
 
-func UpdateGroupTokenRemark(c *gin.Context) {
+func UpdateGroupTokenName(c *gin.Context) {
 	group := c.Param("group")
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -591,15 +594,15 @@ func UpdateGroupTokenRemark(c *gin.Context) {
 			"message": err.Error(),
 		})
 	}
-	remark := UpdateTokenRemarkRequest{}
-	err = c.ShouldBindJSON(&remark)
+	name := UpdateTokenNameRequest{}
+	err = c.ShouldBindJSON(&name)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),
 		})
 	}
-	err = model.UpdateGroupTokenRemark(group, id, remark.Remark)
+	err = model.UpdateGroupTokenName(group, id, name.Name)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

@@ -76,7 +76,7 @@ func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *re
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		// Record log and usage count without consuming balance
-		model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, 0, 0, textRequest.Model, meta.TokenRemark, 0, price, completionPrice, endpoint, content)
+		model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, 0, 0, textRequest.Model, meta.TokenId, meta.TokenName, 0, price, completionPrice, endpoint, content)
 		model.UpdateGroupUsedAmountAndRequestCount(meta.Group, 0, 1)
 		model.UpdateTokenUsedAmount(meta.TokenId, 0, 1)
 		model.UpdateChannelUsedAmount(meta.ChannelId, 0, 1)
@@ -97,7 +97,7 @@ func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *re
 			logger.Error(ctx, "error consuming token remain amount: "+err.Error())
 		}
 	}
-	model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenRemark, amount, price, completionPrice, endpoint, content)
+	model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenId, meta.TokenName, amount, price, completionPrice, endpoint, content)
 	model.UpdateGroupUsedAmountAndRequestCount(meta.Group, amount, 1)
 	model.UpdateTokenUsedAmount(meta.TokenId, amount, 1)
 	model.UpdateChannelUsedAmount(meta.ChannelId, amount, 1)

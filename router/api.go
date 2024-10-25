@@ -57,7 +57,7 @@ func SetApiRouter(router *gin.Engine) {
 			tokensRoute.GET("/:id", controller.GetToken)
 			tokensRoute.PUT("/:id", controller.UpdateToken)
 			tokensRoute.POST("/:id/status", controller.UpdateTokenStatus)
-			tokensRoute.POST("/:id/remark", controller.UpdateTokenRemark)
+			tokensRoute.POST("/:id/name", controller.UpdateTokenName)
 			tokensRoute.DELETE("/:id", controller.DeleteToken)
 			tokensRoute.GET("/search", controller.SearchTokens)
 		}
@@ -69,7 +69,7 @@ func SetApiRouter(router *gin.Engine) {
 			tokenRoute.POST("/:group", controller.AddToken)
 			tokenRoute.PUT("/:group/:id", controller.UpdateGroupToken)
 			tokenRoute.POST("/:group/:id/status", controller.UpdateGroupTokenStatus)
-			tokenRoute.POST("/:group/:id/remark", controller.UpdateGroupTokenRemark)
+			tokenRoute.POST("/:group/:id/name", controller.UpdateGroupTokenName)
 			tokenRoute.DELETE("/:group/:id", controller.DeleteGroupToken)
 		}
 		logsRoute := apiRouter.Group("/logs")
