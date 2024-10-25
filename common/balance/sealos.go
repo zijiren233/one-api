@@ -14,10 +14,18 @@ func NewSealos(accountUrl string) *Sealos {
 	}
 }
 
-func (s *Sealos) GetGroupRemainBalance(ctx context.Context, group string) (float64, error) {
-	return 0, nil
+func (s *Sealos) GetGroupRemainBalance(ctx context.Context, group string) (float64, PostGroupConsumer, error) {
+	return 0, &SealosPostGroupConsumer{
+		group: group,
+		uid:   "",
+	}, nil
 }
 
-func (s *Sealos) PostGroupConsume(ctx context.Context, group string, tokenName string, usage float64) error {
+type SealosPostGroupConsumer struct {
+	group string
+	uid   string
+}
+
+func (s *SealosPostGroupConsumer) PostGroupConsume(ctx context.Context, tokenName string, usage float64) error {
 	return nil
 }

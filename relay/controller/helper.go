@@ -58,20 +58,20 @@ func getPreConsumedAmount(textRequest *relaymodel.GeneralOpenAIRequest, promptTo
 	return float64(preConsumedTokens) * price / billingPrice.PriceUnit
 }
 
-func preCheckGroupBalance(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, price float64, meta *meta.Meta) (bool, *relaymodel.ErrorWithStatusCode) {
+func preCheckGroupBalance(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, price float64, meta *meta.Meta) (bool, balance.PostGroupConsumer, *relaymodel.ErrorWithStatusCode) {
 	preConsumedAmount := getPreConsumedAmount(textRequest, promptTokens, price)
 
-	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(ctx, meta.Group)
+	groupRemainBalance, postGroupConsumer, err := balance.Default.GetGroupRemainBalance(ctx, meta.Group)
 	if err != nil {
-		return false, openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
+		return false, nil, openai.ErrorWrapper(err, "get_group_quota_failed", http.StatusInternalServerError)
 	}
 	if groupRemainBalance < preConsumedAmount {
-		return false, nil
+		return false, nil, nil
 	}
-	return true, nil
+	return true, postGroupConsumer, nil
 }
 
-func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64, content string) {
+func postConsumeAmount(ctx context.Context, postGroupConsumer balance.PostGroupConsumer, code int, endpoint string, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64, content string) {
 	completionPrice := billingPrice.GetCompletionPrice(textRequest.Model, meta.ChannelType)
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
@@ -92,7 +92,7 @@ func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *re
 		amount = 0
 	}
 	if amount > 0 {
-		err := balance.Default.PostGroupConsume(ctx, meta.Group, meta.TokenName, amount)
+		err := postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)
 		if err != nil {
 			logger.Error(ctx, "error consuming token remain amount: "+err.Error())
 		}

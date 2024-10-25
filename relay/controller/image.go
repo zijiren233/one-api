@@ -59,9 +59,9 @@ func isWithinRange(element string, value int) bool {
 	return !ok || (value >= amounts[0] && value <= amounts[1])
 }
 
-func getImageSizeRatio(model string, size string) float64 {
-	if ratio, ok := billingPrice.ImageSizePrices[model][size]; ok {
-		return ratio
+func getImageSizePrice(model string, size string) float64 {
+	if price, ok := billingPrice.ImageSizePrices[model][size]; ok {
+		return price
 	}
 	return 1
 }
@@ -88,19 +88,19 @@ func validateImageRequest(imageRequest *relaymodel.ImageRequest, meta *meta.Meta
 	return nil
 }
 
-func getImageCostRatio(imageRequest *relaymodel.ImageRequest) (float64, error) {
+func getImageCostPrice(imageRequest *relaymodel.ImageRequest) (float64, error) {
 	if imageRequest == nil {
 		return 0, errors.New("imageRequest is nil")
 	}
-	imageCostRatio := getImageSizeRatio(imageRequest.Model, imageRequest.Size)
+	imageCostPrice := getImageSizePrice(imageRequest.Model, imageRequest.Size)
 	if imageRequest.Quality == "hd" && imageRequest.Model == "dall-e-3" {
 		if imageRequest.Size == "1024x1024" {
-			imageCostRatio *= 2
+			imageCostPrice *= 2
 		} else {
-			imageCostRatio *= 1.5
+			imageCostPrice *= 1.5
 		}
 	}
-	return imageCostRatio, nil
+	return imageCostPrice, nil
 }
 
 func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatusCode {
@@ -124,12 +124,11 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return bizErr
 	}
 
-	imageCostRatio, err := getImageCostRatio(imageRequest)
+	imageCostPrice, err := getImageCostPrice(imageRequest)
 	if err != nil {
-		return openai.ErrorWrapper(err, "get_image_cost_ratio_failed", http.StatusInternalServerError)
+		return openai.ErrorWrapper(err, "get_image_cost_price_failed", http.StatusInternalServerError)
 	}
 
-	imageModel := imageRequest.Model
 	// Convert the original image model
 	imageRequest.Model, _ = getMappedModelName(imageRequest.Model, billingPrice.ImageOriginModelName)
 	c.Set("response_format", imageRequest.ResponseFormat)
@@ -168,13 +167,12 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		requestBody = bytes.NewBuffer(jsonStr)
 	}
 
-	price := billingPrice.GetModelPrice(imageModel, meta.ChannelType)
-	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(ctx, meta.Group)
+	groupRemainBalance, postGroupConsumer, err := balance.Default.GetGroupRemainBalance(ctx, meta.Group)
 	if err != nil {
 		return openai.ErrorWrapper(err, "get_group_remain_balance_failed", http.StatusInternalServerError)
 	}
 
-	amount := price * imageCostRatio * 1000 * float64(imageRequest.N)
+	amount := imageCostPrice * float64(imageRequest.N)
 
 	if groupRemainBalance-amount < 0 {
 		return openai.ErrorWrapper(errors.New("group balance is not enough"), "insufficient_group_balance", http.StatusForbidden)
@@ -188,14 +186,16 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 
 	defer func(ctx context.Context) {
-		if resp != nil && resp.StatusCode != http.StatusOK {
+		if resp == nil || resp.StatusCode != http.StatusOK {
+			model.RecordConsumeLog(ctx, meta.Group, resp.StatusCode, meta.ChannelId, imageRequest.N, 0, imageRequest.Model, meta.TokenId, meta.TokenName, 0, imageCostPrice, 0, c.Request.URL.Path, imageRequest.Size)
 			return
 		}
 
-		err := balance.Default.PostGroupConsume(ctx, meta.Group, meta.TokenName, amount)
+		err := postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)
 		if err != nil {
 			logger.SysError("error consuming token remain balance: " + err.Error())
 		}
+		model.RecordConsumeLog(ctx, meta.Group, resp.StatusCode, meta.ChannelId, imageRequest.N, 0, imageRequest.Model, meta.TokenId, meta.TokenName, amount, imageCostPrice, 0, c.Request.URL.Path, imageRequest.Size)
 		model.UpdateGroupUsedAmountAndRequestCount(meta.Group, amount, 1)
 		model.UpdateTokenUsedAmount(meta.TokenId, amount, 1)
 		model.UpdateChannelUsedAmount(meta.ChannelId, amount, 1)

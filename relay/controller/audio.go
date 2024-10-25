@@ -57,7 +57,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		preConsumedAmount = float64(len(ttsRequest.Input)) * price
 	default:
 	}
-	groupRemainBalance, err := balance.Default.GetGroupRemainBalance(c.Request.Context(), group)
+	groupRemainBalance, postGroupConsumer, err := balance.Default.GetGroupRemainBalance(c.Request.Context(), group)
 	if err != nil {
 		return openai.ErrorWrapper(err, "get_group_balance_failed", http.StatusInternalServerError)
 	}
@@ -178,11 +178,11 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 
 	if resp.StatusCode != http.StatusOK {
 		err := RelayErrorHandler(resp)
-		go billing.PostConsumeAmount(c.Request.Context(), resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenName, c.Request.URL.Path, err.Error.Message)
+		go billing.PostConsumeAmount(c.Request.Context(), postGroupConsumer, resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenName, c.Request.URL.Path, err.Error.Message)
 		return err
 	}
 
-	go billing.PostConsumeAmount(c.Request.Context(), resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenName, c.Request.URL.Path, "")
+	go billing.PostConsumeAmount(c.Request.Context(), postGroupConsumer, resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenName, c.Request.URL.Path, "")
 
 	for k, v := range resp.Header {
 		c.Writer.Header().Set(k, v[0])

@@ -1,5 +1,6 @@
 package price
 
+// 单个图片的价格
 var ImageSizePrices = map[string]map[string]float64{
 	"dall-e-2": {
 		"256x256":   1,
