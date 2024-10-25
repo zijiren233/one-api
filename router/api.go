@@ -1,16 +1,20 @@
 package router
 
 import (
+	"github.com/gin-contrib/gzip"
+	"github.com/songquanpeng/one-api/common/env"
 	"github.com/songquanpeng/one-api/controller"
 	"github.com/songquanpeng/one-api/middleware"
 
-	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 )
 
 func SetApiRouter(router *gin.Engine) {
-	apiRouter := router.Group("/api", middleware.AdminAuth)
-	apiRouter.Use(gzip.Gzip(gzip.DefaultCompression))
+	apiRouter := router.Group("/api")
+	if env.Bool("GZIP_ENABLED", false) {
+		apiRouter.Use(gzip.Gzip(gzip.DefaultCompression))
+	}
+	apiRouter.Use(middleware.AdminAuth)
 	{
 		apiRouter.GET("/status", controller.GetStatus)
 		apiRouter.GET("/models", controller.BuiltinModels)
