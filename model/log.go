@@ -21,11 +21,11 @@ type Log struct {
 	GroupId          string    `gorm:"index" json:"group"`
 	Group            *Group    `gorm:"foreignKey:GroupId" json:"-"`
 	Model            string    `gorm:"index" json:"model"`
-	UsedAmount       float64   `json:"used_amount"`
+	UsedAmount       float64   `gorm:"index" json:"used_amount"`
 	Price            float64   `json:"price"`
 	CompletionPrice  float64   `json:"completion_price"`
-	TokenId          int       `json:"token_id"`
-	TokenName        string    `json:"token_name"`
+	TokenId          int       `gorm:"index" json:"token_id"`
+	TokenName        string    `gorm:"index" json:"token_name"`
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
 	ChannelId        int       `gorm:"index" json:"channel"`

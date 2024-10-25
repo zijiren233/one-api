@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	json "github.com/json-iterator/go"
@@ -36,10 +37,10 @@ type Token struct {
 	AccessedAt   time.Time       `json:"accessed_at"`
 	ExpiredAt    time.Time       `json:"expired_at"`
 	Quota        float64         `gorm:"bigint" json:"quota"`
-	UsedAmount   float64         `gorm:"bigint" json:"used_amount"` // used amount
+	UsedAmount   float64         `gorm:"bigint" json:"used_amount"`
 	RequestCount int             `gorm:"type:int" json:"request_count"`
-	Models       []string        `gorm:"serializer:json;type:text" json:"models"` // allowed models
-	Subnet       string          `json:"subnet"`                                  // allowed subnet
+	Models       []string        `gorm:"serializer:json;type:text" json:"models"`
+	Subnet       string          `json:"subnet"`
 }
 
 func (t *Token) MarshalJSON() ([]byte, error) {
@@ -89,12 +90,15 @@ func InsertToken(token *Token, autoCreateGroup bool) error {
 	return nil
 }
 
-func GetTokens(startIdx int, num int, order string, group string) (tokens []*Token, total int64, err error) {
+func GetTokens(startIdx int, num int, order string, group string, status int) (tokens []*Token, total int64, err error) {
 	tx := DB.Model(&Token{})
 
 	if group != "" {
 		tx = tx.Where("group_id = ?", group)
 	}
+	if status != 0 {
+		tx = tx.Where("status = ?", status)
+	}
 
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -107,6 +111,16 @@ func GetTokens(startIdx int, num int, order string, group string) (tokens []*Tok
 	switch order {
 	case "used_amount":
 		tx = tx.Order("used_amount desc")
+	case "request_count":
+		tx = tx.Order("request_count desc")
+	case "name":
+		tx = tx.Order("name asc")
+	case "accessed_at":
+		tx = tx.Order("accessed_at desc")
+	case "expired_at":
+		tx = tx.Order("expired_at desc")
+	case "group":
+		tx = tx.Order("group_id asc")
 	default:
 		tx = tx.Order("id desc")
 	}
@@ -114,13 +128,17 @@ func GetTokens(startIdx int, num int, order string, group string) (tokens []*Tok
 	return tokens, total, err
 }
 
-func GetGroupTokens(group string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
+func GetGroupTokens(group string, startIdx int, num int, order string, status int) (tokens []*Token, total int64, err error) {
 	if group == "" {
 		return nil, 0, errors.New("group is empty")
 	}
 
 	tx := DB.Model(&Token{}).Where("group_id = ?", group)
 
+	if status != 0 {
+		tx = tx.Where("status = ?", status)
+	}
+
 	err = tx.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
@@ -132,6 +150,14 @@ func GetGroupTokens(group string, startIdx int, num int, order string) (tokens [
 	switch order {
 	case "used_amount":
 		tx = tx.Order("used_amount desc")
+	case "request_count":
+		tx = tx.Order("request_count desc")
+	case "name":
+		tx = tx.Order("name asc")
+	case "accessed_at":
+		tx = tx.Order("accessed_at desc")
+	case "expired_at":
+		tx = tx.Order("expired_at desc")
 	default:
 		tx = tx.Order("id desc")
 	}
@@ -139,13 +165,57 @@ func GetGroupTokens(group string, startIdx int, num int, order string) (tokens [
 	return tokens, total, err
 }
 
-func SearchTokens(keyword string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
+func SearchTokens(keyword string, startIdx int, num int, order string, status int, name string, key string, group string) (tokens []*Token, total int64, err error) {
 	tx := DB.Model(&Token{})
-	if common.UsingPostgreSQL {
-		tx = tx.Where("name ILIKE ? or key ILIKE ? or group_id ILIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
-	} else {
-		tx = tx.Where("name LIKE ? or key LIKE ? or group_id LIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+	if group != "" {
+		tx = tx.Where("group_id = ?", group)
 	}
+	if status != 0 {
+		tx = tx.Where("status = ?", status)
+	}
+	if name != "" {
+		tx = tx.Where("name = ?", name)
+	}
+	if key != "" {
+		tx = tx.Where("key = ?", key)
+	}
+
+	if keyword != "" {
+		var conditions []string
+		var values []interface{}
+		if status == 0 {
+			conditions = append(conditions, "status = ?")
+			values = append(values, 1)
+		}
+		if group == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "group_id ILIKE ?")
+			} else {
+				conditions = append(conditions, "group_id LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if name == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "name ILIKE ?")
+			} else {
+				conditions = append(conditions, "name LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if key == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "key ILIKE ?")
+			} else {
+				conditions = append(conditions, "key LIKE ?")
+			}
+			values = append(values, keyword)
+		}
+		if len(conditions) > 0 {
+			tx = tx.Where(strings.Join(conditions, " OR "), values...)
+		}
+	}
+
 	err = tx.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
@@ -156,6 +226,16 @@ func SearchTokens(keyword string, startIdx int, num int, order string) (tokens [
 	switch order {
 	case "used_amount":
 		tx = tx.Order("used_amount desc")
+	case "request_count":
+		tx = tx.Order("request_count desc")
+	case "name":
+		tx = tx.Order("name asc")
+	case "accessed_at":
+		tx = tx.Order("accessed_at desc")
+	case "expired_at":
+		tx = tx.Order("expired_at desc")
+	case "group":
+		tx = tx.Order("group_id asc")
 	default:
 		tx = tx.Order("id desc")
 	}
@@ -163,16 +243,49 @@ func SearchTokens(keyword string, startIdx int, num int, order string) (tokens [
 	return tokens, total, err
 }
 
-func SearchGroupTokens(group string, keyword string, startIdx int, num int, order string) (tokens []*Token, total int64, err error) {
+func SearchGroupTokens(group string, keyword string, startIdx int, num int, order string, status int, name string, key string) (tokens []*Token, total int64, err error) {
 	if group == "" {
 		return nil, 0, errors.New("group is empty")
 	}
 	tx := DB.Model(&Token{}).Where("group_id = ?", group)
-	if common.UsingPostgreSQL {
-		tx = tx.Where("name ILIKE ? or key ILIKE ?", "%"+keyword+"%", "%"+keyword+"%")
-	} else {
-		tx = tx.Where("name LIKE ? or key LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+	if status != 0 {
+		tx = tx.Where("status = ?", status)
 	}
+	if name != "" {
+		tx = tx.Where("name = ?", name)
+	}
+	if key != "" {
+		tx = tx.Where("key = ?", key)
+	}
+
+	if keyword != "" {
+		var conditions []string
+		var values []interface{}
+		if status == 0 {
+			conditions = append(conditions, "status = ?")
+			values = append(values, 1)
+		}
+		if name == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "name ILIKE ?")
+			} else {
+				conditions = append(conditions, "name LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if key == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "key ILIKE ?")
+			} else {
+				conditions = append(conditions, "key LIKE ?")
+			}
+			values = append(values, keyword)
+		}
+		if len(conditions) > 0 {
+			tx = tx.Where(strings.Join(conditions, " OR "), values...)
+		}
+	}
+
 	err = tx.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
@@ -183,6 +296,14 @@ func SearchGroupTokens(group string, keyword string, startIdx int, num int, orde
 	switch order {
 	case "used_amount":
 		tx = tx.Order("used_amount desc")
+	case "request_count":
+		tx = tx.Order("request_count desc")
+	case "name":
+		tx = tx.Order("name asc")
+	case "accessed_at":
+		tx = tx.Order("accessed_at desc")
+	case "expired_at":
+		tx = tx.Order("expired_at desc")
 	default:
 		tx = tx.Order("id desc")
 	}

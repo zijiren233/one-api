@@ -23,7 +23,8 @@ func GetTokens(c *gin.Context) {
 	}
 	group := c.Query("group")
 	order := c.Query("order")
-	tokens, total, err := model.GetTokens(p*perPage, perPage, order, group)
+	status, _ := strconv.Atoi(c.Query("status"))
+	tokens, total, err := model.GetTokens(p*perPage, perPage, order, group, status)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -53,7 +54,8 @@ func GetGroupTokens(c *gin.Context) {
 	}
 	group := c.Param("group")
 	order := c.Query("order")
-	tokens, total, err := model.GetGroupTokens(group, p*perPage, perPage, order)
+	status, _ := strconv.Atoi(c.Query("status"))
+	tokens, total, err := model.GetGroupTokens(group, p*perPage, perPage, order, status)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -83,7 +85,11 @@ func SearchTokens(c *gin.Context) {
 		perPage = 10
 	}
 	order := c.Query("order")
-	tokens, total, err := model.SearchTokens(keyword, p*perPage, perPage, order)
+	name := c.Query("name")
+	key := c.Query("key")
+	status, _ := strconv.Atoi(c.Query("status"))
+	group := c.Query("group")
+	tokens, total, err := model.SearchTokens(keyword, p*perPage, perPage, order, status, name, key, group)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -114,7 +120,10 @@ func SearchGroupTokens(c *gin.Context) {
 	}
 	group := c.Param("group")
 	order := c.Query("order")
-	tokens, total, err := model.SearchGroupTokens(group, keyword, p*perPage, perPage, order)
+	name := c.Query("name")
+	key := c.Query("key")
+	status, _ := strconv.Atoi(c.Query("status"))
+	tokens, total, err := model.SearchGroupTokens(group, keyword, p*perPage, perPage, order, status, name, key)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

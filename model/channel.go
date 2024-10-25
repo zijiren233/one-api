@@ -1,12 +1,13 @@
 package model
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common"
-	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/logger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -25,14 +26,14 @@ const (
 
 type Channel struct {
 	Id               int               `gorm:"primaryKey" json:"id"`
-	CreatedAt        time.Time         `json:"created_at"`
+	CreatedAt        time.Time         `gorm:"index" json:"created_at"`
 	Type             int               `gorm:"default:0;index" json:"type"`
-	Key              string            `gorm:"type:text" json:"key"`
+	Key              string            `gorm:"type:text;index" json:"key"`
 	Status           int               `gorm:"default:1;index" json:"status"`
 	Name             string            `gorm:"uniqueIndex" json:"name"`
 	TestAt           time.Time         `json:"test_at"`
 	ResponseDuration int64             `gorm:"bigint" json:"response_duration"` // in milliseconds
-	BaseURL          string            `json:"base_url"`
+	BaseURL          string            `gorm:"index" json:"base_url"`
 	Other            string            `json:"other"`   // DEPRECATED: please save config to field Config
 	Balance          float64           `json:"balance"` // in USD
 	BalanceUpdatedAt time.Time         `json:"balance_updated_at"`
@@ -79,10 +80,25 @@ func GetAllChannels(onlyDisabled bool, omitKey bool) (channels []*Channel, err e
 	return channels, err
 }
 
-func GetChannels(startIdx int, num int, onlyDisabled bool, omitKey bool) (channels []*Channel, total int64, err error) {
+func GetChannels(startIdx int, num int, onlyDisabled bool, omitKey bool, id int, name string, key string, channelType int, baseURL string) (channels []*Channel, total int64, err error) {
 	tx := DB.Model(&Channel{})
 	if onlyDisabled {
 		tx = tx.Where("status = ? or status = ?", ChannelStatusAutoDisabled, ChannelStatusManuallyDisabled)
+	}
+	if id != 0 {
+		tx = tx.Where("id = ?", id)
+	}
+	if name != "" {
+		tx = tx.Where("name = ?", name)
+	}
+	if key != "" {
+		tx = tx.Where("key = ?", key)
+	}
+	if channelType != 0 {
+		tx = tx.Where("type = ?", channelType)
+	}
+	if baseURL != "" {
+		tx = tx.Where("base_url = ?", baseURL)
 	}
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -98,16 +114,72 @@ func GetChannels(startIdx int, num int, onlyDisabled bool, omitKey bool) (channe
 	return channels, total, err
 }
 
-func SearchChannels(keyword string, startIdx int, num int, onlyDisabled bool, omitKey bool) (channels []*Channel, total int64, err error) {
+func SearchChannels(keyword string, startIdx int, num int, onlyDisabled bool, omitKey bool, id int, name string, key string, channelType int, baseURL string) (channels []*Channel, total int64, err error) {
 	tx := DB.Model(&Channel{})
 	if onlyDisabled {
 		tx = tx.Where("status = ? or status = ?", ChannelStatusAutoDisabled, ChannelStatusManuallyDisabled)
 	}
-	if common.UsingPostgreSQL {
-		tx = tx.Where("id = ? or name ILIKE ?", helper.String2Int(keyword), "%"+keyword+"%")
-	} else {
-		tx = tx.Where("id = ? or name LIKE ?", helper.String2Int(keyword), "%"+keyword+"%")
+
+	// Handle exact match conditions for non-zero values
+	if id != 0 {
+		tx = tx.Where("id = ?", id)
 	}
+	if name != "" {
+		tx = tx.Where("name = ?", name)
+	}
+	if key != "" {
+		tx = tx.Where("key = ?", key)
+	}
+	if channelType != 0 {
+		tx = tx.Where("type = ?", channelType)
+	}
+	if baseURL != "" {
+		tx = tx.Where("base_url = ?", baseURL)
+	}
+
+	// Handle keyword search for zero value fields
+	if keyword != "" {
+		var conditions []string
+		var values []interface{}
+
+		if id == 0 {
+			conditions = append(conditions, "id = ?")
+			values = append(values, keyword)
+		}
+		if name == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "name ILIKE ?")
+			} else {
+				conditions = append(conditions, "name LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if key == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "key ILIKE ?")
+			} else {
+				conditions = append(conditions, "key LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+		if channelType == 0 {
+			conditions = append(conditions, "type = ?")
+			values = append(values, keyword)
+		}
+		if baseURL == "" {
+			if common.UsingPostgreSQL {
+				conditions = append(conditions, "base_url ILIKE ?")
+			} else {
+				conditions = append(conditions, "base_url LIKE ?")
+			}
+			values = append(values, "%"+keyword+"%")
+		}
+
+		if len(conditions) > 0 {
+			tx = tx.Where(fmt.Sprintf("(%s)", strings.Join(conditions, " OR ")), values...)
+		}
+	}
+
 	err = tx.Count(&total).Error
 	if err != nil {
 		return nil, 0, err

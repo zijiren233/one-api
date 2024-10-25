@@ -24,10 +24,10 @@ type Group struct {
 	Id           string    `gorm:"primaryKey" json:"id"`
 	CreatedAt    time.Time `json:"created_at"`
 	AccessedAt   time.Time `json:"accessed_at"`
-	Status       int       `gorm:"type:int;default:1;index" json:"status"` // enabled, disabled
-	UsedAmount   float64   `gorm:"bigint" json:"used_amount"`              // used amount
-	QPM          int64     `gorm:"bigint" json:"qpm"`                      // queries per minute
-	RequestCount int       `gorm:"type:int" json:"request_count"`          // request number
+	Status       int       `gorm:"type:int;default:1;index" json:"status"`
+	UsedAmount   float64   `gorm:"bigint;index" json:"used_amount"`
+	QPM          int64     `gorm:"bigint" json:"qpm"`
+	RequestCount int       `gorm:"type:int;index" json:"request_count"`
 	Tokens       []*Token  `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
 	Logs         []*Log    `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
 }
@@ -61,10 +61,8 @@ func GetGroups(startIdx int, num int, order string, onlyDisabled bool) (groups [
 	}
 
 	switch order {
-	case "quota":
-		tx = tx.Order("quota desc")
-	case "used_quota":
-		tx = tx.Order("used_quota desc")
+	case "used_amount":
+		tx = tx.Order("used_amount desc")
 	case "request_count":
 		tx = tx.Order("request_count desc")
 	default:
@@ -145,7 +143,7 @@ func UpdateGroupStatus(id string, status int) (err error) {
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
-func SearchGroup(keyword string, startIdx int, num int, onlyDisabled bool) (groups []*Group, total int64, err error) {
+func SearchGroup(keyword string, startIdx int, num int, onlyDisabled bool, order string) (groups []*Group, total int64, err error) {
 	tx := DB.Model(&Group{})
 	if onlyDisabled {
 		tx = tx.Where("status = ?", GroupStatusDisabled)
@@ -162,7 +160,15 @@ func SearchGroup(keyword string, startIdx int, num int, onlyDisabled bool) (grou
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&groups).Error
+	switch order {
+	case "used_amount":
+		tx = tx.Order("used_amount desc")
+	case "request_count":
+		tx = tx.Order("request_count desc")
+	default:
+		tx = tx.Order("id desc")
+	}
+	err = tx.Limit(num).Offset(startIdx).Find(&groups).Error
 	return groups, total, err
 }
 
