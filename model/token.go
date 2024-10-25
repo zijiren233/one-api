@@ -212,7 +212,7 @@ func SearchTokens(keyword string, startIdx int, num int, order string, status in
 			values = append(values, keyword)
 		}
 		if len(conditions) > 0 {
-			tx = tx.Where(strings.Join(conditions, " OR "), values...)
+			tx = tx.Where(fmt.Sprintf("(%s)", strings.Join(conditions, " OR ")), values...)
 		}
 	}
 
@@ -282,7 +282,7 @@ func SearchGroupTokens(group string, keyword string, startIdx int, num int, orde
 			values = append(values, keyword)
 		}
 		if len(conditions) > 0 {
-			tx = tx.Where(strings.Join(conditions, " OR "), values...)
+			tx = tx.Where(fmt.Sprintf("(%s)", strings.Join(conditions, " OR ")), values...)
 		}
 	}
 

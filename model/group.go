@@ -2,6 +2,8 @@ package model
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	json "github.com/json-iterator/go"
@@ -17,7 +19,6 @@ const (
 const (
 	GroupStatusEnabled  = 1 // don't use 0, 0 is the default value!
 	GroupStatusDisabled = 2 // also don't use 0
-	GroupStatusDeleted  = 3
 )
 
 type Group struct {
@@ -143,15 +144,28 @@ func UpdateGroupStatus(id string, status int) (err error) {
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
-func SearchGroup(keyword string, startIdx int, num int, onlyDisabled bool, order string) (groups []*Group, total int64, err error) {
+func SearchGroup(keyword string, startIdx int, num int, order string, status int) (groups []*Group, total int64, err error) {
 	tx := DB.Model(&Group{})
-	if onlyDisabled {
-		tx = tx.Where("status = ?", GroupStatusDisabled)
+	if status != 0 {
+		tx = tx.Where("status = ?", status)
 	}
 	if common.UsingPostgreSQL {
 		tx = tx.Where("id ILIKE ?", "%"+keyword+"%")
 	} else {
 		tx = tx.Where("id LIKE ?", "%"+keyword+"%")
+	}
+	if keyword != "" {
+		var conditions []string
+		var values []interface{}
+
+		if status == 0 {
+			conditions = append(conditions, "status = ?")
+			values = append(values, 1)
+		}
+
+		if len(conditions) > 0 {
+			tx = tx.Where(fmt.Sprintf("(%s)", strings.Join(conditions, " OR ")), values...)
+		}
 	}
 	err = tx.Count(&total).Error
 	if err != nil {
@@ -165,6 +179,8 @@ func SearchGroup(keyword string, startIdx int, num int, onlyDisabled bool, order
 		tx = tx.Order("used_amount desc")
 	case "request_count":
 		tx = tx.Order("request_count desc")
+	case "accessed_at":
+		tx = tx.Order("accessed_at desc")
 	default:
 		tx = tx.Order("id desc")
 	}

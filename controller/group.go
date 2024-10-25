@@ -53,9 +53,9 @@ func SearchGroups(c *gin.Context) {
 	if perPage <= 0 {
 		perPage = 10
 	}
-	onlyDisabled, _ := strconv.ParseBool(c.Query("only_disabled"))
 	order := c.DefaultQuery("order", "")
-	groups, total, err := model.SearchGroup(keyword, p*perPage, perPage, onlyDisabled, order)
+	status, _ := strconv.Atoi(c.Query("status"))
+	groups, total, err := model.SearchGroup(keyword, p*perPage, perPage, order, status)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
