@@ -84,7 +84,7 @@ func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *re
 	}
 	promptTokens := usage.PromptTokens
 	completionTokens := usage.CompletionTokens
-	amount := (float64(promptTokens) + float64(completionTokens)*completionPrice) * price / billingPrice.PriceUnit
+	amount := (float64(promptTokens)*price + float64(completionTokens)*completionPrice) / billingPrice.PriceUnit
 	totalTokens := promptTokens + completionTokens
 	if totalTokens == 0 {
 		// in this case, must be some error happened
@@ -92,7 +92,7 @@ func postConsumeAmount(ctx context.Context, code int, endpoint string, usage *re
 		amount = 0
 	}
 	if amount > 0 {
-		err := balance.Default.PostGroupConsume(ctx, meta.Group, amount)
+		err := balance.Default.PostGroupConsume(ctx, meta.Group, meta.TokenName, amount)
 		if err != nil {
 			logger.Error(ctx, "error consuming token remain amount: "+err.Error())
 		}

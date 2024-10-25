@@ -18,6 +18,6 @@ func (s *Sealos) GetGroupRemainBalance(ctx context.Context, group string) (float
 	return 0, nil
 }
 
-func (s *Sealos) PostGroupConsume(ctx context.Context, group string, usage float64) error {
+func (s *Sealos) PostGroupConsume(ctx context.Context, group string, tokenName string, usage float64) error {
 	return nil
 }

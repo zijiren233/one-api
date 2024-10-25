@@ -192,7 +192,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return
 		}
 
-		err := balance.Default.PostGroupConsume(ctx, meta.Group, amount)
+		err := balance.Default.PostGroupConsume(ctx, meta.Group, meta.TokenName, amount)
 		if err != nil {
 			logger.SysError("error consuming token remain balance: " + err.Error())
 		}

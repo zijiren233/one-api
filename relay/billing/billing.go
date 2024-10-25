@@ -11,7 +11,7 @@ import (
 func PostConsumeAmount(ctx context.Context, code int, tokenId int, amount float64, group string, channelId int, modelPrice float64, modelName string, tokenName string, endpoint string, content string) {
 	if amount > 0 {
 		// amountDelta is remaining amount to be consumed
-		err := balance.Default.PostGroupConsume(ctx, group, amount)
+		err := balance.Default.PostGroupConsume(ctx, group, tokenName, amount)
 		if err != nil {
 			logger.SysError("error consuming token remain quota: " + err.Error())
 		}

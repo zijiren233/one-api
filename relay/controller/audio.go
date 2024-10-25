@@ -172,7 +172,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "get_text_from_body_err", http.StatusInternalServerError)
 		}
-		amount = float64(openai.CountTokenText(text, audioModel))
+		amount = float64(openai.CountTokenText(text, audioModel)) * price / billingprice.PriceUnit
 		resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
 	}
 
