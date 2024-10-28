@@ -202,11 +202,7 @@ var ModelPrice = map[string]float64{
 	"deepl-ja": 0.175,
 }
 
-var CompletionPrice = map[string]float64{
-	// aws llama3
-	"llama3-8b-8192(33)":  0.0042,
-	"llama3-70b-8192(33)": 0.0245,
-}
+var CompletionPrice = map[string]float64{}
 
 var (
 	DefaultModelPrice      map[string]float64
@@ -263,7 +259,7 @@ func UpdateModelPriceByJSONString(jsonStr string) error {
 	return nil
 }
 
-func GetModelPrice(name string, channelType int) float64 {
+func GetModelPrice(name string, channelType int) (float64, bool) {
 	if strings.HasPrefix(name, "qwen-") && strings.HasSuffix(name, "-internet") {
 		name = strings.TrimSuffix(name, "-internet")
 	}
@@ -272,19 +268,18 @@ func GetModelPrice(name string, channelType int) float64 {
 	}
 	model := fmt.Sprintf("%s(%d)", name, channelType)
 	if price, ok := ModelPrice[model]; ok {
-		return price
+		return price, true
 	}
 	if price, ok := DefaultModelPrice[model]; ok {
-		return price
+		return price, true
 	}
 	if price, ok := ModelPrice[name]; ok {
-		return price
+		return price, true
 	}
 	if price, ok := DefaultModelPrice[name]; ok {
-		return price
+		return price, true
 	}
-	logger.SysError("model price not found: " + name)
-	return 0.42
+	return 0, false
 }
 
 func CompletionPrice2JSONString() string {
@@ -306,74 +301,22 @@ func UpdateCompletionPriceByJSONString(jsonStr string) error {
 	return nil
 }
 
-func GetCompletionPrice(name string, channelType int) float64 {
+func GetCompletionPrice(name string, channelType int) (float64, bool) {
 	if strings.HasPrefix(name, "qwen-") && strings.HasSuffix(name, "-internet") {
 		name = strings.TrimSuffix(name, "-internet")
 	}
 	model := fmt.Sprintf("%s(%d)", name, channelType)
 	if price, ok := CompletionPrice[model]; ok {
-		return price
+		return price, true
 	}
 	if price, ok := DefaultCompletionPrice[model]; ok {
-		return price
+		return price, true
 	}
 	if price, ok := CompletionPrice[name]; ok {
-		return price
+		return price, true
 	}
 	if price, ok := DefaultCompletionPrice[name]; ok {
-		return price
-	}
-	if strings.HasPrefix(name, "gpt-3.5") {
-		if name == "gpt-3.5-turbo" || strings.HasSuffix(name, "0125") {
-			return 0.0105
-		}
-		if strings.HasSuffix(name, "1106") {
-			return 0.014
-		}
-		return 0.0187
-	}
-	if strings.HasPrefix(name, "gpt-4") {
-		if strings.HasPrefix(name, "gpt-4o-mini") || name == "gpt-4o-2024-08-06" {
-			return 0.007
-		}
-		if strings.HasPrefix(name, "gpt-4-turbo") ||
-			strings.HasPrefix(name, "gpt-4o") ||
-			strings.HasSuffix(name, "preview") {
-			return 0.21
-		}
-		return 0.42
-	}
-	if name == "chatgpt-4o-latest" {
-		return 0.105
-	}
-	if strings.HasPrefix(name, "claude-3") {
-		return 0.105
-	}
-	if strings.HasPrefix(name, "claude-") {
-		return 0.168
-	}
-	if strings.HasPrefix(name, "mistral-") {
-		return 0.042
-	}
-	if strings.HasPrefix(name, "gemini-") {
-		return 0.042
-	}
-	if strings.HasPrefix(name, "deepseek-") {
-		return 0.002
-	}
-	switch name {
-	case "llama2-70b-4096":
-		return 0.0175
-	case "llama3-8b-8192":
-		return 0.0042
-	case "llama3-70b-8192":
-		return 0.0187
-	case "command", "command-light", "command-nightly", "command-light-nightly":
-		return 0.014
-	case "command-r":
-		return 0.0105
-	case "command-r-plus":
-		return 0.105
+		return price, true
 	}
 	return GetModelPrice(name, channelType)
 }

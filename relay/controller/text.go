@@ -36,7 +36,14 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	textRequest.Model, _ = getMappedModelName(textRequest.Model, meta.ModelMapping)
 	meta.ActualModelName = textRequest.Model
 	// get model price
-	price := billingPrice.GetModelPrice(textRequest.Model, meta.ChannelType)
+	price, ok := billingPrice.GetModelPrice(textRequest.Model, meta.ChannelType)
+	if !ok {
+		return openai.ErrorWrapper(fmt.Errorf("model price not found: %s", textRequest.Model), "model_price_not_found", http.StatusInternalServerError)
+	}
+	completionPrice, ok := billingPrice.GetCompletionPrice(textRequest.Model, meta.ChannelType)
+	if !ok {
+		return openai.ErrorWrapper(fmt.Errorf("completion price not found: %s", textRequest.Model), "completion_price_not_found", http.StatusInternalServerError)
+	}
 	// pre-consume balance
 	promptTokens := getPromptTokens(textRequest, meta.Mode)
 	meta.PromptTokens = promptTokens
@@ -65,12 +72,11 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	resp, err := adaptor.DoRequest(c, meta, requestBody)
 	if err != nil {
 		logger.Errorf(ctx, "DoRequest failed: %s", err.Error())
-		go postConsumeAmount(ctx, postGroupConsume, resp.StatusCode, c.Request.URL.Path, nil, meta, textRequest, price, err.Error())
 		return openai.ErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)
 	}
 	if isErrorHappened(meta, resp) {
 		err := RelayErrorHandler(resp)
-		go postConsumeAmount(ctx, postGroupConsume, resp.StatusCode, c.Request.URL.Path, nil, meta, textRequest, price, err.Error.Message)
+		go postConsumeAmount(ctx, postGroupConsume, resp.StatusCode, c.Request.URL.Path, nil, meta, textRequest, price, completionPrice, err.Error.Message)
 		return err
 	}
 
@@ -78,11 +84,11 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	usage, respErr := adaptor.DoResponse(c, resp, meta)
 	if respErr != nil {
 		logger.Errorf(ctx, "respErr is not nil: %+v", respErr)
-		go postConsumeAmount(ctx, postGroupConsume, resp.StatusCode, c.Request.URL.Path, usage, meta, textRequest, price, respErr.Error.Message)
+		go postConsumeAmount(ctx, postGroupConsume, resp.StatusCode, c.Request.URL.Path, usage, meta, textRequest, price, completionPrice, respErr.Error.Message)
 		return respErr
 	}
 	// post-consume amount
-	go postConsumeAmount(ctx, postGroupConsume, resp.StatusCode, c.Request.URL.Path, usage, meta, textRequest, price, "")
+	go postConsumeAmount(ctx, postGroupConsume, resp.StatusCode, c.Request.URL.Path, usage, meta, textRequest, price, completionPrice, "")
 	return nil
 }
 

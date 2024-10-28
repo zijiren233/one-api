@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/logger"
@@ -71,8 +72,7 @@ func preCheckGroupBalance(ctx context.Context, textRequest *relaymodel.GeneralOp
 	return true, postGroupConsumer, nil
 }
 
-func postConsumeAmount(ctx context.Context, postGroupConsumer balance.PostGroupConsumer, code int, endpoint string, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price float64, content string) {
-	completionPrice := billingPrice.GetCompletionPrice(textRequest.Model, meta.ChannelType)
+func postConsumeAmount(ctx context.Context, postGroupConsumer balance.PostGroupConsumer, code int, endpoint string, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, price, completionPrice float64, content string) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		// Record log and usage count without consuming balance
@@ -84,17 +84,19 @@ func postConsumeAmount(ctx context.Context, postGroupConsumer balance.PostGroupC
 	}
 	promptTokens := usage.PromptTokens
 	completionTokens := usage.CompletionTokens
-	amount := (float64(promptTokens)*price + float64(completionTokens)*completionPrice) / billingPrice.PriceUnit
+	var amount float64
 	totalTokens := promptTokens + completionTokens
-	if totalTokens == 0 {
-		// in this case, must be some error happened
-		// we cannot just return, because we may have to return the pre-consumed amount
-		amount = 0
-	}
-	if amount > 0 {
-		err := postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)
-		if err != nil {
-			logger.Error(ctx, "error consuming token remain amount: "+err.Error())
+	if totalTokens != 0 {
+		// amount = (float64(promptTokens)*price + float64(completionTokens)*completionPrice) / billingPrice.PriceUnit
+		promptAmount := decimal.NewFromInt(int64(promptTokens)).Mul(decimal.NewFromFloat(price)).Div(decimal.NewFromInt(billingPrice.PriceUnit))
+		completionAmount := decimal.NewFromInt(int64(completionTokens)).Mul(decimal.NewFromFloat(completionPrice)).Div(decimal.NewFromInt(billingPrice.PriceUnit))
+		amount = promptAmount.Add(completionAmount).InexactFloat64()
+		if amount > 0 {
+			var err error
+			amount, err = postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)
+			if err != nil {
+				logger.Error(ctx, "error consuming token remain amount: "+err.Error())
+			}
 		}
 	}
 	model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, promptTokens, completionTokens, textRequest.Model, meta.TokenId, meta.TokenName, amount, price, completionPrice, endpoint, content)

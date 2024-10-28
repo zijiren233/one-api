@@ -14,6 +14,6 @@ func (q *MockGroupBalance) GetGroupRemainBalance(ctx context.Context, group stri
 	return 10000000, q, nil
 }
 
-func (q *MockGroupBalance) PostGroupConsume(ctx context.Context, tokenName string, usage float64) error {
-	return nil
+func (q *MockGroupBalance) PostGroupConsume(ctx context.Context, tokenName string, usage float64) (float64, error) {
+	return usage, nil
 }

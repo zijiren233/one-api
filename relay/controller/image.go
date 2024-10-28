@@ -11,6 +11,7 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/logger"
@@ -172,7 +173,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return openai.ErrorWrapper(err, "get_group_remain_balance_failed", http.StatusInternalServerError)
 	}
 
-	amount := imageCostPrice * float64(imageRequest.N)
+	amount := decimal.NewFromFloat(imageCostPrice).Mul(decimal.NewFromInt(int64(imageRequest.N))).InexactFloat64()
 
 	if groupRemainBalance-amount < 0 {
 		return openai.ErrorWrapper(errors.New("group balance is not enough"), "insufficient_group_balance", http.StatusForbidden)
@@ -191,7 +192,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return
 		}
 
-		err := postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)
+		amount, err = postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)
 		if err != nil {
 			logger.SysError("error consuming token remain balance: " + err.Error())
 		}

@@ -12,6 +12,7 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/client"
@@ -50,7 +51,10 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 	}
 
-	price := billingprice.GetModelPrice(audioModel, channelType)
+	price, ok := billingprice.GetModelPrice(audioModel, channelType)
+	if !ok {
+		return openai.ErrorWrapper(fmt.Errorf("model price not found: %s", audioModel), "model_price_not_found", http.StatusInternalServerError)
+	}
 	var preConsumedAmount float64
 	switch relayMode {
 	case relaymode.AudioSpeech:
@@ -172,7 +176,10 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "get_text_from_body_err", http.StatusInternalServerError)
 		}
-		amount = float64(openai.CountTokenText(text, audioModel)) * price / billingprice.PriceUnit
+		amount = decimal.NewFromInt(int64(openai.CountTokenText(text, audioModel))).
+			Mul(decimal.NewFromFloat(price)).
+			Div(decimal.NewFromInt(billingprice.PriceUnit)).
+			InexactFloat64()
 		resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
 	}
 
