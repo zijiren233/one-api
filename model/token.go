@@ -349,12 +349,10 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 	if token.Status != TokenStatusEnabled {
 		return nil, fmt.Errorf("令牌 (%d) 状态不可用", token.Id)
 	}
-	if !token.ExpiredAt.IsZero() && token.ExpiredAt.Before(time.Now()) {
-		if !common.RedisEnabled {
-			err := UpdateTokenStatusAndAccessedAt(token.Id, TokenStatusExpired)
-			if err != nil {
-				logger.SysError("failed to update token status" + err.Error())
-			}
+	if !(time.Time(token.ExpiredAt)).IsZero() && time.Time(token.ExpiredAt).Before(time.Now()) {
+		err := UpdateTokenStatusAndAccessedAt(token.Id, TokenStatusExpired)
+		if err != nil {
+			logger.SysError("failed to update token status" + err.Error())
 		}
 		return nil, fmt.Errorf("令牌 (%d) 已过期", token.Id)
 	}
