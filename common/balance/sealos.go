@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	json "github.com/json-iterator/go"
 	"github.com/shopspring/decimal"
+	"github.com/songquanpeng/one-api/common"
 )
 
 var _ GroupBalance = (*Sealos)(nil)
@@ -16,19 +18,29 @@ var _ GroupBalance = (*Sealos)(nil)
 var sealosHttpClient = http.Client{}
 
 const (
-	appType = "LLM-TOKEN"
+	defaultAccountUrl = "http://account-service.account-system.svc.cluster.local:2333"
+	balancePrecision  = 1000000
+	appType           = "LLM-TOKEN"
+	sealosRequester   = "sealos-admin"
 )
+
+var (
+	decimalBalancePrecision = decimal.NewFromInt(balancePrecision)
+	jwtToken                string
+)
+
+func InitSealos(jwtKey string, accountUrl string) {
+	_jwtToken, err := newSealosToken(jwtKey)
+	if err != nil {
+		panic(fmt.Sprintf("failed to generate sealos jwt token: %s", err))
+	}
+	jwtToken = _jwtToken
+	Default = NewSealos(accountUrl)
+}
 
 type Sealos struct {
 	accountUrl string
 }
-
-const (
-	defaultAccountUrl = "http://account-service.account-system.svc.cluster.local:2333"
-	balancePrecision  = 1000000
-)
-
-var decimalBalancePrecision = decimal.NewFromInt(balancePrecision)
 
 func NewSealos(accountUrl string) *Sealos {
 	if accountUrl == "" {
@@ -39,36 +51,34 @@ func NewSealos(accountUrl string) *Sealos {
 	}
 }
 
-type sealosGetGroupBalanceReq struct {
-	Workspace string `json:"workspace"`
+type sealosClaims struct {
+	Requester string `json:"requester"`
+	jwt.RegisteredClaims
+}
+
+func newSealosToken(key string) (string, error) {
+	claims := &sealosClaims{
+		Requester: sealosRequester,
+		RegisteredClaims: jwt.RegisteredClaims{
+			NotBefore: jwt.NewNumericDate(time.Now()),
+		},
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(common.StringToBytes(key))
 }
 
 type sealosGetGroupBalanceResp struct {
-	Account struct {
-		UserUid          string `json:"UserUID"`
-		Balance          int64  `json:"Balance"`
-		DeductionBalance int64  `json:"DeductionBalance"`
-	} `json:"account"`
-}
-
-func newSealosGetGroupBalanceReq(group string) *sealosGetGroupBalanceReq {
-	return &sealosGetGroupBalanceReq{
-		Workspace: group,
-	}
+	Balance int64  `json:"balance"`
+	UserUID string `json:"userUID"`
 }
 
 func (s *Sealos) GetGroupRemainBalance(ctx context.Context, group string) (float64, PostGroupConsumer, error) {
-	sealosReq := newSealosGetGroupBalanceReq(group)
-	reqBody, err := json.Marshal(sealosReq)
-	if err != nil {
-		return 0, nil, err
-	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/admin/v1alpha1/account-with-workspace", s.accountUrl), bytes.NewBuffer(reqBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/admin/v1alpha1/account-with-workspace?namespace=%s", s.accountUrl, group), nil)
 	if err != nil {
 		return 0, nil, err
 	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
 	resp, err := sealosHttpClient.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -78,10 +88,10 @@ func (s *Sealos) GetGroupRemainBalance(ctx context.Context, group string) (float
 	if err := json.NewDecoder(resp.Body).Decode(&sealosResp); err != nil {
 		return 0, nil, err
 	}
-	return float64((sealosResp.Account.Balance - sealosResp.Account.DeductionBalance) / balancePrecision), &SealosPostGroupConsumer{
+	return decimal.NewFromInt(sealosResp.Balance).Div(decimalBalancePrecision).InexactFloat64(), &SealosPostGroupConsumer{
 		accountUrl: s.accountUrl,
 		group:      group,
-		uid:        sealosResp.Account.UserUid,
+		uid:        sealosResp.UserUID,
 	}, nil
 }
 
@@ -130,6 +140,7 @@ func (s *SealosPostGroupConsumer) PostGroupConsume(ctx context.Context, tokenNam
 	if err != nil {
 		return 0, err
 	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
 	resp, err := sealosHttpClient.Do(req)
 	if err != nil {
 		return 0, err

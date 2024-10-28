@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/client"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"
@@ -22,6 +23,14 @@ func main() {
 	common.Init()
 	logger.SetupLogger()
 	logger.SysLogf("One API %s started", common.Version)
+
+	sealosJwtKey := os.Getenv("SEALOS_JWT_KEY")
+	if sealosJwtKey == "" {
+		logger.SysLog("SEALOS_JWT_KEY is not set, balance will not be enabled")
+	} else {
+		logger.SysLog("SEALOS_JWT_KEY is set, balance will be enabled")
+		balance.InitSealos(sealosJwtKey, os.Getenv("SEALOS_ACCOUNT_URL"))
+	}
 
 	if os.Getenv("GIN_MODE") != gin.DebugMode {
 		gin.SetMode(gin.ReleaseMode)
