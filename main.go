@@ -29,7 +29,10 @@ func main() {
 		logger.SysLog("SEALOS_JWT_KEY is not set, balance will not be enabled")
 	} else {
 		logger.SysLog("SEALOS_JWT_KEY is set, balance will be enabled")
-		balance.InitSealos(sealosJwtKey, os.Getenv("SEALOS_ACCOUNT_URL"))
+		err := balance.InitSealos(sealosJwtKey, os.Getenv("SEALOS_ACCOUNT_URL"))
+		if err != nil {
+			logger.FatalLog("failed to initialize sealos balance: " + err.Error())
+		}
 	}
 
 	if os.Getenv("GIN_MODE") != gin.DebugMode {

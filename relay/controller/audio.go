@@ -3,6 +3,7 @@ package controller
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -55,15 +56,20 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	if !ok {
 		return openai.ErrorWrapper(fmt.Errorf("model price not found: %s", audioModel), "model_price_not_found", http.StatusInternalServerError)
 	}
-	var preConsumedAmount float64
-	switch relayMode {
-	case relaymode.AudioSpeech:
-		preConsumedAmount = float64(len(ttsRequest.Input)) * price
-	default:
-	}
+
 	groupRemainBalance, postGroupConsumer, err := balance.Default.GetGroupRemainBalance(c.Request.Context(), group)
 	if err != nil {
 		return openai.ErrorWrapper(err, "get_group_balance_failed", http.StatusInternalServerError)
+	}
+
+	var preConsumedAmount float64
+	switch relayMode {
+	case relaymode.AudioSpeech:
+		preConsumedAmount = decimal.NewFromInt(int64(len(ttsRequest.Input))).
+			Mul(decimal.NewFromFloat(price)).
+			Div(decimal.NewFromInt(billingprice.PriceUnit)).
+			InexactFloat64()
+	default:
 	}
 
 	// Check if group balance is enough
@@ -185,11 +191,11 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 
 	if resp.StatusCode != http.StatusOK {
 		err := RelayErrorHandler(resp)
-		go billing.PostConsumeAmount(c.Request.Context(), postGroupConsumer, resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenName, c.Request.URL.Path, err.Error.Message)
+		go billing.PostConsumeAmount(context.Background(), postGroupConsumer, resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenName, c.Request.URL.Path, err.Error.Message)
 		return err
 	}
 
-	go billing.PostConsumeAmount(c.Request.Context(), postGroupConsumer, resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenName, c.Request.URL.Path, "")
+	go billing.PostConsumeAmount(context.Background(), postGroupConsumer, resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenName, c.Request.URL.Path, "")
 
 	for k, v := range resp.Header {
 		c.Writer.Header().Set(k, v[0])

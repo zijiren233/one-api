@@ -11,6 +11,7 @@ import (
 	json "github.com/json-iterator/go"
 	"github.com/shopspring/decimal"
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/logger"
 )
 
 var _ GroupBalance = (*Sealos)(nil)
@@ -29,13 +30,14 @@ var (
 	jwtToken                string
 )
 
-func InitSealos(jwtKey string, accountUrl string) {
+func InitSealos(jwtKey string, accountUrl string) error {
 	_jwtToken, err := newSealosToken(jwtKey)
 	if err != nil {
-		panic(fmt.Sprintf("failed to generate sealos jwt token: %s", err))
+		return fmt.Errorf("failed to generate sealos jwt token: %s", err)
 	}
 	jwtToken = _jwtToken
 	Default = NewSealos(accountUrl)
+	return nil
 }
 
 type Sealos struct {
@@ -69,6 +71,7 @@ func newSealosToken(key string) (string, error) {
 type sealosGetGroupBalanceResp struct {
 	Balance int64  `json:"balance"`
 	UserUID string `json:"userUID"`
+	Error   string `json:"error"`
 }
 
 func (s *Sealos) GetGroupRemainBalance(ctx context.Context, group string) (float64, PostGroupConsumer, error) {
@@ -87,6 +90,13 @@ func (s *Sealos) GetGroupRemainBalance(ctx context.Context, group string) (float
 	var sealosResp sealosGetGroupBalanceResp
 	if err := json.NewDecoder(resp.Body).Decode(&sealosResp); err != nil {
 		return 0, nil, err
+	}
+	if sealosResp.Error != "" {
+		logger.Errorf(ctx, "get group (%s) balance failed: %s", group, sealosResp.Error)
+		return 0, nil, fmt.Errorf("get group (%s) balance failed", group)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return 0, nil, fmt.Errorf("get group (%s) balance failed with status code %d", group, resp.StatusCode)
 	}
 	return decimal.NewFromInt(sealosResp.Balance).Div(decimalBalancePrecision).InexactFloat64(), &SealosPostGroupConsumer{
 		accountUrl: s.accountUrl,
@@ -151,7 +161,8 @@ func (s *SealosPostGroupConsumer) PostGroupConsume(ctx context.Context, tokenNam
 		return 0, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("group (%s) consume failed with status code %d: %s", s.group, resp.StatusCode, sealosResp.Message)
+		logger.Errorf(ctx, "group (%s) consume failed with status code %d: %s", s.group, resp.StatusCode, sealosResp.Message)
+		return 0, fmt.Errorf("group (%s) consume failed with status code %d", s.group, resp.StatusCode)
 	}
 	return u.Div(decimalBalancePrecision).InexactFloat64(), nil
 }

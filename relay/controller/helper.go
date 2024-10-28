@@ -56,7 +56,11 @@ func getPreConsumedAmount(textRequest *relaymodel.GeneralOpenAIRequest, promptTo
 	if textRequest.MaxTokens != 0 {
 		preConsumedTokens += int64(textRequest.MaxTokens)
 	}
-	return float64(preConsumedTokens) * price / billingPrice.PriceUnit
+	return decimal.
+		NewFromInt(int64(preConsumedTokens)).
+		Mul(decimal.NewFromFloat(price)).
+		Div(decimal.NewFromInt(billingPrice.PriceUnit)).
+		InexactFloat64()
 }
 
 func preCheckGroupBalance(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, price float64, meta *meta.Meta) (bool, balance.PostGroupConsumer, *relaymodel.ErrorWithStatusCode) {
