@@ -133,22 +133,23 @@ func EnabledType2Models(c *gin.Context) {
 	})
 }
 
+func EnabledModels(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    model.CacheGetAllModels(),
+	})
+}
+
 func ListModels(c *gin.Context) {
 	availableModels := c.GetStringSlice(ctxkey.AvailableModels)
-	modelSet := make(map[string]struct{})
-	for _, availableModel := range availableModels {
-		modelSet[availableModel] = struct{}{}
-	}
-
 	availableOpenAIModels := make([]OpenAIModels, 0, len(availableModels))
-	for _, model := range models {
-		if _, ok := modelSet[model.Id]; ok {
-			availableOpenAIModels = append(availableOpenAIModels, model)
-			delete(modelSet, model.Id)
-		}
-	}
 
-	for modelName := range modelSet {
+	for _, modelName := range availableModels {
+		if model, ok := modelsMap[modelName]; ok {
+			availableOpenAIModels = append(availableOpenAIModels, model)
+			continue
+		}
 		availableOpenAIModels = append(availableOpenAIModels, OpenAIModels{
 			Id:      modelName,
 			Object:  "model",

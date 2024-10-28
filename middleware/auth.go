@@ -69,7 +69,7 @@ func TokenAuth(c *gin.Context) {
 			return
 		}
 	}
-	c.Set(ctxkey.AvailableModels, token.Models)
+	c.Set(ctxkey.AvailableModels, []string(token.Models))
 	if requestModel != "" && !slices.Contains(token.Models, requestModel) {
 		abortWithMessage(c, http.StatusForbidden, fmt.Sprintf("该令牌无权使用模型：%s", requestModel))
 		return
