@@ -101,9 +101,9 @@ func CacheGetTokenByKey(key string) (*TokenCache, error) {
 	if err == nil && tokenCache.Id != 0 {
 		tokenCache.Key = key
 		return tokenCache, nil
+	} else if err != nil && err != redis.Nil {
+		logger.SysLogf("get token (%s) from redis error: %s", key, err.Error())
 	}
-
-	logger.SysLog("token not found in redis, getting from database")
 
 	token, err := GetTokenByKey(key)
 	if err != nil {
@@ -117,16 +117,34 @@ func CacheGetTokenByKey(key string) (*TokenCache, error) {
 	return token.ToTokenCache(), nil
 }
 
+var updateTokenUsedAmountScript = redis.NewScript(`
+	if redis.call("HExists", KEYS[1], "used_amount") then
+		redis.call("HSet", KEYS[1], "used_amount", ARGV[1])
+	end
+	return 1
+`)
+
+var increaseTokenUsedAmountScript = redis.NewScript(`
+	local used_amount = redis.call("HGet", KEYS[1], "used_amount")
+	if used_amount == false then
+		return redis.status_reply("ok")
+	end
+	redis.call("HSet", KEYS[1], "used_amount", used_amount + ARGV[1])
+	return redis.status_reply("ok")
+`)
+
 func CacheUpdateTokenUsedAmount(key string, amount float64) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	cacheKey := fmt.Sprintf(TokenCacheKey, key)
-	pipe := common.RDB.Pipeline()
-	pipe.HSet(context.Background(), cacheKey, "used_amount", amount)
-	pipe.Expire(context.Background(), cacheKey, SyncFrequency)
-	_, err := pipe.Exec(context.Background())
-	return err
+	return updateTokenUsedAmountScript.Run(context.Background(), common.RDB, []string{fmt.Sprintf(TokenCacheKey, key)}, amount).Err()
+}
+
+func CacheIncreaseTokenUsedAmount(key string, amount float64) error {
+	if !common.RedisEnabled {
+		return nil
+	}
+	return increaseTokenUsedAmountScript.Run(context.Background(), common.RDB, []string{fmt.Sprintf(TokenCacheKey, key)}, amount).Err()
 }
 
 type GroupCache struct {
@@ -177,6 +195,8 @@ func CacheGetGroup(id string) (*GroupCache, error) {
 	if err == nil && groupCache.Status != 0 {
 		groupCache.Id = id
 		return groupCache, nil
+	} else if err != nil && err != redis.Nil {
+		logger.SysLogf("get group (%s) from redis error: %s", id, err.Error())
 	}
 
 	group, err := GetGroupById(id)
