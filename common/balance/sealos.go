@@ -31,6 +31,7 @@ var (
 	minConsumeAmount                     = decimal.NewFromInt(1)
 	jwtToken                string
 	sealosRedisCacheEnable  = env.Bool("BALANCE_SEALOS_REDIS_CACHE_ENABLE", true)
+	sealosCacheExpire       = 5 * time.Second
 )
 
 type Sealos struct {
@@ -101,7 +102,7 @@ func cacheSetGroupBalance(ctx context.Context, group string, balance int64, user
 		Balance: balance,
 		UserUID: userUID,
 	})
-	pipe.Expire(ctx, fmt.Sprintf(sealosGroupBalanceKey, group), time.Second*3)
+	pipe.Expire(ctx, fmt.Sprintf(sealosGroupBalanceKey, group), sealosCacheExpire)
 	_, err := pipe.Exec(ctx)
 	return err
 }

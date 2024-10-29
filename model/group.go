@@ -9,6 +9,7 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/logger"
 	"gorm.io/gorm"
 )
 
@@ -111,7 +112,9 @@ func DeleteGroupById(id string) (err error) {
 	}
 	defer func() {
 		if err == nil {
-			_ = CacheDeleteGroup(id)
+			if err := CacheDeleteGroup(id); err != nil {
+				logger.SysError("CacheDeleteGroup failed: " + err.Error())
+			}
 		}
 	}()
 	result := DB.
@@ -149,20 +152,24 @@ func UpdateGroupRequestCount(id string, count int) error {
 func UpdateGroupQPM(id string, qpm int64) (err error) {
 	defer func() {
 		if err == nil {
-			_ = CacheDeleteGroup(id)
+			if err := CacheUpdateGroupQPM(id, qpm); err != nil {
+				logger.SysError("CacheUpdateGroupQPM failed: " + err.Error())
+			}
 		}
 	}()
-	result := DB.Model(&Group{}).Where("id = ?", id).UpdateColumn("qpm", gorm.Expr("qpm = ?", qpm))
+	result := DB.Model(&Group{}).Where("id = ?", id).Update("qpm", qpm)
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 
 func UpdateGroupStatus(id string, status int) (err error) {
 	defer func() {
 		if err == nil {
-			_ = CacheDeleteGroup(id)
+			if err := CacheUpdateGroupStatus(id, status); err != nil {
+				logger.SysError("CacheUpdateGroupStatus failed: " + err.Error())
+			}
 		}
 	}()
-	result := DB.Model(&Group{}).Where("id = ?", id).UpdateColumn("status", gorm.Expr("status = ?", status))
+	result := DB.Model(&Group{}).Where("id = ?", id).Update("status", status)
 	return HandleUpdateResult(result, ErrGroupNotFound)
 }
 

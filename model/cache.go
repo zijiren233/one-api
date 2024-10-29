@@ -131,7 +131,19 @@ var updateTokenUsedAmountScript = redis.NewScript(`
 	if redis.call("HExists", KEYS[1], "used_amount") then
 		redis.call("HSet", KEYS[1], "used_amount", ARGV[1])
 	end
-	return 1
+	return redis.status_reply("ok")
+`)
+
+var updateTokenUsedAmountOnlyIncreaseScript = redis.NewScript(`
+	local used_amount = redis.call("HGet", KEYS[1], "used_amount")
+	if used_amount == false then
+		return redis.status_reply("ok")
+	end
+	if ARGV[1] < used_amount then
+		return redis.status_reply("ok")
+	end
+	redis.call("HSet", KEYS[1], "used_amount", ARGV[1])
+	return redis.status_reply("ok")
 `)
 
 var increaseTokenUsedAmountScript = redis.NewScript(`
@@ -148,6 +160,13 @@ func CacheUpdateTokenUsedAmount(key string, amount float64) error {
 		return nil
 	}
 	return updateTokenUsedAmountScript.Run(context.Background(), common.RDB, []string{fmt.Sprintf(TokenCacheKey, key)}, amount).Err()
+}
+
+func CacheUpdateTokenUsedAmountOnlyIncrease(key string, amount float64) error {
+	if !common.RedisEnabled {
+		return nil
+	}
+	return updateTokenUsedAmountOnlyIncreaseScript.Run(context.Background(), common.RDB, []string{fmt.Sprintf(TokenCacheKey, key)}, amount).Err()
 }
 
 func CacheIncreaseTokenUsedAmount(key string, amount float64) error {
@@ -176,6 +195,34 @@ func CacheDeleteGroup(id string) error {
 		return nil
 	}
 	return common.RedisDel(fmt.Sprintf(GroupCacheKey, id))
+}
+
+var updateGroupQPMScript = redis.NewScript(`
+	if redis.call("HExists", KEYS[1], "qpm") then
+		redis.call("HSet", KEYS[1], "qpm", ARGV[1])
+	end
+	return redis.status_reply("ok")
+`)
+
+func CacheUpdateGroupQPM(id string, qpm int64) error {
+	if !common.RedisEnabled {
+		return nil
+	}
+	return updateGroupQPMScript.Run(context.Background(), common.RDB, []string{fmt.Sprintf(GroupCacheKey, id)}, qpm).Err()
+}
+
+var updateGroupStatusScript = redis.NewScript(`
+	if redis.call("HExists", KEYS[1], "status") then
+		redis.call("HSet", KEYS[1], "status", ARGV[1])
+	end
+	return redis.status_reply("ok")
+`)
+
+func CacheUpdateGroupStatus(id string, status int) error {
+	if !common.RedisEnabled {
+		return nil
+	}
+	return updateGroupStatusScript.Run(context.Background(), common.RDB, []string{fmt.Sprintf(GroupCacheKey, id)}, status).Err()
 }
 
 func CacheSetGroup(group *Group) error {
