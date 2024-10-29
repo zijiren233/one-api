@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 
 	"github.com/pkoukk/tiktoken-go"
 	"github.com/songquanpeng/one-api/common/config"
@@ -18,6 +19,7 @@ import (
 var (
 	tokenEncoderMap     = map[string]*tiktoken.Tiktoken{}
 	defaultTokenEncoder *tiktoken.Tiktoken
+	tokenEncoderLock    sync.RWMutex
 )
 
 func InitTokenEncoders() {
@@ -35,6 +37,10 @@ func InitTokenEncoders() {
 	if err != nil {
 		logger.FatalLog(fmt.Sprintf("failed to get gpt-4 token encoder: %s", err.Error()))
 	}
+
+	tokenEncoderLock.Lock()
+	defer tokenEncoderLock.Unlock()
+
 	for model := range billingprice.ModelPrice {
 		if strings.HasPrefix(model, "gpt-3.5") {
 			tokenEncoderMap[model] = gpt35TokenEncoder
@@ -50,7 +56,10 @@ func InitTokenEncoders() {
 }
 
 func getTokenEncoder(model string) *tiktoken.Tiktoken {
+	tokenEncoderLock.RLock()
 	tokenEncoder, ok := tokenEncoderMap[model]
+	tokenEncoderLock.RUnlock()
+
 	if ok && tokenEncoder != nil {
 		return tokenEncoder
 	}
@@ -60,7 +69,9 @@ func getTokenEncoder(model string) *tiktoken.Tiktoken {
 			logger.SysError(fmt.Sprintf("failed to get token encoder for model %s: %s, using encoder for gpt-3.5-turbo", model, err.Error()))
 			tokenEncoder = defaultTokenEncoder
 		}
+		tokenEncoderLock.Lock()
 		tokenEncoderMap[model] = tokenEncoder
+		tokenEncoderLock.Unlock()
 		return tokenEncoder
 	}
 	return defaultTokenEncoder
