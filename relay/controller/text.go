@@ -77,7 +77,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	}
 	if isErrorHappened(meta, resp) {
 		err := RelayErrorHandler(resp)
-		go postConsumeAmount(context.Background(), postGroupConsume, resp.StatusCode, c.Request.URL.Path, nil, meta, textRequest, price, completionPrice, err.Error.Message)
+		go postConsumeAmount(context.Background(), postGroupConsume, resp.StatusCode, c.Request.URL.Path, nil, meta, price, completionPrice, err.Error.Message)
 		return err
 	}
 
@@ -85,11 +85,11 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	usage, respErr := adaptor.DoResponse(c, resp, meta)
 	if respErr != nil {
 		logger.Errorf(ctx, "respErr is not nil: %+v", respErr)
-		go postConsumeAmount(context.Background(), postGroupConsume, resp.StatusCode, c.Request.URL.Path, usage, meta, textRequest, price, completionPrice, respErr.Error.Message)
+		go postConsumeAmount(context.Background(), postGroupConsume, resp.StatusCode, c.Request.URL.Path, usage, meta, price, completionPrice, respErr.Error.Message)
 		return respErr
 	}
 	// post-consume amount
-	go postConsumeAmount(context.Background(), postGroupConsume, resp.StatusCode, c.Request.URL.Path, usage, meta, textRequest, price, completionPrice, "")
+	go postConsumeAmount(context.Background(), postGroupConsume, resp.StatusCode, c.Request.URL.Path, usage, meta, price, completionPrice, "")
 	return nil
 }
 

@@ -78,8 +78,9 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 	// map model name
 	modelMapping := c.GetStringMapString(ctxkey.ModelMapping)
-	if modelMapping[audioModel] != "" {
-		audioModel = modelMapping[audioModel]
+	mappedModelName := audioModel
+	if m, ok := modelMapping[audioModel]; ok && m != "" {
+		mappedModelName = m
 	}
 
 	baseURL := channeltype.ChannelBaseURLs[channelType]
@@ -93,10 +94,10 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		apiVersion := meta.Config.APIVersion
 		if relayMode == relaymode.AudioTranscription {
 			// https://learn.microsoft.com/en-us/azure/ai-services/openai/whisper-quickstart?tabs=command-line#rest-api
-			fullRequestURL = fmt.Sprintf("%s/openai/deployments/%s/audio/transcriptions?api-version=%s", baseURL, audioModel, apiVersion)
+			fullRequestURL = fmt.Sprintf("%s/openai/deployments/%s/audio/transcriptions?api-version=%s", baseURL, mappedModelName, apiVersion)
 		} else if relayMode == relaymode.AudioSpeech {
 			// https://learn.microsoft.com/en-us/azure/ai-services/openai/text-to-speech-quickstart?tabs=command-line#rest-api
-			fullRequestURL = fmt.Sprintf("%s/openai/deployments/%s/audio/speech?api-version=%s", baseURL, audioModel, apiVersion)
+			fullRequestURL = fmt.Sprintf("%s/openai/deployments/%s/audio/speech?api-version=%s", baseURL, mappedModelName, apiVersion)
 		}
 	}
 
@@ -175,7 +176,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "get_text_from_body_err", http.StatusInternalServerError)
 		}
-		amount = decimal.NewFromInt(int64(openai.CountTokenText(text, audioModel))).
+		amount = decimal.NewFromInt(int64(openai.CountTokenText(text, mappedModelName))).
 			Mul(decimal.NewFromFloat(price)).
 			Div(decimal.NewFromInt(billingprice.PriceUnit)).
 			InexactFloat64()
