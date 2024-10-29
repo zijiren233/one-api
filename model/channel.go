@@ -49,10 +49,14 @@ func (c *Channel) MarshalJSON() ([]byte, error) {
 	type Alias Channel
 	return json.Marshal(&struct {
 		Alias
-		CreatedAt int64 `json:"created_at"`
+		CreatedAt        int64 `json:"created_at"`
+		TestAt           int64 `json:"test_at"`
+		BalanceUpdatedAt int64 `json:"balance_updated_at"`
 	}{
-		Alias:     (Alias)(*c),
-		CreatedAt: c.CreatedAt.UnixMilli(),
+		Alias:            (Alias)(*c),
+		CreatedAt:        c.CreatedAt.UnixMilli(),
+		TestAt:           c.TestAt.UnixMilli(),
+		BalanceUpdatedAt: c.BalanceUpdatedAt.UnixMilli(),
 	})
 }
 
