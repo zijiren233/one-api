@@ -58,6 +58,37 @@ func (t *Token) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func getTokenOrder(order string) string {
+	switch order {
+	case "name":
+		return "name asc"
+	case "name-desc":
+		return "name desc"
+	case "accessed_at":
+		return "accessed_at asc"
+	case "accessed_at-desc":
+		return "accessed_at desc"
+	case "expired_at":
+		return "expired_at asc"
+	case "expired_at-desc":
+		return "expired_at desc"
+	case "group":
+		return "group_id asc"
+	case "group-desc":
+		return "group_id desc"
+	case "used_amount":
+		return "used_amount asc"
+	case "used_amount-desc":
+		return "used_amount desc"
+	case "request_count":
+		return "request_count asc"
+	case "request_count-desc":
+		return "request_count desc"
+	default:
+		return "id desc"
+	}
+}
+
 func InsertToken(token *Token, autoCreateGroup bool) error {
 	if autoCreateGroup {
 		group := &Group{
@@ -108,23 +139,7 @@ func GetTokens(startIdx int, num int, order string, group string, status int) (t
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	switch order {
-	case "used_amount":
-		tx = tx.Order("used_amount desc")
-	case "request_count":
-		tx = tx.Order("request_count desc")
-	case "name":
-		tx = tx.Order("name asc")
-	case "accessed_at":
-		tx = tx.Order("accessed_at desc")
-	case "expired_at":
-		tx = tx.Order("expired_at desc")
-	case "group":
-		tx = tx.Order("group_id asc")
-	default:
-		tx = tx.Order("id desc")
-	}
-	err = tx.Limit(num).Offset(startIdx).Find(&tokens).Error
+	err = tx.Order(getTokenOrder(order)).Limit(num).Offset(startIdx).Find(&tokens).Error
 	return tokens, total, err
 }
 
@@ -147,21 +162,7 @@ func GetGroupTokens(group string, startIdx int, num int, order string, status in
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	switch order {
-	case "used_amount":
-		tx = tx.Order("used_amount desc")
-	case "request_count":
-		tx = tx.Order("request_count desc")
-	case "name":
-		tx = tx.Order("name asc")
-	case "accessed_at":
-		tx = tx.Order("accessed_at desc")
-	case "expired_at":
-		tx = tx.Order("expired_at desc")
-	default:
-		tx = tx.Order("id desc")
-	}
-	err = tx.Limit(num).Offset(startIdx).Find(&tokens).Error
+	err = tx.Order(getTokenOrder(order)).Limit(num).Offset(startIdx).Find(&tokens).Error
 	return tokens, total, err
 }
 
@@ -223,23 +224,7 @@ func SearchTokens(keyword string, startIdx int, num int, order string, status in
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	switch order {
-	case "used_amount":
-		tx = tx.Order("used_amount desc")
-	case "request_count":
-		tx = tx.Order("request_count desc")
-	case "name":
-		tx = tx.Order("name asc")
-	case "accessed_at":
-		tx = tx.Order("accessed_at desc")
-	case "expired_at":
-		tx = tx.Order("expired_at desc")
-	case "group":
-		tx = tx.Order("group_id asc")
-	default:
-		tx = tx.Order("id desc")
-	}
-	err = tx.Limit(num).Offset(startIdx).Find(&tokens).Error
+	err = tx.Order(getTokenOrder(order)).Limit(num).Offset(startIdx).Find(&tokens).Error
 	return tokens, total, err
 }
 
@@ -293,21 +278,7 @@ func SearchGroupTokens(group string, keyword string, startIdx int, num int, orde
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	switch order {
-	case "used_amount":
-		tx = tx.Order("used_amount desc")
-	case "request_count":
-		tx = tx.Order("request_count desc")
-	case "name":
-		tx = tx.Order("name asc")
-	case "accessed_at":
-		tx = tx.Order("accessed_at desc")
-	case "expired_at":
-		tx = tx.Order("expired_at desc")
-	default:
-		tx = tx.Order("id desc")
-	}
-	err = tx.Limit(num).Offset(startIdx).Find(&tokens).Error
+	err = tx.Order(getTokenOrder(order)).Limit(num).Offset(startIdx).Find(&tokens).Error
 	return tokens, total, err
 }
 

@@ -25,7 +25,8 @@ func GetChannels(c *gin.Context) {
 	key := c.Query("key")
 	channelType, _ := strconv.Atoi(c.Query("channel_type"))
 	baseURL := c.Query("base_url")
-	channels, total, err := model.GetChannels(p*perPage, perPage, false, false, id, name, key, channelType, baseURL)
+	order := c.Query("order")
+	channels, total, err := model.GetChannels(p*perPage, perPage, false, false, id, name, key, channelType, baseURL, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -59,7 +60,8 @@ func SearchChannels(c *gin.Context) {
 	key := c.Query("key")
 	channelType, _ := strconv.Atoi(c.Query("channel_type"))
 	baseURL := c.Query("base_url")
-	channels, total, err := model.SearchChannels(keyword, p*perPage, perPage, false, false, id, name, key, channelType, baseURL)
+	order := c.Query("order")
+	channels, total, err := model.SearchChannels(keyword, p*perPage, perPage, false, false, id, name, key, channelType, baseURL, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

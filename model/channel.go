@@ -56,6 +56,53 @@ func (c *Channel) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func getChannelOrder(order string) string {
+	switch order {
+	case "id":
+		return "id asc"
+	case "id-desc":
+		return "id desc"
+	case "name":
+		return "name asc"
+	case "name-desc":
+		return "name desc"
+	case "type":
+		return "type asc"
+	case "type-desc":
+		return "type desc"
+	case "created_at":
+		return "created_at asc"
+	case "created_at-desc":
+		return "created_at desc"
+	case "status":
+		return "status asc"
+	case "status-desc":
+		return "status desc"
+	case "test_at":
+		return "test_at asc"
+	case "test_at-desc":
+		return "test_at desc"
+	case "balance_updated_at":
+		return "balance_updated_at asc"
+	case "balance_updated_at-desc":
+		return "balance_updated_at desc"
+	case "used_amount":
+		return "used_amount asc"
+	case "used_amount-desc":
+		return "used_amount desc"
+	case "request_count":
+		return "request_count asc"
+	case "request_count-desc":
+		return "request_count desc"
+	case "priority":
+		return "priority asc"
+	case "priority-desc":
+		return "priority desc"
+	default:
+		return "id desc"
+	}
+}
+
 type ChannelConfig struct {
 	Region            string `json:"region,omitempty"`
 	SK                string `json:"sk,omitempty"`
@@ -80,7 +127,7 @@ func GetAllChannels(onlyDisabled bool, omitKey bool) (channels []*Channel, err e
 	return channels, err
 }
 
-func GetChannels(startIdx int, num int, onlyDisabled bool, omitKey bool, id int, name string, key string, channelType int, baseURL string) (channels []*Channel, total int64, err error) {
+func GetChannels(startIdx int, num int, onlyDisabled bool, omitKey bool, id int, name string, key string, channelType int, baseURL string, order string) (channels []*Channel, total int64, err error) {
 	tx := DB.Model(&Channel{})
 	if onlyDisabled {
 		tx = tx.Where("status = ? or status = ?", ChannelStatusAutoDisabled, ChannelStatusManuallyDisabled)
@@ -110,11 +157,11 @@ func GetChannels(startIdx int, num int, onlyDisabled bool, omitKey bool, id int,
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&channels).Error
+	err = tx.Order(getChannelOrder(order)).Limit(num).Offset(startIdx).Find(&channels).Error
 	return channels, total, err
 }
 
-func SearchChannels(keyword string, startIdx int, num int, onlyDisabled bool, omitKey bool, id int, name string, key string, channelType int, baseURL string) (channels []*Channel, total int64, err error) {
+func SearchChannels(keyword string, startIdx int, num int, onlyDisabled bool, omitKey bool, id int, name string, key string, channelType int, baseURL string, order string) (channels []*Channel, total int64, err error) {
 	tx := DB.Model(&Channel{})
 	if onlyDisabled {
 		tx = tx.Where("status = ? or status = ?", ChannelStatusAutoDisabled, ChannelStatusManuallyDisabled)
@@ -190,7 +237,7 @@ func SearchChannels(keyword string, startIdx int, num int, onlyDisabled bool, om
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&channels).Error
+	err = tx.Order(getChannelOrder(order)).Limit(num).Offset(startIdx).Find(&channels).Error
 	return channels, total, err
 }
 

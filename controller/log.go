@@ -37,9 +37,10 @@ func GetLogs(c *gin.Context) {
 	endpoint := c.Query("endpoint")
 	content := c.Query("content")
 	tokenId, _ := strconv.Atoi(c.Query("token_id"))
+	order := c.Query("order")
 	logs, total, err := model.GetLogs(
 		startTimestampTime, endTimestampTime,
-		code, modelName, group, tokenId, tokenName, p*perPage, perPage, channel, endpoint, content)
+		code, modelName, group, tokenId, tokenName, p*perPage, perPage, channel, endpoint, content, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -85,9 +86,10 @@ func GetGroupLogs(c *gin.Context) {
 	endpoint := c.Query("endpoint")
 	content := c.Query("content")
 	tokenId, _ := strconv.Atoi(c.Query("token_id"))
+	order := c.Query("order")
 	logs, total, err := model.GetGroupLogs(group,
 		startTimestampTime, endTimestampTime,
-		code, modelName, tokenId, tokenName, p*perPage, perPage, channel, endpoint, content)
+		code, modelName, tokenId, tokenName, p*perPage, perPage, channel, endpoint, content, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -134,7 +136,8 @@ func SearchLogs(c *gin.Context) {
 	if endTimestamp != 0 {
 		endTimestampTime = time.UnixMilli(endTimestamp)
 	}
-	logs, total, err := model.SearchLogs(keyword, p*perPage, perPage, code, endpoint, groupId, tokenId, tokenName, modelName, content, startTimestampTime, endTimestampTime, channel)
+	order := c.Query("order")
+	logs, total, err := model.SearchLogs(keyword, p*perPage, perPage, code, endpoint, groupId, tokenId, tokenName, modelName, content, startTimestampTime, endTimestampTime, channel, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -181,7 +184,8 @@ func SearchGroupLogs(c *gin.Context) {
 	if endTimestamp != 0 {
 		endTimestampTime = time.UnixMilli(endTimestamp)
 	}
-	logs, total, err := model.SearchGroupLogs(group, keyword, p*perPage, perPage, code, endpoint, tokenId, tokenName, modelName, content, startTimestampTime, endTimestampTime, channel)
+	order := c.Query("order")
+	logs, total, err := model.SearchGroupLogs(group, keyword, p*perPage, perPage, code, endpoint, tokenId, tokenName, modelName, content, startTimestampTime, endTimestampTime, channel, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

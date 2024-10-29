@@ -67,7 +67,54 @@ func RecordConsumeLog(ctx context.Context, group string, code int, channelId int
 	}
 }
 
-func GetLogs(startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, group string, tokenId int, tokenName string, startIdx int, num int, channel int, endpoint string, content string) (logs []*Log, total int64, err error) {
+func getLogOrder(order string) string {
+	orderBy := "id desc"
+	switch order {
+	case "id":
+		orderBy = "id asc"
+	case "id-desc":
+		orderBy = "id desc"
+	case "used_amount":
+		orderBy = "used_amount asc"
+	case "used_amount-desc":
+		orderBy = "used_amount desc"
+	case "price":
+		orderBy = "price asc"
+	case "price-desc":
+		orderBy = "price desc"
+	case "completion_price":
+		orderBy = "completion_price asc"
+	case "completion_price-desc":
+		orderBy = "completion_price desc"
+	case "token_id":
+		orderBy = "token_id asc"
+	case "token_id-desc":
+		orderBy = "token_id desc"
+	case "token_name":
+		orderBy = "token_name asc"
+	case "token_name-desc":
+		orderBy = "token_name desc"
+	case "prompt_tokens":
+		orderBy = "prompt_tokens asc"
+	case "prompt_tokens-desc":
+		orderBy = "prompt_tokens desc"
+	case "completion_tokens":
+		orderBy = "completion_tokens asc"
+	case "completion_tokens-desc":
+		orderBy = "completion_tokens desc"
+	case "endpoint":
+		orderBy = "endpoint asc"
+	case "endpoint-desc":
+		orderBy = "endpoint desc"
+	case "group":
+		orderBy = "group_id asc"
+	case "group-desc":
+		orderBy = "group_id desc"
+	}
+	return orderBy
+}
+
+func GetLogs(startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, group string, tokenId int, tokenName string, startIdx int, num int, channel int, endpoint string, content string, order string) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{})
 	if modelName != "" {
 		tx = tx.Where("model = ?", modelName)
@@ -106,11 +153,12 @@ func GetLogs(startTimestamp time.Time, endTimestamp time.Time, code int, modelNa
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&logs).Error
+
+	err = tx.Order(getLogOrder(order)).Limit(num).Offset(startIdx).Find(&logs).Error
 	return logs, total, err
 }
 
-func GetGroupLogs(group string, startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, tokenId int, tokenName string, startIdx int, num int, channel int, endpoint string, content string) (logs []*Log, total int64, err error) {
+func GetGroupLogs(group string, startTimestamp time.Time, endTimestamp time.Time, code int, modelName string, tokenId int, tokenName string, startIdx int, num int, channel int, endpoint string, content string, order string) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{}).Where("group_id = ?", group)
 	if modelName != "" {
 		tx = tx.Where("model = ?", modelName)
@@ -146,11 +194,12 @@ func GetGroupLogs(group string, startTimestamp time.Time, endTimestamp time.Time
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	err = tx.Order("id desc").Limit(num).Offset(startIdx).Omit("id").Find(&logs).Error
+
+	err = tx.Order(getLogOrder(order)).Limit(num).Offset(startIdx).Omit("id").Find(&logs).Error
 	return logs, total, err
 }
 
-func SearchLogs(keyword string, page int, perPage int, code int, endpoint string, groupId string, tokenId int, tokenName string, modelName string, content string, startTimestamp time.Time, endTimestamp time.Time, channel int) (logs []*Log, total int64, err error) {
+func SearchLogs(keyword string, page int, perPage int, code int, endpoint string, groupId string, tokenId int, tokenName string, modelName string, content string, startTimestamp time.Time, endTimestamp time.Time, channel int, order string) (logs []*Log, total int64, err error) {
 	tx := LOG_DB.Model(&Log{})
 
 	// Handle exact match conditions for non-zero values
@@ -251,11 +300,12 @@ func SearchLogs(keyword string, page int, perPage int, code int, endpoint string
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	err = tx.Order("id desc").Limit(perPage).Offset(page * perPage).Find(&logs).Error
+
+	err = tx.Order(getLogOrder(order)).Limit(perPage).Offset(page * perPage).Find(&logs).Error
 	return logs, total, err
 }
 
-func SearchGroupLogs(group string, keyword string, page int, perPage int, code int, endpoint string, tokenId int, tokenName string, modelName string, content string, startTimestamp time.Time, endTimestamp time.Time, channel int) (logs []*Log, total int64, err error) {
+func SearchGroupLogs(group string, keyword string, page int, perPage int, code int, endpoint string, tokenId int, tokenName string, modelName string, content string, startTimestamp time.Time, endTimestamp time.Time, channel int, order string) (logs []*Log, total int64, err error) {
 	if group == "" {
 		return nil, 0, errors.New("group is empty")
 	}
@@ -348,7 +398,8 @@ func SearchGroupLogs(group string, keyword string, page int, perPage int, code i
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	err = tx.Order("id desc").Limit(perPage).Offset(page * perPage).Find(&logs).Error
+
+	err = tx.Order(getLogOrder(order)).Limit(perPage).Offset(page * perPage).Find(&logs).Error
 	return logs, total, err
 }
 

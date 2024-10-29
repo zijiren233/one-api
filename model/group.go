@@ -46,6 +46,37 @@ func (g *Group) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func getGroupOrder(order string) string {
+	switch order {
+	case "id":
+		return "id asc"
+	case "id-desc":
+		return "id desc"
+	case "request_count":
+		return "request_count asc"
+	case "request_count-desc":
+		return "request_count desc"
+	case "accessed_at":
+		return "accessed_at asc"
+	case "accessed_at-desc":
+		return "accessed_at desc"
+	case "status":
+		return "status asc"
+	case "status-desc":
+		return "status desc"
+	case "created_at":
+		return "created_at asc"
+	case "created_at-desc":
+		return "created_at desc"
+	case "used_amount":
+		return "used_amount asc"
+	case "used_amount-desc":
+		return "used_amount desc"
+	default:
+		return "id desc"
+	}
+}
+
 func GetGroups(startIdx int, num int, order string, onlyDisabled bool) (groups []*Group, total int64, err error) {
 	tx := DB.Model(&Group{})
 	if onlyDisabled {
@@ -61,16 +92,7 @@ func GetGroups(startIdx int, num int, order string, onlyDisabled bool) (groups [
 		return nil, 0, nil
 	}
 
-	switch order {
-	case "used_amount":
-		tx = tx.Order("used_amount desc")
-	case "request_count":
-		tx = tx.Order("request_count desc")
-	default:
-		tx = tx.Order("id desc")
-	}
-
-	err = tx.Limit(num).Offset(startIdx).Find(&groups).Error
+	err = tx.Order(getGroupOrder(order)).Limit(num).Offset(startIdx).Find(&groups).Error
 	return groups, total, err
 }
 
@@ -174,17 +196,7 @@ func SearchGroup(keyword string, startIdx int, num int, order string, status int
 	if total <= 0 {
 		return nil, 0, nil
 	}
-	switch order {
-	case "used_amount":
-		tx = tx.Order("used_amount desc")
-	case "request_count":
-		tx = tx.Order("request_count desc")
-	case "accessed_at":
-		tx = tx.Order("accessed_at desc")
-	default:
-		tx = tx.Order("id desc")
-	}
-	err = tx.Limit(num).Offset(startIdx).Find(&groups).Error
+	err = tx.Order(getGroupOrder(order)).Limit(num).Offset(startIdx).Find(&groups).Error
 	return groups, total, err
 }
 
