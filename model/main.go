@@ -108,14 +108,10 @@ func InitDB() {
 		return
 	}
 
-	sqlDB := setDBConns(DB)
+	setDBConns(DB)
 
 	if config.DisableAutoMigrateDB {
 		return
-	}
-
-	if common.UsingMySQL {
-		_, _ = sqlDB.Exec("DROP INDEX idx_channels_key ON channels;") // TODO: delete this line when most users have upgraded
 	}
 
 	logger.SysLog("database migration started")
