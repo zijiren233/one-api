@@ -29,6 +29,11 @@ const (
 	VisionMaxImageNum = 16
 )
 
+var mimeTypeMap = map[string]string{
+	"json_object": "application/json",
+	"text":        "text/plain",
+}
+
 // Setting safety to the lowest possible values since Gemini is already powerless enough
 func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 	safetySetting := config.GetGeminiSafetySetting()
@@ -57,6 +62,15 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 			TopP:            textRequest.TopP,
 			MaxOutputTokens: textRequest.MaxTokens,
 		},
+	}
+	if textRequest.ResponseFormat != nil {
+		if mimeType, ok := mimeTypeMap[textRequest.ResponseFormat.Type]; ok {
+			geminiRequest.GenerationConfig.ResponseMimeType = mimeType
+		}
+		if textRequest.ResponseFormat.JsonSchema != nil {
+			geminiRequest.GenerationConfig.ResponseSchema = textRequest.ResponseFormat.JsonSchema.Schema
+			geminiRequest.GenerationConfig.ResponseMimeType = mimeTypeMap["json_object"]
+		}
 	}
 	if textRequest.Tools != nil {
 		functions := make([]model.Function, 0, len(textRequest.Tools))
