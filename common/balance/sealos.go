@@ -12,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/shopspring/decimal"
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/env"
 	"github.com/songquanpeng/one-api/common/logger"
 )
 
@@ -29,6 +30,7 @@ var (
 	decimalBalancePrecision              = decimal.NewFromInt(balancePrecision)
 	minConsumeAmount                     = decimal.NewFromInt(1)
 	jwtToken                string
+	sealosRedisCacheEnable  = env.Bool("BALANCE_SEALOS_REDIS_CACHE_ENABLE", true)
 )
 
 type Sealos struct {
@@ -91,7 +93,7 @@ type sealosCache struct {
 }
 
 func cacheSetGroupBalance(ctx context.Context, group string, balance int64, userUID string) error {
-	if !common.RedisEnabled {
+	if !common.RedisEnabled || !sealosRedisCacheEnable {
 		return nil
 	}
 	pipe := common.RDB.Pipeline()
@@ -105,7 +107,7 @@ func cacheSetGroupBalance(ctx context.Context, group string, balance int64, user
 }
 
 func cacheGetGroupBalance(ctx context.Context, group string) (*sealosCache, error) {
-	if !common.RedisEnabled {
+	if !common.RedisEnabled || !sealosRedisCacheEnable {
 		return nil, redis.Nil
 	}
 	var cache sealosCache
@@ -125,7 +127,7 @@ var decreaseGroupBalanceScript = redis.NewScript(`
 `)
 
 func cacheDecreaseGroupBalance(ctx context.Context, group string, amount int64) error {
-	if !common.RedisEnabled {
+	if !common.RedisEnabled || !sealosRedisCacheEnable {
 		return nil
 	}
 	return decreaseGroupBalanceScript.Run(ctx, common.RDB, []string{fmt.Sprintf(sealosGroupBalanceKey, group)}, amount).Err()

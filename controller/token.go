@@ -468,7 +468,7 @@ func UpdateTokenStatus(c *gin.Context) {
 		return
 	}
 	if token.Status == model.TokenStatusEnabled {
-		if cleanToken.Status == model.TokenStatusExpired && !(time.Time(cleanToken.ExpiredAt)).IsZero() && time.Time(cleanToken.ExpiredAt).Before(time.Now()) {
+		if cleanToken.Status == model.TokenStatusExpired && !cleanToken.ExpiredAt.IsZero() && cleanToken.ExpiredAt.Before(time.Now()) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "令牌已过期，无法启用，请先修改令牌过期时间，或者设置为永不过期",
@@ -530,7 +530,7 @@ func UpdateGroupTokenStatus(c *gin.Context) {
 		return
 	}
 	if token.Status == model.TokenStatusEnabled {
-		if cleanToken.Status == model.TokenStatusExpired && cleanToken.ExpiredAt.Before(time.Now()) {
+		if cleanToken.Status == model.TokenStatusExpired && !cleanToken.ExpiredAt.IsZero() && cleanToken.ExpiredAt.Before(time.Now()) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "令牌已过期，无法启用，请先修改令牌过期时间，或者设置为永不过期",
