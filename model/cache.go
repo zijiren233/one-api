@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	SyncFrequency = time.Minute
+	SyncFrequency = time.Minute * 3
 	TokenCacheKey = "token:%s"
 	GroupCacheKey = "group:%s"
 )
@@ -40,16 +40,6 @@ func (r redisStringSlice) MarshalBinary() ([]byte, error) {
 	return json.Marshal(r)
 }
 
-type redisTime time.Time
-
-func (t *redisTime) ScanRedis(value string) error {
-	return (*time.Time)(t).UnmarshalBinary(common.StringToBytes(value))
-}
-
-func (t redisTime) MarshalBinary() ([]byte, error) {
-	return time.Time(t).MarshalBinary()
-}
-
 type TokenCache struct {
 	Id         int              `json:"id" redis:"i"`
 	Group      string           `json:"group" redis:"g"`
@@ -58,7 +48,7 @@ type TokenCache struct {
 	Models     redisStringSlice `json:"models" redis:"m"`
 	Subnet     string           `json:"subnet" redis:"s"`
 	Status     int              `json:"status" redis:"st"`
-	ExpiredAt  redisTime        `json:"expired_at" redis:"e"`
+	ExpiredAt  time.Time        `json:"expired_at" redis:"e"`
 	Quota      float64          `json:"quota" redis:"q"`
 	UsedAmount float64          `json:"used_amount" redis:"u"`
 }
@@ -71,7 +61,7 @@ func (t *Token) ToTokenCache() *TokenCache {
 		Models:     t.Models,
 		Subnet:     t.Subnet,
 		Status:     t.Status,
-		ExpiredAt:  redisTime(t.ExpiredAt),
+		ExpiredAt:  t.ExpiredAt,
 		Quota:      t.Quota,
 		UsedAmount: t.UsedAmount,
 	}
