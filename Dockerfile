@@ -10,7 +10,7 @@ WORKDIR /build
 ADD go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -trimpath -tag "jsoniter" -ldflags "-s -w -X 'github.com/songquanpeng/one-api/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-api
+RUN go build -trimpath -tags "jsoniter" -ldflags "-s -w -X 'github.com/songquanpeng/one-api/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-api
 
 FROM alpine
 
