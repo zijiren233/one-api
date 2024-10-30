@@ -71,17 +71,17 @@ func newSealosToken(key string) (string, error) {
 }
 
 type sealosGetGroupBalanceResp struct {
-	Balance int64  `json:"balance"`
 	UserUID string `json:"userUID"`
 	Error   string `json:"error"`
+	Balance int64  `json:"balance"`
 }
 
 type sealosPostGroupConsumeReq struct {
 	Namespace string `json:"namespace"`
-	Amount    int64  `json:"amount"`
 	AppType   string `json:"appType"`
 	AppName   string `json:"appName"`
 	UserUID   string `json:"userUID"`
+	Amount    int64  `json:"amount"`
 }
 
 type sealosPostGroupConsumeResp struct {
@@ -89,8 +89,8 @@ type sealosPostGroupConsumeResp struct {
 }
 
 type sealosCache struct {
-	Balance int64  `redis:"b"`
 	UserUID string `redis:"u"`
+	Balance int64  `redis:"b"`
 }
 
 func cacheSetGroupBalance(ctx context.Context, group string, balance int64, userUID string) error {

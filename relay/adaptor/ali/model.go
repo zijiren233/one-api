@@ -11,20 +11,20 @@ type Message struct {
 }
 
 type Input struct {
-	//Prompt   string       `json:"prompt"`
+	// Prompt   string       `json:"prompt"`
 	Messages []Message `json:"messages"`
 }
 
 type Parameters struct {
+	ResultFormat      string       `json:"result_format,omitempty"`
+	Tools             []model.Tool `json:"tools,omitempty"`
 	TopP              float64      `json:"top_p,omitempty"`
 	TopK              int          `json:"top_k,omitempty"`
 	Seed              uint64       `json:"seed,omitempty"`
-	EnableSearch      bool         `json:"enable_search,omitempty"`
-	IncrementalOutput bool         `json:"incremental_output,omitempty"`
 	MaxTokens         int          `json:"max_tokens,omitempty"`
 	Temperature       float64      `json:"temperature,omitempty"`
-	ResultFormat      string       `json:"result_format,omitempty"`
-	Tools             []model.Tool `json:"tools,omitempty"`
+	EnableSearch      bool         `json:"enable_search,omitempty"`
+	IncrementalOutput bool         `json:"incremental_output,omitempty"`
 }
 
 type ChatRequest struct {
@@ -34,26 +34,25 @@ type ChatRequest struct {
 }
 
 type ImageRequest struct {
-	Model string `json:"model"`
 	Input struct {
 		Prompt         string `json:"prompt"`
 		NegativePrompt string `json:"negative_prompt,omitempty"`
 	} `json:"input"`
-	Parameters struct {
+	Model          string `json:"model"`
+	ResponseFormat string `json:"response_format,omitempty"`
+	Parameters     struct {
 		Size  string `json:"size,omitempty"`
-		N     int    `json:"n,omitempty"`
 		Steps string `json:"steps,omitempty"`
 		Scale string `json:"scale,omitempty"`
+		N     int    `json:"n,omitempty"`
 	} `json:"parameters,omitempty"`
-	ResponseFormat string `json:"response_format,omitempty"`
 }
 
 type TaskResponse struct {
-	StatusCode int    `json:"status_code,omitempty"`
-	RequestId  string `json:"request_id,omitempty"`
-	Code       string `json:"code,omitempty"`
-	Message    string `json:"message,omitempty"`
-	Output     struct {
+	RequestId string `json:"request_id,omitempty"`
+	Code      string `json:"code,omitempty"`
+	Message   string `json:"message,omitempty"`
+	Output    struct {
 		TaskId     string `json:"task_id,omitempty"`
 		TaskStatus string `json:"task_status,omitempty"`
 		Code       string `json:"code,omitempty"`
@@ -70,32 +69,33 @@ type TaskResponse struct {
 			Failed    int `json:"FAILED,omitempty"`
 		} `json:"task_metrics,omitempty"`
 	} `json:"output,omitempty"`
-	Usage Usage `json:"usage"`
+	Usage      Usage `json:"usage"`
+	StatusCode int   `json:"status_code,omitempty"`
 }
 
 type Header struct {
+	Attributes   any    `json:"attributes,omitempty"`
 	Action       string `json:"action,omitempty"`
 	Streaming    string `json:"streaming,omitempty"`
 	TaskID       string `json:"task_id,omitempty"`
 	Event        string `json:"event,omitempty"`
 	ErrorCode    string `json:"error_code,omitempty"`
 	ErrorMessage string `json:"error_message,omitempty"`
-	Attributes   any    `json:"attributes,omitempty"`
 }
 
 type Payload struct {
-	Model      string `json:"model,omitempty"`
-	Task       string `json:"task,omitempty"`
-	TaskGroup  string `json:"task_group,omitempty"`
-	Function   string `json:"function,omitempty"`
-	Parameters struct {
-		SampleRate int     `json:"sample_rate,omitempty"`
-		Rate       float64 `json:"rate,omitempty"`
-		Format     string  `json:"format,omitempty"`
-	} `json:"parameters,omitempty"`
-	Input struct {
+	Model     string `json:"model,omitempty"`
+	Task      string `json:"task,omitempty"`
+	TaskGroup string `json:"task_group,omitempty"`
+	Function  string `json:"function,omitempty"`
+	Input     struct {
 		Text string `json:"text,omitempty"`
 	} `json:"input,omitempty"`
+	Parameters struct {
+		Format     string  `json:"format,omitempty"`
+		SampleRate int     `json:"sample_rate,omitempty"`
+		Rate       float64 `json:"rate,omitempty"`
+	} `json:"parameters,omitempty"`
 	Usage struct {
 		Characters int `json:"characters,omitempty"`
 	} `json:"usage,omitempty"`
@@ -107,13 +107,13 @@ type WSSMessage struct {
 }
 
 type EmbeddingRequest struct {
+	Parameters *struct {
+		TextType string `json:"text_type,omitempty"`
+	} `json:"parameters,omitempty"`
 	Model string `json:"model"`
 	Input struct {
 		Texts []string `json:"texts"`
 	} `json:"input"`
-	Parameters *struct {
-		TextType string `json:"text_type,omitempty"`
-	} `json:"parameters,omitempty"`
 }
 
 type Embedding struct {
@@ -122,11 +122,11 @@ type Embedding struct {
 }
 
 type EmbeddingResponse struct {
+	Error
 	Output struct {
 		Embeddings []Embedding `json:"embeddings"`
 	} `json:"output"`
 	Usage Usage `json:"usage"`
-	Error
 }
 
 type Error struct {
@@ -142,13 +142,13 @@ type Usage struct {
 }
 
 type Output struct {
-	//Text         string                      `json:"text"`
-	//FinishReason string                      `json:"finish_reason"`
+	// Text         string                      `json:"text"`
+	// FinishReason string                      `json:"finish_reason"`
 	Choices []openai.TextResponseChoice `json:"choices"`
 }
 
 type ChatResponse struct {
+	Error
 	Output Output `json:"output"`
 	Usage  Usage  `json:"usage"`
-	Error
 }

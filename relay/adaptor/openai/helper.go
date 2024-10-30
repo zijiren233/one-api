@@ -2,9 +2,10 @@ package openai
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/model"
-	"strings"
 )
 
 func ResponseText2Usage(responseText string, modeName string, promptTokens int) *model.Usage {

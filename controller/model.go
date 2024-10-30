@@ -19,8 +19,10 @@ import (
 // https://platform.openai.com/docs/api-reference/models/list
 
 type OpenAIModelPermission struct {
+	Group              *string `json:"group"`
 	Id                 string  `json:"id"`
 	Object             string  `json:"object"`
+	Organization       string  `json:"organization"`
 	Created            int     `json:"created"`
 	AllowCreateEngine  bool    `json:"allow_create_engine"`
 	AllowSampling      bool    `json:"allow_sampling"`
@@ -28,19 +30,17 @@ type OpenAIModelPermission struct {
 	AllowSearchIndices bool    `json:"allow_search_indices"`
 	AllowView          bool    `json:"allow_view"`
 	AllowFineTuning    bool    `json:"allow_fine_tuning"`
-	Organization       string  `json:"organization"`
-	Group              *string `json:"group"`
 	IsBlocking         bool    `json:"is_blocking"`
 }
 
 type OpenAIModels struct {
+	Parent     *string                 `json:"parent"`
 	Id         string                  `json:"id"`
 	Object     string                  `json:"object"`
-	Created    int                     `json:"created"`
 	OwnedBy    string                  `json:"owned_by"`
-	Permission []OpenAIModelPermission `json:"permission"`
 	Root       string                  `json:"root"`
-	Parent     *string                 `json:"parent"`
+	Permission []OpenAIModelPermission `json:"permission"`
+	Created    int                     `json:"created"`
 }
 
 var (

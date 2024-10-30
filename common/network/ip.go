@@ -3,9 +3,10 @@ package network
 import (
 	"context"
 	"fmt"
-	"github.com/songquanpeng/one-api/common/logger"
 	"net"
 	"strings"
+
+	"github.com/songquanpeng/one-api/common/logger"
 )
 
 func splitSubnets(subnets string) []string {

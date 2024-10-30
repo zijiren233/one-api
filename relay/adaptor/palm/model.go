@@ -27,9 +27,9 @@ type ChatRequest struct {
 }
 
 type Error struct {
-	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Status  string `json:"status"`
+	Code    int    `json:"code"`
 }
 
 type ChatResponse struct {

@@ -18,8 +18,7 @@ var ModelList = []string{
 	"gemini-1.5-pro-001", "gemini-1.5-flash-001", "gemini-pro", "gemini-pro-vision",
 }
 
-type Adaptor struct {
-}
+type Adaptor struct{}
 
 func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.GeneralOpenAIRequest) (any, error) {
 	if request == nil {

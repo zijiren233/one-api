@@ -18,8 +18,7 @@ var ModelList = []string{
 
 const anthropicVersion = "vertex-2023-10-16"
 
-type Adaptor struct {
-}
+type Adaptor struct{}
 
 func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.GeneralOpenAIRequest) (any, error) {
 	if request == nil {

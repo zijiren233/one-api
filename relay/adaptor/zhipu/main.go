@@ -34,9 +34,9 @@ var (
 func GetToken(apikey string) string {
 	data, ok := zhipuTokens.Load(apikey)
 	if ok {
-		tokenData := data.(tokenData)
-		if time.Now().Before(tokenData.ExpiryTime) {
-			return tokenData.Token
+		td := data.(tokenData)
+		if time.Now().Before(td.ExpiryTime) {
+			return td.Token
 		}
 	}
 
@@ -245,7 +245,7 @@ func Handler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *
 	}
 	c.Writer.Header().Set("Content-Type", "application/json")
 	c.Writer.WriteHeader(resp.StatusCode)
-	_, err = c.Writer.Write(jsonResponse)
+	_, _ = c.Writer.Write(jsonResponse)
 	return nil, &fullTextResponse.Usage
 }
 
@@ -270,7 +270,7 @@ func EmbeddingsHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithSta
 	}
 	c.Writer.Header().Set("Content-Type", "application/json")
 	c.Writer.WriteHeader(resp.StatusCode)
-	_, err = c.Writer.Write(jsonResponse)
+	_, _ = c.Writer.Write(jsonResponse)
 	return nil, &fullTextResponse.Usage
 }
 

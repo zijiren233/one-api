@@ -13,11 +13,9 @@ import (
 	"github.com/songquanpeng/one-api/relay/model"
 )
 
-type Adaptor struct {
-}
+type Adaptor struct{}
 
 func (a *Adaptor) Init(meta *meta.Meta) {
-
 }
 
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {

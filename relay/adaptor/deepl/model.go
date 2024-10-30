@@ -1,8 +1,8 @@
 package deepl
 
 type Request struct {
-	Text       []string `json:"text"`
 	TargetLang string   `json:"target_lang"`
+	Text       []string `json:"text"`
 }
 
 type Translation struct {
@@ -11,6 +11,6 @@ type Translation struct {
 }
 
 type Response struct {
-	Translations []Translation `json:"translations,omitempty"`
 	Message      string        `json:"message,omitempty"`
+	Translations []Translation `json:"translations,omitempty"`
 }

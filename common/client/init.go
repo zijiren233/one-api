@@ -2,16 +2,19 @@ package client
 
 import (
 	"fmt"
-	"github.com/songquanpeng/one-api/common/config"
-	"github.com/songquanpeng/one-api/common/logger"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/logger"
 )
 
-var HTTPClient *http.Client
-var ImpatientHTTPClient *http.Client
-var UserContentRequestHTTPClient *http.Client
+var (
+	HTTPClient                   *http.Client
+	ImpatientHTTPClient          *http.Client
+	UserContentRequestHTTPClient *http.Client
+)
 
 func Init() {
 	if config.UserContentRequestProxy != "" {

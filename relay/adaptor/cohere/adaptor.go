@@ -22,7 +22,6 @@ func (*Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) {
 // ConvertImageRequest implements adaptor.Adaptor.
 
 func (a *Adaptor) Init(meta *meta.Meta) {
-
 }
 
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {

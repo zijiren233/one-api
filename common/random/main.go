@@ -1,10 +1,11 @@
 package random
 
 import (
-	"github.com/google/uuid"
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func GetUUID() string {
@@ -13,8 +14,10 @@ func GetUUID() string {
 	return code
 }
 
-const keyChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-const keyNumbers = "0123456789"
+const (
+	keyChars   = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	keyNumbers = "0123456789"
+)
 
 func init() {
 	rand.Seed(time.Now().UnixNano())

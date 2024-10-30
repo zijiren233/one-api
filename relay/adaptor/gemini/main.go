@@ -190,10 +190,10 @@ func (g *ChatResponse) GetResponseText() string {
 }
 
 type ChatCandidate struct {
-	Content       ChatContent        `json:"content"`
 	FinishReason  string             `json:"finishReason"`
-	Index         int64              `json:"index"`
+	Content       ChatContent        `json:"content"`
 	SafetyRatings []ChatSafetyRating `json:"safetyRatings"`
+	Index         int64              `json:"index"`
 }
 
 type ChatSafetyRating struct {
@@ -379,7 +379,7 @@ func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName st
 	}
 	c.Writer.Header().Set("Content-Type", "application/json")
 	c.Writer.WriteHeader(resp.StatusCode)
-	_, err = c.Writer.Write(jsonResponse)
+	_, _ = c.Writer.Write(jsonResponse)
 	return nil, &usage
 }
 
@@ -415,6 +415,6 @@ func EmbeddingHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStat
 	}
 	c.Writer.Header().Set("Content-Type", "application/json")
 	c.Writer.WriteHeader(resp.StatusCode)
-	_, err = c.Writer.Write(jsonResponse)
+	_, _ = c.Writer.Write(jsonResponse)
 	return nil, &fullTextResponse.Usage
 }

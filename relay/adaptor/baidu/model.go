@@ -1,19 +1,20 @@
 package baidu
 
 import (
-	"github.com/songquanpeng/one-api/relay/model"
 	"time"
+
+	"github.com/songquanpeng/one-api/relay/model"
 )
 
 type ChatResponse struct {
-	Id               string      `json:"id"`
-	Object           string      `json:"object"`
+	Id     string `json:"id"`
+	Object string `json:"object"`
+	Result string `json:"result"`
+	Error
+	Usage            model.Usage `json:"usage"`
 	Created          int64       `json:"created"`
-	Result           string      `json:"result"`
 	IsTruncated      bool        `json:"is_truncated"`
 	NeedClearHistory bool        `json:"need_clear_history"`
-	Usage            model.Usage `json:"usage"`
-	Error
 }
 
 type ChatStreamResponse struct {
@@ -33,18 +34,18 @@ type EmbeddingData struct {
 }
 
 type EmbeddingResponse struct {
-	Id      string          `json:"id"`
-	Object  string          `json:"object"`
-	Created int64           `json:"created"`
-	Data    []EmbeddingData `json:"data"`
-	Usage   model.Usage     `json:"usage"`
+	Id     string          `json:"id"`
+	Object string          `json:"object"`
+	Data   []EmbeddingData `json:"data"`
 	Error
+	Usage   model.Usage `json:"usage"`
+	Created int64       `json:"created"`
 }
 
 type AccessToken struct {
+	ExpiresAt        time.Time `json:"-"`
 	AccessToken      string    `json:"access_token"`
 	Error            string    `json:"error,omitempty"`
 	ErrorDescription string    `json:"error_description,omitempty"`
 	ExpiresIn        int64     `json:"expires_in,omitempty"`
-	ExpiresAt        time.Time `json:"-"`
 }

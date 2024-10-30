@@ -17,8 +17,10 @@ const (
 	VerterAIGemini
 )
 
-var modelMapping = map[string]VertexAIModelType{}
-var modelList = []string{}
+var (
+	modelMapping = map[string]VertexAIModelType{}
+	modelList    = []string{}
+)
 
 func init() {
 	modelList = append(modelList, claude.ModelList...)

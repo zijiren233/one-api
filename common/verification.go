@@ -1,10 +1,11 @@
 package common
 
 import (
-	"github.com/google/uuid"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type verificationValue struct {
@@ -17,10 +18,12 @@ const (
 	PasswordResetPurpose     = "r"
 )
 
-var verificationMutex sync.Mutex
-var verificationMap map[string]verificationValue
-var verificationMapMaxSize = 10
-var VerificationValidMinutes = 10
+var (
+	verificationMutex        sync.Mutex
+	verificationMap          map[string]verificationValue
+	verificationMapMaxSize   = 10
+	VerificationValidMinutes = 10
+)
 
 func GenerateVerificationCode(length int) string {
 	code := uuid.New().String()

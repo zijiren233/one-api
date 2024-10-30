@@ -13,8 +13,7 @@ import (
 
 var _ utils.AwsAdapter = new(Adaptor)
 
-type Adaptor struct {
-}
+type Adaptor struct{}
 
 func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.GeneralOpenAIRequest) (any, error) {
 	if request == nil {

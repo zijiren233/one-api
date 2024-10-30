@@ -23,7 +23,7 @@ type TextRequest struct {
 	Messages  []model.Message `json:"messages"`
 	Prompt    string          `json:"prompt"`
 	MaxTokens int             `json:"max_tokens"`
-	//Stream   bool      `json:"stream"`
+	// Stream   bool      `json:"stream"`
 }
 
 // ImageRequest docs: https://platform.openai.com/docs/api-reference/images/create
@@ -119,7 +119,7 @@ type ImageData struct {
 type ImageResponse struct {
 	Created int64       `json:"created"`
 	Data    []ImageData `json:"data"`
-	//model.Usage `json:"usage"`
+	// model.Usage `json:"usage"`
 }
 
 type ChatCompletionsStreamResponseChoice struct {

@@ -25,8 +25,8 @@ import (
 // https://cloud.baidu.com/doc/WENXINWORKSHOP/s/flfmc9do2
 
 type TokenResponse struct {
-	ExpiresIn   int    `json:"expires_in"`
 	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
 }
 
 type Message struct {
@@ -35,21 +35,21 @@ type Message struct {
 }
 
 type ChatRequest struct {
+	System          string    `json:"system,omitempty"`
+	UserId          string    `json:"user_id,omitempty"`
 	Messages        []Message `json:"messages"`
 	Temperature     float64   `json:"temperature,omitempty"`
 	TopP            float64   `json:"top_p,omitempty"`
 	PenaltyScore    float64   `json:"penalty_score,omitempty"`
+	MaxOutputTokens int       `json:"max_output_tokens,omitempty"`
 	Stream          bool      `json:"stream,omitempty"`
-	System          string    `json:"system,omitempty"`
 	DisableSearch   bool      `json:"disable_search,omitempty"`
 	EnableCitation  bool      `json:"enable_citation,omitempty"`
-	MaxOutputTokens int       `json:"max_output_tokens,omitempty"`
-	UserId          string    `json:"user_id,omitempty"`
 }
 
 type Error struct {
-	ErrorCode int    `json:"error_code"`
 	ErrorMsg  string `json:"error_msg"`
+	ErrorCode int    `json:"error_code"`
 }
 
 var baiduTokenStore sync.Map
@@ -215,7 +215,7 @@ func Handler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *
 	}
 	c.Writer.Header().Set("Content-Type", "application/json")
 	c.Writer.WriteHeader(resp.StatusCode)
-	_, err = c.Writer.Write(jsonResponse)
+	_, _ = c.Writer.Write(jsonResponse)
 	return nil, &fullTextResponse.Usage
 }
 
@@ -251,7 +251,7 @@ func EmbeddingHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStat
 	}
 	c.Writer.Header().Set("Content-Type", "application/json")
 	c.Writer.WriteHeader(resp.StatusCode)
-	_, err = c.Writer.Write(jsonResponse)
+	_, _ = c.Writer.Write(jsonResponse)
 	return nil, &fullTextResponse.Usage
 }
 

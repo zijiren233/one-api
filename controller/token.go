@@ -211,10 +211,10 @@ func validateToken(token AddTokenRequest) error {
 
 type AddTokenRequest struct {
 	Name      string   `json:"name"`
+	Subnet    string   `json:"subnet"`
+	Models    []string `json:"models"`
 	ExpiredAt int64    `json:"expired_at"`
 	Quota     float64  `json:"quota"`
-	Models    []string `json:"models"`
-	Subnet    string   `json:"subnet"`
 }
 
 func AddToken(c *gin.Context) {

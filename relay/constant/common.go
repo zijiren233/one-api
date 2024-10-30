@@ -1,5 +1,7 @@
 package constant
 
-var StopFinishReason = "stop"
-var StreamObject = "chat.completion.chunk"
-var NonStreamObject = "chat.completion"
+var (
+	StopFinishReason = "stop"
+	StreamObject     = "chat.completion.chunk"
+	NonStreamObject  = "chat.completion"
+)

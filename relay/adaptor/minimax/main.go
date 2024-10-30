@@ -2,6 +2,7 @@ package minimax
 
 import (
 	"fmt"
+
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/relaymode"
 )

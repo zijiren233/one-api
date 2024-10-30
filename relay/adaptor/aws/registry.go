@@ -13,9 +13,7 @@ const (
 	AwsLlama3
 )
 
-var (
-	adaptors = map[string]AwsModelType{}
-)
+var adaptors = map[string]AwsModelType{}
 
 func init() {
 	for model := range claude.AwsModelIDMap {

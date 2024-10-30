@@ -1,8 +1,9 @@
 package zhipu
 
 import (
-	"github.com/songquanpeng/one-api/relay/model"
 	"time"
+
+	"github.com/songquanpeng/one-api/relay/model"
 )
 
 type Message struct {
@@ -11,10 +12,10 @@ type Message struct {
 }
 
 type Request struct {
+	RequestId   string    `json:"request_id,omitempty"`
 	Prompt      []Message `json:"prompt"`
 	Temperature float64   `json:"temperature,omitempty"`
 	TopP        float64   `json:"top_p,omitempty"`
-	RequestId   string    `json:"request_id,omitempty"`
 	Incremental bool      `json:"incremental,omitempty"`
 }
 
@@ -27,10 +28,10 @@ type ResponseData struct {
 }
 
 type Response struct {
-	Code    int          `json:"code"`
 	Msg     string       `json:"msg"`
-	Success bool         `json:"success"`
 	Data    ResponseData `json:"data"`
+	Code    int          `json:"code"`
+	Success bool         `json:"success"`
 }
 
 type StreamMetaResponse struct {
@@ -41,8 +42,8 @@ type StreamMetaResponse struct {
 }
 
 type tokenData struct {
-	Token      string
 	ExpiryTime time.Time
+	Token      string
 }
 
 type EmbeddingRequest struct {
@@ -58,9 +59,9 @@ type EmbeddingResponse struct {
 }
 
 type EmbeddingData struct {
-	Index     int       `json:"index"`
 	Object    string    `json:"object"`
 	Embedding []float64 `json:"embedding"`
+	Index     int       `json:"index"`
 }
 
 type ImageRequest struct {

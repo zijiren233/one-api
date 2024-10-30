@@ -30,30 +30,29 @@ type Message struct {
 }
 
 type Tool struct {
+	InputSchema InputSchema `json:"input_schema"`
 	Name        string      `json:"name"`
 	Description string      `json:"description,omitempty"`
-	InputSchema InputSchema `json:"input_schema"`
 }
 
 type InputSchema struct {
-	Type       string `json:"type"`
 	Properties any    `json:"properties,omitempty"`
 	Required   any    `json:"required,omitempty"`
+	Type       string `json:"type"`
 }
 
 type Request struct {
+	ToolChoice    any       `json:"tool_choice,omitempty"`
 	Model         string    `json:"model"`
-	Messages      []Message `json:"messages"`
 	System        string    `json:"system,omitempty"`
-	MaxTokens     int       `json:"max_tokens,omitempty"`
+	Messages      []Message `json:"messages"`
 	StopSequences []string  `json:"stop_sequences,omitempty"`
-	Stream        bool      `json:"stream,omitempty"`
+	Tools         []Tool    `json:"tools,omitempty"`
+	MaxTokens     int       `json:"max_tokens,omitempty"`
 	Temperature   float64   `json:"temperature,omitempty"`
 	TopP          float64   `json:"top_p,omitempty"`
 	TopK          int       `json:"top_k,omitempty"`
-	Tools         []Tool    `json:"tools,omitempty"`
-	ToolChoice    any       `json:"tool_choice,omitempty"`
-	//Metadata    `json:"metadata,omitempty"`
+	Stream        bool      `json:"stream,omitempty"`
 }
 
 type Usage struct {
@@ -67,30 +66,30 @@ type Error struct {
 }
 
 type Response struct {
+	StopReason   *string   `json:"stop_reason"`
+	StopSequence *string   `json:"stop_sequence"`
+	Error        Error     `json:"error"`
 	Id           string    `json:"id"`
 	Type         string    `json:"type"`
 	Role         string    `json:"role"`
-	Content      []Content `json:"content"`
 	Model        string    `json:"model"`
-	StopReason   *string   `json:"stop_reason"`
-	StopSequence *string   `json:"stop_sequence"`
+	Content      []Content `json:"content"`
 	Usage        Usage     `json:"usage"`
-	Error        Error     `json:"error"`
 }
 
 type Delta struct {
+	StopReason   *string `json:"stop_reason"`
+	StopSequence *string `json:"stop_sequence"`
 	Type         string  `json:"type"`
 	Text         string  `json:"text"`
 	PartialJson  string  `json:"partial_json,omitempty"`
-	StopReason   *string `json:"stop_reason"`
-	StopSequence *string `json:"stop_sequence"`
 }
 
 type StreamResponse struct {
-	Type         string    `json:"type"`
 	Message      *Response `json:"message"`
-	Index        int       `json:"index"`
 	ContentBlock *Content  `json:"content_block"`
 	Delta        *Delta    `json:"delta"`
 	Usage        *Usage    `json:"usage"`
+	Type         string    `json:"type"`
+	Index        int       `json:"index"`
 }

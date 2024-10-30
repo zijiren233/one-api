@@ -3,22 +3,21 @@ package baidu
 import (
 	"errors"
 	"fmt"
-	"github.com/songquanpeng/one-api/relay/meta"
-	"github.com/songquanpeng/one-api/relay/relaymode"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/songquanpeng/one-api/relay/meta"
+	"github.com/songquanpeng/one-api/relay/relaymode"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/relay/adaptor"
 	"github.com/songquanpeng/one-api/relay/model"
 )
 
-type Adaptor struct {
-}
+type Adaptor struct{}
 
 func (a *Adaptor) Init(meta *meta.Meta) {
-
 }
 
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {

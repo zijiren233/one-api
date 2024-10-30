@@ -86,7 +86,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logger.SysError("error reading stream response: " + err.Error())
-		err := resp.Body.Close()
+		err = resp.Body.Close()
 		if err != nil {
 			return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), ""
 		}
@@ -168,6 +168,6 @@ func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName st
 	}
 	c.Writer.Header().Set("Content-Type", "application/json")
 	c.Writer.WriteHeader(resp.StatusCode)
-	_, err = c.Writer.Write(jsonResponse)
+	_, _ = c.Writer.Write(jsonResponse)
 	return nil, &usage
 }

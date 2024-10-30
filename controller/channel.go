@@ -106,15 +106,15 @@ func GetChannel(c *gin.Context) {
 }
 
 type AddChannelRequest struct {
-	Type         int                 `json:"type"`
+	ModelMapping map[string]string   `json:"model_mapping"`
+	Config       model.ChannelConfig `json:"config"`
 	Name         string              `json:"name"`
 	Key          string              `json:"key"`
 	BaseURL      string              `json:"base_url"`
 	Other        string              `json:"other"`
 	Models       []string            `json:"models"`
-	ModelMapping map[string]string   `json:"model_mapping"`
+	Type         int                 `json:"type"`
 	Priority     int32               `json:"priority"`
-	Config       model.ChannelConfig `json:"config"`
 }
 
 func (r *AddChannelRequest) ToChannel() *model.Channel {

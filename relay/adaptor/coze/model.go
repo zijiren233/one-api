@@ -8,8 +8,8 @@ type Message struct {
 }
 
 type ErrorInformation struct {
-	Code int    `json:"code"`
 	Msg  string `json:"msg"`
+	Code int    `json:"code"`
 }
 
 type Request struct {
@@ -23,16 +23,16 @@ type Request struct {
 
 type Response struct {
 	ConversationId string    `json:"conversation_id,omitempty"`
+	Msg            string    `json:"msg,omitempty"`
 	Messages       []Message `json:"messages,omitempty"`
 	Code           int       `json:"code,omitempty"`
-	Msg            string    `json:"msg,omitempty"`
 }
 
 type StreamResponse struct {
-	Event            string            `json:"event,omitempty"`
 	Message          *Message          `json:"message,omitempty"`
-	IsFinish         bool              `json:"is_finish,omitempty"`
-	Index            int               `json:"index,omitempty"`
-	ConversationId   string            `json:"conversation_id,omitempty"`
 	ErrorInformation *ErrorInformation `json:"error_information,omitempty"`
+	Event            string            `json:"event,omitempty"`
+	ConversationId   string            `json:"conversation_id,omitempty"`
+	Index            int               `json:"index,omitempty"`
+	IsFinish         bool              `json:"is_finish,omitempty"`
 }

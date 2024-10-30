@@ -2,16 +2,17 @@ package tencent
 
 import (
 	"errors"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/relay/adaptor"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 // https://cloud.tencent.com/document/api/1729/101837

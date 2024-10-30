@@ -3,16 +3,17 @@ package zhipu
 import (
 	"errors"
 	"fmt"
+	"io"
+	"math"
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/relay/adaptor"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
 	"github.com/songquanpeng/one-api/relay/relaymode"
-	"io"
-	"math"
-	"net/http"
-	"strings"
 )
 
 type Adaptor struct {
@@ -20,7 +21,6 @@ type Adaptor struct {
 }
 
 func (a *Adaptor) Init(meta *meta.Meta) {
-
 }
 
 func (a *Adaptor) SetVersionByModeName(modelName string) {
