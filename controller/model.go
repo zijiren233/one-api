@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/model"
 	relay "github.com/songquanpeng/one-api/relay"
@@ -130,6 +132,38 @@ func EnabledType2Models(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data":    model.CacheGetType2Models(),
+	})
+}
+
+func ChannelDefaultModels(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    config.GetDefaultChannelModels(),
+	})
+}
+
+func ChannelDefaultModelsByType(c *gin.Context) {
+	channelType := c.Param("type")
+	if channelType == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "type is required",
+		})
+		return
+	}
+	channelTypeInt, err := strconv.Atoi(channelType)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "invalid type",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    config.GetDefaultChannelModels()[channelTypeInt],
 	})
 }
 
