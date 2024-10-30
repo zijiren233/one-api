@@ -23,15 +23,15 @@ const (
 )
 
 type Group struct {
-	Id           string    `gorm:"primaryKey" json:"id"`
 	CreatedAt    time.Time `json:"created_at"`
 	AccessedAt   time.Time `json:"accessed_at"`
+	Id           string    `gorm:"primaryKey" json:"id"`
+	Tokens       []*Token  `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
+	Logs         []*Log    `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
 	Status       int       `gorm:"type:int;default:1;index" json:"status"`
 	UsedAmount   float64   `gorm:"bigint;index" json:"used_amount"`
 	QPM          int64     `gorm:"bigint" json:"qpm"`
 	RequestCount int       `gorm:"type:int;index" json:"request_count"`
-	Tokens       []*Token  `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
-	Logs         []*Log    `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
 }
 
 func (g *Group) MarshalJSON() ([]byte, error) {

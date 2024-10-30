@@ -71,7 +71,6 @@ func SearchGroups(c *gin.Context) {
 			"total":  total,
 		},
 	})
-	return
 }
 
 func GetGroup(c *gin.Context) {
@@ -96,7 +95,6 @@ func GetGroup(c *gin.Context) {
 		"message": "",
 		"data":    group,
 	})
-	return
 }
 
 func GetGroupDashboard(c *gin.Context) {
@@ -119,7 +117,6 @@ func GetGroupDashboard(c *gin.Context) {
 		"message": "",
 		"data":    dashboards,
 	})
-	return
 }
 
 type UpdateGroupQPMRequest struct {
@@ -149,7 +146,6 @@ func UpdateGroupQPM(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 type UpdateGroupStatusRequest struct {
@@ -179,7 +175,6 @@ func UpdateGroupStatus(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 func DeleteGroup(c *gin.Context) {
@@ -203,7 +198,6 @@ func DeleteGroup(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 type CreateGroupRequest struct {
@@ -242,5 +236,4 @@ func CreateGroup(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }

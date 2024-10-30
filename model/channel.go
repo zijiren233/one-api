@@ -25,24 +25,24 @@ const (
 )
 
 type Channel struct {
-	Id               int               `gorm:"primaryKey" json:"id"`
 	CreatedAt        time.Time         `gorm:"index" json:"created_at"`
-	Type             int               `gorm:"default:0;index" json:"type"`
-	Key              string            `gorm:"type:text;index" json:"key"`
-	Status           int               `gorm:"default:1;index" json:"status"`
-	Name             string            `gorm:"uniqueIndex" json:"name"`
 	TestAt           time.Time         `json:"test_at"`
-	ResponseDuration int64             `gorm:"bigint" json:"response_duration"` // in milliseconds
-	BaseURL          string            `gorm:"index" json:"base_url"`
-	Other            string            `json:"other"`   // DEPRECATED: please save config to field Config
-	Balance          float64           `json:"balance"` // in USD
 	BalanceUpdatedAt time.Time         `json:"balance_updated_at"`
+	ModelMapping     map[string]string `gorm:"serializer:fastjson;type:text" json:"model_mapping"`
+	Config           ChannelConfig     `gorm:"serializer:json;type:text" json:"config"`
+	Other            string            `json:"other"`
+	Key              string            `gorm:"type:text;index" json:"key"`
+	Name             string            `gorm:"uniqueIndex" json:"name"`
+	BaseURL          string            `gorm:"index" json:"base_url"`
 	Models           []string          `gorm:"serializer:json;type:text" json:"models"`
+	Balance          float64           `json:"balance"`
+	ResponseDuration int64             `gorm:"bigint" json:"response_duration"`
+	Id               int               `gorm:"primaryKey" json:"id"`
 	UsedAmount       float64           `gorm:"bigint" json:"used_amount"`
 	RequestCount     int               `gorm:"type:int" json:"request_count"`
-	ModelMapping     map[string]string `gorm:"serializer:fastjson;type:text" json:"model_mapping"`
+	Status           int               `gorm:"default:1;index" json:"status"`
+	Type             int               `gorm:"default:0;index" json:"type"`
 	Priority         int32             `json:"priority"`
-	Config           ChannelConfig     `gorm:"serializer:json;type:text" json:"config"`
 }
 
 func (c *Channel) MarshalJSON() ([]byte, error) {

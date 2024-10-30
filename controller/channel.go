@@ -42,7 +42,6 @@ func GetChannels(c *gin.Context) {
 			"total":    total,
 		},
 	})
-	return
 }
 
 func SearchChannels(c *gin.Context) {
@@ -77,7 +76,6 @@ func SearchChannels(c *gin.Context) {
 			"total":    total,
 		},
 	})
-	return
 }
 
 func GetChannel(c *gin.Context) {
@@ -102,7 +100,6 @@ func GetChannel(c *gin.Context) {
 		"message": "",
 		"data":    channel,
 	})
-	return
 }
 
 type AddChannelRequest struct {
@@ -163,7 +160,6 @@ func AddChannel(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 func DeleteChannel(c *gin.Context) {
@@ -180,7 +176,6 @@ func DeleteChannel(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 type UpdateChannelRequest struct {
@@ -231,7 +226,6 @@ func UpdateChannel(c *gin.Context) {
 			},
 		},
 	})
-	return
 }
 
 type UpdateChannelStatusRequest struct {
@@ -261,5 +255,4 @@ func UpdateChannelStatus(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }

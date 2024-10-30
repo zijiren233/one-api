@@ -164,7 +164,6 @@ func TestChannel(c *gin.Context) {
 		"time":    consumedTime,
 		"model":   model,
 	})
-	return
 }
 
 var (
@@ -222,7 +221,6 @@ func TestChannels(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 func AutomaticallyTestChannels(frequency int) {

@@ -40,7 +40,6 @@ func GetTokens(c *gin.Context) {
 			"total":  total,
 		},
 	})
-	return
 }
 
 func GetGroupTokens(c *gin.Context) {
@@ -71,7 +70,6 @@ func GetGroupTokens(c *gin.Context) {
 			"total":  total,
 		},
 	})
-	return
 }
 
 func SearchTokens(c *gin.Context) {
@@ -105,7 +103,6 @@ func SearchTokens(c *gin.Context) {
 			"total":  total,
 		},
 	})
-	return
 }
 
 func SearchGroupTokens(c *gin.Context) {
@@ -139,7 +136,6 @@ func SearchGroupTokens(c *gin.Context) {
 			"total":  total,
 		},
 	})
-	return
 }
 
 func GetToken(c *gin.Context) {
@@ -164,7 +160,6 @@ func GetToken(c *gin.Context) {
 		"message": "",
 		"data":    token,
 	})
-	return
 }
 
 func GetGroupToken(c *gin.Context) {
@@ -190,7 +185,6 @@ func GetGroupToken(c *gin.Context) {
 		"message": "",
 		"data":    token,
 	})
-	return
 }
 
 func validateToken(token AddTokenRequest) error {
@@ -266,7 +260,6 @@ func AddToken(c *gin.Context) {
 		"message": "",
 		"data":    cleanToken,
 	})
-	return
 }
 
 func DeleteToken(c *gin.Context) {
@@ -290,7 +283,6 @@ func DeleteToken(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 func DeleteGroupToken(c *gin.Context) {
@@ -315,7 +307,6 @@ func DeleteGroupToken(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 func UpdateToken(c *gin.Context) {
@@ -374,7 +365,6 @@ func UpdateToken(c *gin.Context) {
 		"message": "",
 		"data":    cleanToken,
 	})
-	return
 }
 
 func UpdateGroupToken(c *gin.Context) {
@@ -434,7 +424,6 @@ func UpdateGroupToken(c *gin.Context) {
 		"message": "",
 		"data":    cleanToken,
 	})
-	return
 }
 
 type UpdateTokenStatusRequest struct {
@@ -495,7 +484,6 @@ func UpdateTokenStatus(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 type UpdateGroupTokenStatusRequest struct {
@@ -557,7 +545,6 @@ func UpdateGroupTokenStatus(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 type UpdateTokenNameRequest struct {
@@ -591,7 +578,6 @@ func UpdateTokenName(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }
 
 func UpdateGroupTokenName(c *gin.Context) {
@@ -622,5 +608,4 @@ func UpdateGroupTokenName(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }

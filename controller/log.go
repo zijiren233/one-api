@@ -56,7 +56,6 @@ func GetLogs(c *gin.Context) {
 			"total": total,
 		},
 	})
-	return
 }
 
 func GetGroupLogs(c *gin.Context) {
@@ -105,7 +104,6 @@ func GetGroupLogs(c *gin.Context) {
 			"total": total,
 		},
 	})
-	return
 }
 
 func SearchLogs(c *gin.Context) {
@@ -153,7 +151,6 @@ func SearchLogs(c *gin.Context) {
 			"total": total,
 		},
 	})
-	return
 }
 
 func SearchGroupLogs(c *gin.Context) {
@@ -201,7 +198,6 @@ func SearchGroupLogs(c *gin.Context) {
 			"total": total,
 		},
 	})
-	return
 }
 
 func GetLogsStat(c *gin.Context) {
@@ -229,7 +225,6 @@ func GetLogsStat(c *gin.Context) {
 			//"token": tokenNum,
 		},
 	})
-	return
 }
 
 func GetLogsSelfStat(c *gin.Context) {
@@ -252,7 +247,6 @@ func GetLogsSelfStat(c *gin.Context) {
 			//"token": tokenNum,
 		},
 	})
-	return
 }
 
 func DeleteHistoryLogs(c *gin.Context) {
@@ -277,5 +271,4 @@ func DeleteHistoryLogs(c *gin.Context) {
 		"message": "",
 		"data":    count,
 	})
-	return
 }

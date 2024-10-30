@@ -41,22 +41,16 @@ func consumeFail(channelId int) (bool, float64) {
 }
 
 func metricSuccessConsumer() {
-	for {
-		select {
-		case channelId := <-metricSuccessChan:
-			consumeSuccess(channelId)
-		}
+	for channelId := range metricSuccessChan {
+		consumeSuccess(channelId)
 	}
 }
 
 func metricFailConsumer() {
-	for {
-		select {
-		case channelId := <-metricFailChan:
-			disable, _ := consumeFail(channelId)
-			if disable {
-				model.DisableChannelById(channelId)
-			}
+	for channelId := range metricFailChan {
+		disable, _ := consumeFail(channelId)
+		if disable {
+			model.DisableChannelById(channelId)
 		}
 	}
 }

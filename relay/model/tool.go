@@ -7,8 +7,8 @@ type Tool struct {
 }
 
 type Function struct {
+	Parameters  any    `json:"parameters,omitempty"`
+	Arguments   any    `json:"arguments,omitempty"`
 	Description string `json:"description,omitempty"`
-	Name        string `json:"name,omitempty"`       // when splicing claude tools stream messages, it is empty
-	Parameters  any    `json:"parameters,omitempty"` // request
-	Arguments   any    `json:"arguments,omitempty"`  // response
+	Name        string `json:"name,omitempty"`
 }

@@ -3,7 +3,6 @@ package random
 import (
 	"math/rand"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -19,12 +18,7 @@ const (
 	keyNumbers = "0123456789"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
 func GenerateKey() string {
-	rand.Seed(time.Now().UnixNano())
 	key := make([]byte, 48)
 	for i := 0; i < 16; i++ {
 		key[i] = keyChars[rand.Intn(len(keyChars))]
@@ -41,7 +35,6 @@ func GenerateKey() string {
 }
 
 func GetRandomString(length int) string {
-	rand.Seed(time.Now().UnixNano())
 	key := make([]byte, length)
 	for i := 0; i < length; i++ {
 		key[i] = keyChars[rand.Intn(len(keyChars))]
@@ -50,7 +43,6 @@ func GetRandomString(length int) string {
 }
 
 func GetRandomNumberString(length int) string {
-	rand.Seed(time.Now().UnixNano())
 	key := make([]byte, length)
 	for i := 0; i < length; i++ {
 		key[i] = keyNumbers[rand.Intn(len(keyNumbers))]

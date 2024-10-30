@@ -11,25 +11,22 @@ import (
 )
 
 type Meta struct {
-	Mode         int
-	ChannelType  int
-	ChannelId    int
-	TokenId      int
-	TokenName    string
-	Group        string
-	ModelMapping map[string]string
-	// BaseURL is the proxy url set in the channel config
-	BaseURL  string
-	APIKey   string
-	APIType  int
-	Config   model.ChannelConfig
-	IsStream bool
-	// OriginModelName is the model name from the raw user request
+	ModelMapping    map[string]string
+	Config          model.ChannelConfig
+	APIKey          string
 	OriginModelName string
-	// ActualModelName is the model name after mapping
-	ActualModelName string
+	TokenName       string
+	Group           string
 	RequestURLPath  string
-	PromptTokens    int // only for DoResponse
+	BaseURL         string
+	ActualModelName string
+	ChannelId       int
+	ChannelType     int
+	APIType         int
+	Mode            int
+	TokenId         int
+	PromptTokens    int
+	IsStream        bool
 }
 
 func GetByContext(c *gin.Context) *Meta {

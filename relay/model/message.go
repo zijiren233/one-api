@@ -1,11 +1,11 @@
 package model
 
 type Message struct {
-	Role       string  `json:"role,omitempty"`
 	Content    any     `json:"content,omitempty"`
 	Name       *string `json:"name,omitempty"`
-	ToolCalls  []Tool  `json:"tool_calls,omitempty"`
+	Role       string  `json:"role,omitempty"`
 	ToolCallId string  `json:"tool_call_id,omitempty"`
+	ToolCalls  []Tool  `json:"tool_calls,omitempty"`
 }
 
 func (m Message) IsStringContent() bool {
@@ -84,7 +84,7 @@ type ImageURL struct {
 }
 
 type MessageContent struct {
+	ImageURL *ImageURL `json:"image_url,omitempty"`
 	Type     string    `json:"type,omitempty"`
 	Text     string    `json:"text"`
-	ImageURL *ImageURL `json:"image_url,omitempty"`
 }

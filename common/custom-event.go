@@ -50,10 +50,10 @@ var dataReplacer = strings.NewReplacer(
 	"\r", "\\r")
 
 type CustomEvent struct {
+	Data  interface{}
 	Event string
 	Id    string
 	Retry uint
-	Data  interface{}
 }
 
 func encode(writer io.Writer, event CustomEvent) error {

@@ -17,5 +17,4 @@ func GetStatus(c *gin.Context) {
 			"start_time": common.StartTime,
 		},
 	})
-	return
 }

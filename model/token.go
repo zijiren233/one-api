@@ -27,20 +27,20 @@ const (
 )
 
 type Token struct {
-	Id           int             `gorm:"primaryKey" json:"id"`
-	GroupId      string          `gorm:"index;uniqueIndex:idx_group_name" json:"group"`
+	CreatedAt    time.Time       `json:"created_at"`
+	ExpiredAt    time.Time       `json:"expired_at"`
+	AccessedAt   time.Time       `json:"accessed_at"`
 	Group        *Group          `gorm:"foreignKey:GroupId" json:"-"`
 	Key          string          `gorm:"type:char(48);uniqueIndex" json:"key"`
-	Status       int             `gorm:"default:1;index" json:"status"`
 	Name         EmptyNullString `gorm:"index;uniqueIndex:idx_group_name;not null" json:"name"`
-	CreatedAt    time.Time       `json:"created_at"`
-	AccessedAt   time.Time       `json:"accessed_at"`
-	ExpiredAt    time.Time       `json:"expired_at"`
+	GroupId      string          `gorm:"index;uniqueIndex:idx_group_name" json:"group"`
+	Subnet       string          `json:"subnet"`
+	Models       []string        `gorm:"serializer:json;type:text" json:"models"`
+	Status       int             `gorm:"default:1;index" json:"status"`
+	Id           int             `gorm:"primaryKey" json:"id"`
 	Quota        float64         `gorm:"bigint" json:"quota"`
 	UsedAmount   float64         `gorm:"bigint" json:"used_amount"`
 	RequestCount int             `gorm:"type:int" json:"request_count"`
-	Models       []string        `gorm:"serializer:json;type:text" json:"models"`
-	Subnet       string          `json:"subnet"`
 }
 
 func (t *Token) MarshalJSON() ([]byte, error) {
@@ -312,9 +312,10 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 		}
 		return nil, fmt.Errorf("令牌验证失败")
 	}
-	if token.Status == TokenStatusExhausted {
+	switch token.Status {
+	case TokenStatusExhausted:
 		return nil, fmt.Errorf("令牌 (%d) 额度已用尽", token.Id)
-	} else if token.Status == TokenStatusExpired {
+	case TokenStatusExpired:
 		return nil, fmt.Errorf("令牌 (%d) 已过期", token.Id)
 	}
 	if token.Status != TokenStatusEnabled {

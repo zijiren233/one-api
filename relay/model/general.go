@@ -1,15 +1,15 @@
 package model
 
 type ResponseFormat struct {
-	Type       string      `json:"type,omitempty"`
 	JsonSchema *JSONSchema `json:"json_schema,omitempty"`
+	Type       string      `json:"type,omitempty"`
 }
 
 type JSONSchema struct {
-	Description string                 `json:"description,omitempty"`
-	Name        string                 `json:"name"`
 	Schema      map[string]interface{} `json:"schema,omitempty"`
 	Strict      *bool                  `json:"strict,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Name        string                 `json:"name"`
 }
 
 type Audio struct {
@@ -22,34 +22,34 @@ type StreamOptions struct {
 }
 
 type GeneralOpenAIRequest struct {
-	Messages         []Message       `json:"messages,omitempty"`
-	Model            string          `json:"model,omitempty"`
-	Modalities       []string        `json:"modalities,omitempty"`
-	Audio            *Audio          `json:"audio,omitempty"`
-	FrequencyPenalty float64         `json:"frequency_penalty,omitempty"`
-	MaxTokens        int             `json:"max_tokens,omitempty"`
-	N                int             `json:"n,omitempty"`
-	PresencePenalty  float64         `json:"presence_penalty,omitempty"`
-	ResponseFormat   *ResponseFormat `json:"response_format,omitempty"`
-	Seed             float64         `json:"seed,omitempty"`
-	Stop             any             `json:"stop,omitempty"`
-	Stream           bool            `json:"stream,omitempty"`
-	StreamOptions    *StreamOptions  `json:"stream_options,omitempty"`
-	Temperature      float64         `json:"temperature,omitempty"`
-	TopP             float64         `json:"top_p,omitempty"`
-	TopK             int             `json:"top_k,omitempty"`
-	Tools            []Tool          `json:"tools,omitempty"`
-	ToolChoice       any             `json:"tool_choice,omitempty"`
+	Input            any             `json:"input,omitempty"`
 	FunctionCall     any             `json:"function_call,omitempty"`
 	Functions        any             `json:"functions,omitempty"`
-	User             string          `json:"user,omitempty"`
+	ToolChoice       any             `json:"tool_choice,omitempty"`
 	Prompt           any             `json:"prompt,omitempty"`
-	Input            any             `json:"input,omitempty"`
+	Stop             any             `json:"stop,omitempty"`
+	StreamOptions    *StreamOptions  `json:"stream_options,omitempty"`
+	ResponseFormat   *ResponseFormat `json:"response_format,omitempty"`
+	Audio            *Audio          `json:"audio,omitempty"`
 	EncodingFormat   string          `json:"encoding_format,omitempty"`
-	Dimensions       int             `json:"dimensions,omitempty"`
 	Instruction      string          `json:"instruction,omitempty"`
 	Size             string          `json:"size,omitempty"`
+	User             string          `json:"user,omitempty"`
+	Model            string          `json:"model,omitempty"`
+	Messages         []Message       `json:"messages,omitempty"`
+	Modalities       []string        `json:"modalities,omitempty"`
+	Tools            []Tool          `json:"tools,omitempty"`
+	PresencePenalty  float64         `json:"presence_penalty,omitempty"`
+	TopK             int             `json:"top_k,omitempty"`
+	TopP             float64         `json:"top_p,omitempty"`
+	Temperature      float64         `json:"temperature,omitempty"`
+	Seed             float64         `json:"seed,omitempty"`
+	N                int             `json:"n,omitempty"`
+	Dimensions       int             `json:"dimensions,omitempty"`
+	MaxTokens        int             `json:"max_tokens,omitempty"`
+	FrequencyPenalty float64         `json:"frequency_penalty,omitempty"`
 	NumCtx           int             `json:"num_ctx,omitempty"`
+	Stream           bool            `json:"stream,omitempty"`
 }
 
 func (r GeneralOpenAIRequest) ParseInput() []string {

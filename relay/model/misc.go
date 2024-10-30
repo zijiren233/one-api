@@ -7,10 +7,10 @@ type Usage struct {
 }
 
 type Error struct {
+	Code    any    `json:"code"`
 	Message string `json:"message"`
 	Type    string `json:"type"`
 	Param   string `json:"param"`
-	Code    any    `json:"code"`
 }
 
 type ErrorWithStatusCode struct {
