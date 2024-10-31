@@ -29,14 +29,14 @@ local count = redis.call('LLEN', key)
 
 if count < max_requests then
     redis.call('LPUSH', key, current_time)
-    redis.call('EXPIRE', key, window)
+    redis.call('PEXPIRE', key, window)
     return 1
 else
     local oldest = redis.call('LINDEX', key, -1)
     if current_time - tonumber(oldest) >= window then
         redis.call('LPUSH', key, current_time)
         redis.call('LTRIM', key, 0, max_requests - 1)
-        redis.call('EXPIRE', key, window)
+		redis.call('PEXPIRE', key, window)
         return 1
     else
         return 0
@@ -46,8 +46,8 @@ end
 
 func redisRateLimitRequest(ctx context.Context, key string, maxRequestNum int, duration time.Duration) (bool, error) {
 	rdb := common.RDB
-	currentTime := time.Now().UnixNano() / int64(time.Millisecond)
-	result, err := rdb.Eval(ctx, luaScript, []string{key}, maxRequestNum, int64(duration/time.Millisecond), currentTime).Int64()
+	currentTime := time.Now().UnixMilli()
+	result, err := rdb.Eval(ctx, luaScript, []string{key}, maxRequestNum, duration.Milliseconds(), currentTime).Int64()
 	if err != nil {
 		return false, err
 	}
