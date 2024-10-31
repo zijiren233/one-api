@@ -14,6 +14,7 @@ import (
 
 func GetTokens(c *gin.Context) {
 	p, _ := strconv.Atoi(c.Query("p"))
+	p -= 1
 	if p < 0 {
 		p = 0
 	}
@@ -44,6 +45,7 @@ func GetTokens(c *gin.Context) {
 
 func GetGroupTokens(c *gin.Context) {
 	p, _ := strconv.Atoi(c.Query("p"))
+	p -= 1
 	if p < 0 {
 		p = 0
 	}
@@ -75,6 +77,7 @@ func GetGroupTokens(c *gin.Context) {
 func SearchTokens(c *gin.Context) {
 	keyword := c.Query("keyword")
 	p, _ := strconv.Atoi(c.Query("p"))
+	p -= 1
 	if p < 0 {
 		p = 0
 	}
@@ -108,6 +111,7 @@ func SearchTokens(c *gin.Context) {
 func SearchGroupTokens(c *gin.Context) {
 	keyword := c.Query("keyword")
 	p, _ := strconv.Atoi(c.Query("p"))
+	p -= 1
 	if p < 0 {
 		p = 0
 	}

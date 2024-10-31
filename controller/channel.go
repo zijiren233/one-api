@@ -13,6 +13,7 @@ import (
 
 func GetChannels(c *gin.Context) {
 	p, _ := strconv.Atoi(c.Query("p"))
+	p -= 1
 	if p < 0 {
 		p = 0
 	}
@@ -47,6 +48,7 @@ func GetChannels(c *gin.Context) {
 func SearchChannels(c *gin.Context) {
 	keyword := c.Query("keyword")
 	p, _ := strconv.Atoi(c.Query("p"))
+	p -= 1
 	if p < 0 {
 		p = 0
 	}

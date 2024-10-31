@@ -12,6 +12,7 @@ import (
 
 func GetLogs(c *gin.Context) {
 	p, _ := strconv.Atoi(c.Query("p"))
+	p -= 1
 	if p < 0 {
 		p = 0
 	}
@@ -60,6 +61,7 @@ func GetLogs(c *gin.Context) {
 
 func GetGroupLogs(c *gin.Context) {
 	p, _ := strconv.Atoi(c.Query("p"))
+	p -= 1
 	if p < 0 {
 		p = 0
 	}
@@ -109,9 +111,6 @@ func GetGroupLogs(c *gin.Context) {
 func SearchLogs(c *gin.Context) {
 	keyword := c.Query("keyword")
 	p, _ := strconv.Atoi(c.Query("p"))
-	if p < 0 {
-		p = 0
-	}
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
@@ -135,7 +134,7 @@ func SearchLogs(c *gin.Context) {
 		endTimestampTime = time.UnixMilli(endTimestamp)
 	}
 	order := c.Query("order")
-	logs, total, err := model.SearchLogs(keyword, p*perPage, perPage, code, endpoint, groupId, tokenId, tokenName, modelName, content, startTimestampTime, endTimestampTime, channel, order)
+	logs, total, err := model.SearchLogs(keyword, p, perPage, code, endpoint, groupId, tokenId, tokenName, modelName, content, startTimestampTime, endTimestampTime, channel, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -156,9 +155,6 @@ func SearchLogs(c *gin.Context) {
 func SearchGroupLogs(c *gin.Context) {
 	keyword := c.Query("keyword")
 	p, _ := strconv.Atoi(c.Query("p"))
-	if p < 0 {
-		p = 0
-	}
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
@@ -182,7 +178,7 @@ func SearchGroupLogs(c *gin.Context) {
 		endTimestampTime = time.UnixMilli(endTimestamp)
 	}
 	order := c.Query("order")
-	logs, total, err := model.SearchGroupLogs(group, keyword, p*perPage, perPage, code, endpoint, tokenId, tokenName, modelName, content, startTimestampTime, endTimestampTime, channel, order)
+	logs, total, err := model.SearchGroupLogs(group, keyword, p, perPage, code, endpoint, tokenId, tokenName, modelName, content, startTimestampTime, endTimestampTime, channel, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

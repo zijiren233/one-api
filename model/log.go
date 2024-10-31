@@ -305,6 +305,10 @@ func SearchLogs(keyword string, page int, perPage int, code int, endpoint string
 		return nil, 0, nil
 	}
 
+	page -= 1
+	if page < 0 {
+		page = 0
+	}
 	err = tx.Order(getLogOrder(order)).Limit(perPage).Offset(page * perPage).Find(&logs).Error
 	return logs, total, err
 }
@@ -401,6 +405,11 @@ func SearchGroupLogs(group string, keyword string, page int, perPage int, code i
 	}
 	if total <= 0 {
 		return nil, 0, nil
+	}
+
+	page -= 1
+	if page < 0 {
+		page = 0
 	}
 
 	err = tx.Order(getLogOrder(order)).Limit(perPage).Offset(page * perPage).Find(&logs).Error

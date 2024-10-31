@@ -15,6 +15,7 @@ import (
 
 func GetGroups(c *gin.Context) {
 	p, _ := strconv.Atoi(c.Query("p"))
+	p -= 1
 	if p < 0 {
 		p = 0
 	}
@@ -46,6 +47,7 @@ func GetGroups(c *gin.Context) {
 func SearchGroups(c *gin.Context) {
 	keyword := c.Query("keyword")
 	p, _ := strconv.Atoi(c.Query("p"))
+	p -= 1
 	if p < 0 {
 		p = 0
 	}
