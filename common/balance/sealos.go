@@ -38,6 +38,7 @@ type Sealos struct {
 	accountUrl string
 }
 
+// FIXME: 如果获取余额能成功，但是消费永远失败，需要加一个失败次数限制，如果失败次数超过一定阈值，暂停服务
 func InitSealos(jwtKey string, accountUrl string) error {
 	token, err := newSealosToken(jwtKey)
 	if err != nil {
@@ -138,7 +139,7 @@ func cacheDecreaseGroupBalance(ctx context.Context, group string, amount int64) 
 func (s *Sealos) GetGroupRemainBalance(ctx context.Context, group string) (float64, PostGroupConsumer, error) {
 	if cache, err := cacheGetGroupBalance(ctx, group); err == nil && cache.UserUID != "" {
 		return decimal.NewFromInt(cache.Balance).Div(decimalBalancePrecision).InexactFloat64(),
-			newSealosPostGroupConsumer(s.accountUrl, group, cache.UserUID), nil
+			newSealosPostGroupConsumer(s.accountUrl, group, cache.UserUID, cache.Balance), nil
 	} else if err != nil && err != redis.Nil {
 		logger.Errorf(ctx, "get group (%s) balance cache failed: %s", group, err)
 	}
@@ -156,7 +157,7 @@ func (s *Sealos) GetGroupRemainBalance(ctx context.Context, group string) (float
 	}
 
 	return decimal.NewFromInt(balance).Div(decimalBalancePrecision).InexactFloat64(),
-		newSealosPostGroupConsumer(s.accountUrl, group, userUID), nil
+		newSealosPostGroupConsumer(s.accountUrl, group, userUID, balance), nil
 }
 
 func (s *Sealos) fetchBalanceFromAPI(ctx context.Context, group string) (balance int64, userUID string, err error) {
@@ -194,14 +195,20 @@ type SealosPostGroupConsumer struct {
 	accountUrl string
 	group      string
 	uid        string
+	balance    int64
 }
 
-func newSealosPostGroupConsumer(accountUrl, group, uid string) *SealosPostGroupConsumer {
+func newSealosPostGroupConsumer(accountUrl, group, uid string, balance int64) *SealosPostGroupConsumer {
 	return &SealosPostGroupConsumer{
 		accountUrl: accountUrl,
 		group:      group,
 		uid:        uid,
+		balance:    balance,
 	}
+}
+
+func (s *SealosPostGroupConsumer) GetBalance(ctx context.Context) (float64, error) {
+	return decimal.NewFromInt(s.balance).Div(decimalBalancePrecision).InexactFloat64(), nil
 }
 
 func (s *SealosPostGroupConsumer) PostGroupConsume(ctx context.Context, tokenName string, usage float64) (float64, error) {

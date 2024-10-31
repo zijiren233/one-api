@@ -110,6 +110,10 @@ func getLogOrder(order string) string {
 		orderBy = "group_id asc"
 	case "group-desc":
 		orderBy = "group_id desc"
+	case "created_at":
+		orderBy = "created_at asc"
+	case "created_at-desc":
+		orderBy = "created_at desc"
 	}
 	return orderBy
 }
