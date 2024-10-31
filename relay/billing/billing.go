@@ -18,8 +18,12 @@ func PostConsumeAmount(ctx context.Context, postGroupConsumer balance.PostGroupC
 		}
 	}
 	// totalAmount is total amount consumed
-	model.RecordConsumeLog(ctx, group, code, channelId, int(amount), 0, modelName, tokenId, tokenName, amount, modelPrice, 0, endpoint, content)
-	model.UpdateGroupUsedAmountAndRequestCount(group, amount, 1)
-	model.UpdateTokenUsedAmount(tokenId, amount, 1)
-	model.UpdateChannelUsedAmount(channelId, amount, 1)
+	// model.RecordConsumeLog(ctx, group, code, channelId, int(amount), 0, modelName, tokenId, tokenName, amount, modelPrice, 0, endpoint, content)
+	// model.UpdateGroupUsedAmountAndRequestCount(group, amount, 1)
+	// model.UpdateTokenUsedAmount(tokenId, amount, 1)
+	// model.UpdateChannelUsedAmount(channelId, amount, 1)
+	err := model.BatchRecordConsume(ctx, group, code, channelId, 0, 0, modelName, tokenId, tokenName, amount, modelPrice, 0, endpoint, content)
+	if err != nil {
+		logger.Error(ctx, "error batch record consume: "+err.Error())
+	}
 }

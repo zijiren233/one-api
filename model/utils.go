@@ -1,11 +1,14 @@
 package model
 
 import (
+	"context"
 	"database/sql/driver"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/songquanpeng/one-api/common/logger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -37,6 +40,76 @@ func HandleUpdateResult(result *gorm.DB, entityName string) error {
 func OnConflictDoNothing() *gorm.DB {
 	return DB.Clauses(clause.OnConflict{
 		DoNothing: true,
+	})
+}
+
+func BatchRecordConsume(ctx context.Context, group string, code int, channelId int, promptTokens int, completionTokens int, modelName string, tokenId int, tokenName string, amount float64, price float64, completionPrice float64, endpoint string, content string) (err error) {
+	token := &Token{}
+	defer func() {
+		if err == nil && token.Quota > 0 {
+			if err := CacheUpdateTokenUsedAmountOnlyIncrease(token.Key, token.UsedAmount); err != nil {
+				logger.SysError("CacheUpdateTokenUsedAmountOnlyIncrease failed: " + err.Error())
+			}
+		}
+	}()
+	now := time.Now()
+	return DB.Transaction(func(tx *gorm.DB) error {
+		log := &Log{
+			CreatedAt:        now,
+			GroupId:          group,
+			TokenId:          tokenId,
+			TokenName:        tokenName,
+			Model:            modelName,
+			PromptTokens:     promptTokens,
+			CompletionTokens: completionTokens,
+			ChannelId:        channelId,
+			Content:          content,
+			Code:             code,
+			Price:            price,
+			CompletionPrice:  completionPrice,
+			UsedAmount:       amount,
+			Endpoint:         endpoint,
+		}
+		if err := tx.Create(log).Error; err != nil {
+			return err
+		}
+
+		result := tx.Model(token).
+			Clauses(clause.Returning{
+				Columns: []clause.Column{
+					{Name: "key"},
+					{Name: "quota"},
+					{Name: "used_amount"},
+				},
+			}).
+			Where("id = ?", tokenId).
+			Updates(map[string]interface{}{
+				"used_amount":   gorm.Expr("used_amount + ?", amount),
+				"request_count": gorm.Expr("request_count + ?", 1),
+				"accessed_at":   now,
+			})
+		if err := HandleUpdateResult(result, ErrTokenNotFound); err != nil {
+			return err
+		}
+
+		result = tx.Model(&Group{}).Where("id = ?", group).Updates(map[string]interface{}{
+			"used_amount":   gorm.Expr("used_amount + ?", amount),
+			"request_count": gorm.Expr("request_count + ?", 1),
+			"accessed_at":   now,
+		})
+		if err := HandleUpdateResult(result, ErrGroupNotFound); err != nil {
+			return err
+		}
+
+		result = tx.Model(&Channel{}).Where("id = ?", channelId).Updates(map[string]interface{}{
+			"used_amount":   gorm.Expr("used_amount + ?", amount),
+			"request_count": gorm.Expr("request_count + ?", 1),
+			"accessed_at":   now,
+		})
+		if err := HandleUpdateResult(result, ErrChannelNotFound); err != nil {
+			return err
+		}
+		return nil
 	})
 }
 

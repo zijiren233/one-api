@@ -26,6 +26,7 @@ const (
 
 type Channel struct {
 	CreatedAt        time.Time         `gorm:"index" json:"created_at"`
+	AccessedAt       time.Time         `json:"accessed_at"`
 	TestAt           time.Time         `json:"test_at"`
 	BalanceUpdatedAt time.Time         `json:"balance_updated_at"`
 	ModelMapping     map[string]string `gorm:"serializer:fastjson;type:text" json:"model_mapping"`
@@ -50,11 +51,13 @@ func (c *Channel) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		Alias
 		CreatedAt        int64 `json:"created_at"`
+		AccessedAt       int64 `json:"accessed_at"`
 		TestAt           int64 `json:"test_at"`
 		BalanceUpdatedAt int64 `json:"balance_updated_at"`
 	}{
 		Alias:            (Alias)(*c),
 		CreatedAt:        c.CreatedAt.UnixMilli(),
+		AccessedAt:       c.AccessedAt.UnixMilli(),
 		TestAt:           c.TestAt.UnixMilli(),
 		BalanceUpdatedAt: c.BalanceUpdatedAt.UnixMilli(),
 	})
@@ -78,6 +81,10 @@ func getChannelOrder(order string) string {
 		return "created_at asc"
 	case "created_at-desc":
 		return "created_at desc"
+	case "accessed_at":
+		return "accessed_at asc"
+	case "accessed_at-desc":
+		return "accessed_at desc"
 	case "status":
 		return "status asc"
 	case "status-desc":
@@ -264,7 +271,11 @@ func BatchInsertChannels(channels []*Channel) error {
 }
 
 func UpdateChannel(channel *Channel) error {
-	result := DB.Model(channel).Clauses(clause.Returning{}).Updates(channel)
+	result := DB.
+		Model(channel).
+		Omit("accessed_at", "used_amount", "request_count", "balance_updated_at", "created_at", "balance", "test_at", "balance_updated_at").
+		Clauses(clause.Returning{}).
+		Updates(channel)
 	return HandleUpdateResult(result, ErrChannelNotFound)
 }
 
@@ -310,6 +321,7 @@ func UpdateChannelUsedAmount(id int, amount float64, requestCount int) error {
 	result := DB.Model(&Channel{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"used_amount":   gorm.Expr("used_amount + ?", amount),
 		"request_count": gorm.Expr("request_count + ?", requestCount),
+		"accessed_at":   time.Now(),
 	})
 	return HandleUpdateResult(result, ErrChannelNotFound)
 }
