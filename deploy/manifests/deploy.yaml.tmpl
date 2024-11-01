@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-proxy
+  namespace: ai-system
+  labels:
+    cloud.sealos.io/app-deploy-manager: ai-proxy
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+  selector:
+    app: ai-proxy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-proxy
+  namespace: ai-system
+  annotations:
+    originImageName: ghcr.io/labring/sealos-ai-proxy:latest
+    deploy.cloud.sealos.io/minReplicas: '3'
+    deploy.cloud.sealos.io/maxReplicas: '3'
+  labels:
+    cloud.sealos.io/app-deploy-manager: ai-proxy
+    app: ai-proxy
+spec:
+  replicas: 3
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: ai-proxy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: ai-proxy
+    spec:
+      containers:
+        - name: ai-proxy
+          image: ghcr.io/labring/sealos-ai-proxy:latest
+          envFrom:
+          - configMapRef:
+              name: ai-proxy-env
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          ports:
+            - containerPort: 3000
+          imagePullPolicy: Always
+      serviceAccountName: default
+      automountServiceAccountToken: false
