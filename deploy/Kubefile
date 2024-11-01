@@ -10,6 +10,7 @@ ENV certSecretName="wildcard-cert"
 ENV ADMIN_KEY=""
 ENV SEALOS_JWT_KEY=""
 ENV SQL_DSN=""
+ENV LOG_SQL_DSN=""
 ENV REDIS_CONN_STRING=""
 
 CMD ["bash scripts/init.sh"]
