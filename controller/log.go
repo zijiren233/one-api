@@ -211,7 +211,15 @@ func GetLogsStat(c *gin.Context) {
 	modelName := c.Query("model_name")
 	channel, _ := strconv.Atoi(c.Query("channel"))
 	endpoint := c.Query("endpoint")
-	quotaNum := model.SumUsedQuota(time.UnixMilli(startTimestamp), time.UnixMilli(endTimestamp), modelName, group, tokenName, channel, endpoint)
+	var startTimestampTime time.Time
+	if startTimestamp != 0 {
+		startTimestampTime = time.UnixMilli(startTimestamp)
+	}
+	var endTimestampTime time.Time
+	if endTimestamp != 0 {
+		endTimestampTime = time.UnixMilli(endTimestamp)
+	}
+	quotaNum := model.SumUsedQuota(startTimestampTime, endTimestampTime, modelName, group, tokenName, channel, endpoint)
 	// tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, "")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -231,9 +239,15 @@ func GetLogsSelfStat(c *gin.Context) {
 	modelName := c.Query("model_name")
 	channel, _ := strconv.Atoi(c.Query("channel"))
 	endpoint := c.Query("endpoint")
-	quotaNum := model.SumUsedQuota(
-		time.UnixMilli(startTimestamp), time.UnixMilli(endTimestamp),
-		modelName, group, tokenName, channel, endpoint)
+	var startTimestampTime time.Time
+	if startTimestamp != 0 {
+		startTimestampTime = time.UnixMilli(startTimestamp)
+	}
+	var endTimestampTime time.Time
+	if endTimestamp != 0 {
+		endTimestampTime = time.UnixMilli(endTimestamp)
+	}
+	quotaNum := model.SumUsedQuota(startTimestampTime, endTimestampTime, modelName, group, tokenName, channel, endpoint)
 	// tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, tokenName)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
