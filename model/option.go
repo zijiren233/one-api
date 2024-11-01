@@ -30,6 +30,7 @@ func InitOptionMap() {
 	config.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(config.GetAutomaticDisableChannelEnabled())
 	config.OptionMap["AutomaticEnableChannelWhenTestSucceedEnabled"] = strconv.FormatBool(config.GetAutomaticEnableChannelWhenTestSucceedEnabled())
 	config.OptionMap["ApproximateTokenEnabled"] = strconv.FormatBool(config.GetApproximateTokenEnabled())
+	config.OptionMap["BillingEnabled"] = strconv.FormatBool(billingprice.GetBillingEnabled())
 	config.OptionMap["ModelPrice"] = billingprice.ModelPrice2JSONString()
 	config.OptionMap["CompletionPrice"] = billingprice.CompletionPrice2JSONString()
 	config.OptionMap["RetryTimes"] = strconv.FormatInt(config.GetRetryTimes(), 10)
@@ -96,6 +97,8 @@ func updateOptionMap(key string, value string) (err error) {
 			config.SetAutomaticEnableChannelWhenTestSucceedEnabled(boolValue)
 		case "ApproximateTokenEnabled":
 			config.SetApproximateTokenEnabled(boolValue)
+		case "BillingEnabled":
+			billingprice.SetBillingEnabled(boolValue)
 		}
 	}
 	switch key {

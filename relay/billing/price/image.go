@@ -1,7 +1,7 @@
 package price
 
 // 单个图片的价格
-var ImageSizePrices = map[string]map[string]float64{
+var imageSizePrices = map[string]map[string]float64{
 	"dall-e-2": {
 		"256x256":   1,
 		"512x512":   1.125,
@@ -41,7 +41,7 @@ var ImageSizePrices = map[string]map[string]float64{
 	},
 }
 
-var ImageGenerationAmounts = map[string][2]int{
+var imageGenerationAmounts = map[string][2]int{
 	"dall-e-2":                  {1, 10},
 	"dall-e-3":                  {1, 1}, // OpenAI allows n=1 currently.
 	"ali-stable-diffusion-xl":   {1, 4}, // Ali
@@ -51,7 +51,7 @@ var ImageGenerationAmounts = map[string][2]int{
 	"step-1x-medium":            {1, 1},
 }
 
-var ImagePromptLengthLimitations = map[string]int{
+var imagePromptLengthLimitations = map[string]int{
 	"dall-e-2":                  1000,
 	"dall-e-3":                  4000,
 	"ali-stable-diffusion-xl":   4000,
@@ -61,7 +61,48 @@ var ImagePromptLengthLimitations = map[string]int{
 	"step-1x-medium":            4000,
 }
 
-var ImageOriginModelName = map[string]string{
+var imageOriginModelName = map[string]string{
 	"ali-stable-diffusion-xl":   "stable-diffusion-xl",
 	"ali-stable-diffusion-v1.5": "stable-diffusion-v1.5",
+}
+
+func GetImageOriginModelName() map[string]string {
+	return imageOriginModelName
+}
+
+func IsValidImageSize(model string, size string) bool {
+	if !GetBillingEnabled() {
+		return true
+	}
+	if model == "cogview-3" || imageSizePrices[model] == nil {
+		return true
+	}
+	_, ok := imageSizePrices[model][size]
+	return ok
+}
+
+func IsValidImagePromptLength(model string, promptLength int) bool {
+	if !GetBillingEnabled() {
+		return true
+	}
+	maxPromptLength, ok := imagePromptLengthLimitations[model]
+	return !ok || promptLength <= maxPromptLength
+}
+
+func IsWithinRange(element string, value int) bool {
+	if !GetBillingEnabled() {
+		return true
+	}
+	amounts, ok := imageGenerationAmounts[element]
+	return !ok || (value >= amounts[0] && value <= amounts[1])
+}
+
+func GetImageSizePrice(model string, size string) float64 {
+	if !GetBillingEnabled() {
+		return 0
+	}
+	if price, ok := imageSizePrices[model][size]; ok {
+		return price
+	}
+	return 1
 }

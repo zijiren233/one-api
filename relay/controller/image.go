@@ -42,31 +42,6 @@ func getImageRequest(c *gin.Context, _ int) (*relaymodel.ImageRequest, error) {
 	return imageRequest, nil
 }
 
-func isValidImageSize(model string, size string) bool {
-	if model == "cogview-3" || billingPrice.ImageSizePrices[model] == nil {
-		return true
-	}
-	_, ok := billingPrice.ImageSizePrices[model][size]
-	return ok
-}
-
-func isValidImagePromptLength(model string, promptLength int) bool {
-	maxPromptLength, ok := billingPrice.ImagePromptLengthLimitations[model]
-	return !ok || promptLength <= maxPromptLength
-}
-
-func isWithinRange(element string, value int) bool {
-	amounts, ok := billingPrice.ImageGenerationAmounts[element]
-	return !ok || (value >= amounts[0] && value <= amounts[1])
-}
-
-func getImageSizePrice(model string, size string) float64 {
-	if price, ok := billingPrice.ImageSizePrices[model][size]; ok {
-		return price
-	}
-	return 1
-}
-
 func validateImageRequest(imageRequest *relaymodel.ImageRequest, _ *meta.Meta) *relaymodel.ErrorWithStatusCode {
 	// check prompt length
 	if imageRequest.Prompt == "" {
@@ -74,16 +49,16 @@ func validateImageRequest(imageRequest *relaymodel.ImageRequest, _ *meta.Meta) *
 	}
 
 	// model validation
-	if !isValidImageSize(imageRequest.Model, imageRequest.Size) {
+	if !billingPrice.IsValidImageSize(imageRequest.Model, imageRequest.Size) {
 		return openai.ErrorWrapper(errors.New("size not supported for this image model"), "size_not_supported", http.StatusBadRequest)
 	}
 
-	if !isValidImagePromptLength(imageRequest.Model, len(imageRequest.Prompt)) {
+	if !billingPrice.IsValidImagePromptLength(imageRequest.Model, len(imageRequest.Prompt)) {
 		return openai.ErrorWrapper(errors.New("prompt is too long"), "prompt_too_long", http.StatusBadRequest)
 	}
 
 	// Number of generated images validation
-	if !isWithinRange(imageRequest.Model, imageRequest.N) {
+	if !billingPrice.IsWithinRange(imageRequest.Model, imageRequest.N) {
 		return openai.ErrorWrapper(errors.New("invalid value of n"), "n_not_within_range", http.StatusBadRequest)
 	}
 	return nil
@@ -93,7 +68,7 @@ func getImageCostPrice(imageRequest *relaymodel.ImageRequest) (float64, error) {
 	if imageRequest == nil {
 		return 0, errors.New("imageRequest is nil")
 	}
-	imageCostPrice := getImageSizePrice(imageRequest.Model, imageRequest.Size)
+	imageCostPrice := billingPrice.GetImageSizePrice(imageRequest.Model, imageRequest.Size)
 	if imageRequest.Quality == "hd" && imageRequest.Model == "dall-e-3" {
 		if imageRequest.Size == "1024x1024" {
 			imageCostPrice *= 2
@@ -131,7 +106,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 
 	// Convert the original image model
-	imageRequest.Model, _ = getMappedModelName(imageRequest.Model, billingPrice.ImageOriginModelName)
+	imageRequest.Model, _ = getMappedModelName(imageRequest.Model, billingPrice.GetImageOriginModelName())
 	c.Set("response_format", imageRequest.ResponseFormat)
 
 	var requestBody io.Reader

@@ -526,7 +526,7 @@ func UpdateToken(token *Token) (err error) {
 func UpdateTokenUsedAmount(id int, amount float64, requestCount int) (err error) {
 	token := &Token{Id: id}
 	defer func() {
-		if err == nil && token.Quota > 0 {
+		if amount > 0 && err == nil && token.Quota > 0 {
 			if err := CacheUpdateTokenUsedAmountOnlyIncrease(token.Key, token.UsedAmount); err != nil {
 				logger.SysError("CacheUpdateTokenUsedAmountOnlyIncrease failed: " + err.Error())
 			}

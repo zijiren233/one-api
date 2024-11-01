@@ -46,7 +46,7 @@ func OnConflictDoNothing() *gorm.DB {
 func BatchRecordConsume(ctx context.Context, group string, code int, channelId int, promptTokens int, completionTokens int, modelName string, tokenId int, tokenName string, amount float64, price float64, completionPrice float64, endpoint string, content string) (err error) {
 	token := &Token{}
 	defer func() {
-		if err == nil && token.Quota > 0 {
+		if amount > 0 && err == nil && token.Quota > 0 {
 			if err := CacheUpdateTokenUsedAmountOnlyIncrease(token.Key, token.UsedAmount); err != nil {
 				logger.SysError("CacheUpdateTokenUsedAmountOnlyIncrease failed: " + err.Error())
 			}
