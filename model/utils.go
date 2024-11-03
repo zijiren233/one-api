@@ -53,27 +53,25 @@ func BatchRecordConsume(ctx context.Context, group string, code int, channelId i
 		}
 	}()
 	now := time.Now()
-	return DB.Transaction(func(tx *gorm.DB) error {
-		log := &Log{
-			CreatedAt:        now,
-			GroupId:          group,
-			TokenId:          tokenId,
-			TokenName:        tokenName,
-			Model:            modelName,
-			PromptTokens:     promptTokens,
-			CompletionTokens: completionTokens,
-			ChannelId:        channelId,
-			Content:          content,
-			Code:             code,
-			Price:            price,
-			CompletionPrice:  completionPrice,
-			UsedAmount:       amount,
-			Endpoint:         endpoint,
-		}
-		if err := tx.Create(log).Error; err != nil {
-			return err
-		}
 
+	log := &Log{
+		CreatedAt:        now,
+		GroupId:          group,
+		TokenId:          tokenId,
+		TokenName:        tokenName,
+		Model:            modelName,
+		PromptTokens:     promptTokens,
+		CompletionTokens: completionTokens,
+		ChannelId:        channelId,
+		Content:          content,
+		Code:             code,
+		Price:            price,
+		CompletionPrice:  completionPrice,
+		UsedAmount:       amount,
+		Endpoint:         endpoint,
+	}
+
+	err = DB.Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(token).
 			Clauses(clause.Returning{
 				Columns: []clause.Column{
@@ -109,8 +107,22 @@ func BatchRecordConsume(ctx context.Context, group string, code int, channelId i
 		if err := HandleUpdateResult(result, ErrChannelNotFound); err != nil {
 			return err
 		}
+
+		if DB == LOG_DB {
+			return tx.Create(log).Error
+		}
 		return nil
 	})
+
+	if DB == LOG_DB {
+		return err
+	}
+
+	if err != nil {
+		logger.Error(ctx, "BatchRecordConsume failed: "+err.Error())
+	}
+
+	return LOG_DB.Create(log).Error
 }
 
 type EmptyNullString string
