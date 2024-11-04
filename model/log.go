@@ -475,6 +475,11 @@ func DeleteOldLog(timestamp time.Time) (int64, error) {
 	return result.RowsAffected, result.Error
 }
 
+func DeleteGroupLogs(groupId string) (int64, error) {
+	result := LOG_DB.Where("group_id = ?", groupId).Delete(&Log{})
+	return result.RowsAffected, result.Error
+}
+
 type LogStatistic struct {
 	Day              string `gorm:"column:day"`
 	Model            string `gorm:"column:model"`

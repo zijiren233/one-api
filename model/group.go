@@ -27,7 +27,6 @@ type Group struct {
 	AccessedAt   time.Time `json:"accessed_at"`
 	Id           string    `gorm:"primaryKey" json:"id"`
 	Tokens       []*Token  `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
-	Logs         []*Log    `gorm:"foreignKey:GroupId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
 	Status       int       `gorm:"type:int;default:1;index" json:"status"`
 	UsedAmount   float64   `gorm:"bigint;index" json:"used_amount"`
 	QPM          int64     `gorm:"bigint" json:"qpm"`
@@ -114,6 +113,9 @@ func DeleteGroupById(id string) (err error) {
 		if err == nil {
 			if err := CacheDeleteGroup(id); err != nil {
 				logger.SysError("CacheDeleteGroup failed: " + err.Error())
+			}
+			if _, err := DeleteGroupLogs(id); err != nil {
+				logger.SysError("DeleteGroupLogs failed: " + err.Error())
 			}
 		}
 	}()

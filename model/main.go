@@ -128,7 +128,6 @@ func migrateDB() error {
 		&Token{},
 		&Group{},
 		&Option{},
-		&Log{},
 	)
 	if err != nil {
 		return err
@@ -139,6 +138,15 @@ func migrateDB() error {
 func InitLogDB() {
 	if os.Getenv("LOG_SQL_DSN") == "" {
 		LOG_DB = DB
+		if config.DisableAutoMigrateDB {
+			return
+		}
+		err := migrateLOGDB()
+		if err != nil {
+			logger.FatalLog("failed to migrate secondary database: " + err.Error())
+			return
+		}
+		logger.SysLog("secondary database migrated")
 		return
 	}
 
