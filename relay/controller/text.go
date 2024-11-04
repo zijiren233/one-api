@@ -85,7 +85,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	usage, respErr := adaptor.DoResponse(c, resp, meta)
 	if respErr != nil {
 		logger.Errorf(ctx, "respErr is not nil: %+v", respErr)
-		go postConsumeAmount(context.Background(), postGroupConsume, resp.StatusCode, c.Request.URL.Path, usage, meta, price, completionPrice, respErr.Error.Message)
+		go postConsumeAmount(context.Background(), postGroupConsume, respErr.StatusCode, c.Request.URL.Path, usage, meta, price, completionPrice, respErr.Error.Message)
 		return respErr
 	}
 	// post-consume amount

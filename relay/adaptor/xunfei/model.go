@@ -14,6 +14,12 @@ type Functions struct {
 }
 
 type ChatRequest struct {
+	Payload struct {
+		Functions *Functions `json:"functions,omitempty"`
+		Message   struct {
+			Text []Message `json:"text"`
+		} `json:"message"`
+	} `json:"payload"`
 	Header struct {
 		AppId string `json:"app_id"`
 	} `json:"header"`
@@ -26,34 +32,28 @@ type ChatRequest struct {
 			Auditing    bool    `json:"auditing,omitempty"`
 		} `json:"chat"`
 	} `json:"parameter"`
-	Payload struct {
-		Message struct {
-			Text []Message `json:"text"`
-		} `json:"message"`
-		Functions *Functions `json:"functions,omitempty"`
-	} `json:"payload"`
 }
 
 type ChatResponseTextItem struct {
+	FunctionCall *model.Function `json:"function_call"`
 	Content      string          `json:"content"`
 	Role         string          `json:"role"`
-	Index        int             `json:"index"`
 	ContentType  string          `json:"content_type"`
-	FunctionCall *model.Function `json:"function_call"`
+	Index        int             `json:"index"`
 }
 
 type ChatResponse struct {
 	Header struct {
-		Code    int    `json:"code"`
 		Message string `json:"message"`
 		Sid     string `json:"sid"`
+		Code    int    `json:"code"`
 		Status  int    `json:"status"`
 	} `json:"header"`
 	Payload struct {
 		Choices struct {
+			Text   []ChatResponseTextItem `json:"text"`
 			Status int                    `json:"status"`
 			Seq    int                    `json:"seq"`
-			Text   []ChatResponseTextItem `json:"text"`
 		} `json:"choices"`
 		Usage struct {
 			//Text struct {

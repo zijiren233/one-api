@@ -154,159 +154,150 @@ func buildXunfeiAuthUrl(hostUrl string, apiKey, apiSecret string) string {
 }
 
 func StreamHandler(c *gin.Context, meta *meta.Meta, textRequest model.GeneralOpenAIRequest, appId string, apiSecret string, apiKey string) (*model.ErrorWithStatusCode, *model.Usage) {
-	domain, authUrl := getXunfeiAuthUrl(meta.Config.APIVersion, apiKey, apiSecret)
-	dataChan, stopChan, err := xunfeiMakeRequest(textRequest, domain, authUrl, appId)
+	domain, authUrl, err := getXunfeiAuthUrl(meta.ActualModelName, apiKey, apiSecret)
+	if err != nil {
+		return openai.ErrorWrapper(err, "invalid_model_name", http.StatusBadRequest), nil
+	}
+	dataChan, err := xunfeiMakeRequest(textRequest, domain, authUrl, appId)
 	if err != nil {
 		return openai.ErrorWrapper(err, "xunfei_request_failed", http.StatusInternalServerError), nil
 	}
 	common.SetEventStreamHeaders(c)
 	var usage model.Usage
 	c.Stream(func(w io.Writer) bool {
-		select {
-		case xunfeiResponse := <-dataChan:
-			usage.PromptTokens += xunfeiResponse.Payload.Usage.Text.PromptTokens
-			usage.CompletionTokens += xunfeiResponse.Payload.Usage.Text.CompletionTokens
-			usage.TotalTokens += xunfeiResponse.Payload.Usage.Text.TotalTokens
-			response := streamResponseXunfei2OpenAI(&xunfeiResponse)
-			jsonResponse, err := json.Marshal(response)
-			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
-				return true
-			}
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonResponse)})
-			return true
-		case <-stopChan:
-			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
+		xunfeiResponse, ok := <-dataChan
+		if !ok {
 			return false
 		}
+		usage.PromptTokens += xunfeiResponse.Payload.Usage.Text.PromptTokens
+		usage.CompletionTokens += xunfeiResponse.Payload.Usage.Text.CompletionTokens
+		usage.TotalTokens += xunfeiResponse.Payload.Usage.Text.TotalTokens
+		response := streamResponseXunfei2OpenAI(&xunfeiResponse)
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			logger.SysError("error marshalling stream response: " + err.Error())
+			return true
+		}
+		c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonResponse)})
+		return true
 	})
+
+	c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
+
 	return nil, &usage
 }
 
 func Handler(c *gin.Context, meta *meta.Meta, textRequest model.GeneralOpenAIRequest, appId string, apiSecret string, apiKey string) (*model.ErrorWithStatusCode, *model.Usage) {
-	domain, authUrl := getXunfeiAuthUrl(meta.Config.APIVersion, apiKey, apiSecret)
-	dataChan, stopChan, err := xunfeiMakeRequest(textRequest, domain, authUrl, appId)
+	domain, authUrl, err := getXunfeiAuthUrl(meta.ActualModelName, apiKey, apiSecret)
+	if err != nil {
+		return openai.ErrorWrapper(err, "invalid_model_name", http.StatusBadRequest), nil
+	}
+	dataChan, err := xunfeiMakeRequest(textRequest, domain, authUrl, appId)
 	if err != nil {
 		return openai.ErrorWrapper(err, "xunfei_request_failed", http.StatusInternalServerError), nil
 	}
 	var usage model.Usage
 	var content string
-	var xunfeiResponse ChatResponse
-	stop := false
-	for !stop {
-		select {
-		case xunfeiResponse = <-dataChan:
-			if len(xunfeiResponse.Payload.Choices.Text) == 0 {
-				continue
-			}
-			content += xunfeiResponse.Payload.Choices.Text[0].Content
-			usage.PromptTokens += xunfeiResponse.Payload.Usage.Text.PromptTokens
-			usage.CompletionTokens += xunfeiResponse.Payload.Usage.Text.CompletionTokens
-			usage.TotalTokens += xunfeiResponse.Payload.Usage.Text.TotalTokens
-		case stop = <-stopChan:
+	for xunfeiResponse := range dataChan {
+		if xunfeiResponse.Header.Status == 2 {
+			return openai.ErrorWrapper(fmt.Errorf("xunfei request failed: %s, code: %d", xunfeiResponse.Header.Message, xunfeiResponse.Header.Code), fmt.Sprintf("xunfei_request_failed_%d", xunfeiResponse.Header.Status), http.StatusInternalServerError), nil
 		}
-	}
-	if len(xunfeiResponse.Payload.Choices.Text) == 0 {
-		return openai.ErrorWrapper(errors.New("xunfei empty response detected"), "xunfei_empty_response_detected", http.StatusInternalServerError), nil
-	}
-	xunfeiResponse.Payload.Choices.Text[0].Content = content
 
-	response := responseXunfei2OpenAI(&xunfeiResponse)
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		return openai.ErrorWrapper(err, "marshal_response_body_failed", http.StatusInternalServerError), nil
+		if len(xunfeiResponse.Payload.Choices.Text) == 0 {
+			return openai.ErrorWrapper(errors.New("xunfei empty response detected"), "xunfei_empty_response_detected", http.StatusInternalServerError), nil
+		}
+
+		content += xunfeiResponse.Payload.Choices.Text[0].Content
+		usage.PromptTokens += xunfeiResponse.Payload.Usage.Text.PromptTokens
+		usage.CompletionTokens += xunfeiResponse.Payload.Usage.Text.CompletionTokens
+		usage.TotalTokens += xunfeiResponse.Payload.Usage.Text.TotalTokens
+
+		response := responseXunfei2OpenAI(&xunfeiResponse)
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			return openai.ErrorWrapper(err, "marshal_response_body_failed", http.StatusInternalServerError), nil
+		}
+		c.Writer.Header().Set("Content-Type", "application/json")
+		_, _ = c.Writer.Write(jsonResponse)
 	}
-	c.Writer.Header().Set("Content-Type", "application/json")
-	_, _ = c.Writer.Write(jsonResponse)
+
 	return nil, &usage
 }
 
-func xunfeiMakeRequest(textRequest model.GeneralOpenAIRequest, domain, authUrl, appId string) (chan ChatResponse, chan bool, error) {
+func xunfeiMakeRequest(textRequest model.GeneralOpenAIRequest, domain, authUrl, appId string) (chan ChatResponse, error) {
 	d := websocket.Dialer{
 		HandshakeTimeout: 5 * time.Second,
 	}
 	conn, resp, err := d.Dial(authUrl, nil)
 	if err != nil || resp.StatusCode != 101 {
-		return nil, nil, err
+		return nil, err
 	}
 	data := requestOpenAI2Xunfei(textRequest, appId, domain)
 	err = conn.WriteJSON(data)
 	if err != nil {
-		return nil, nil, err
-	}
-	_, msg, err := conn.ReadMessage()
-	if err != nil {
-		return nil, nil, err
+		conn.Close()
+		return nil, err
 	}
 
 	dataChan := make(chan ChatResponse)
-	stopChan := make(chan bool)
 	go func() {
+		defer conn.Close()
+		defer close(dataChan)
 		for {
-			if msg == nil {
-				_, msg, err = conn.ReadMessage()
-				if err != nil {
-					logger.SysError("error reading stream response: " + err.Error())
-					break
-				}
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				logger.SysError("error reading stream response: " + err.Error())
+				break
 			}
+			fmt.Println(string(msg))
 			var response ChatResponse
 			err = json.Unmarshal(msg, &response)
 			if err != nil {
 				logger.SysError("error unmarshalling stream response: " + err.Error())
 				break
 			}
-			msg = nil
 			dataChan <- response
-			if response.Payload.Choices.Status == 2 {
-				err := conn.Close()
-				if err != nil {
-					logger.SysError("error closing websocket connection: " + err.Error())
-				}
-				break
+			if response.Header.Status == 2 {
+				return
 			}
 		}
-		stopChan <- true
 	}()
 
-	return dataChan, stopChan, nil
+	return dataChan, nil
 }
 
-func parseAPIVersionByModelName(modelName string) string {
-	index := strings.IndexAny(modelName, "-")
-	if index != -1 {
-		return modelName[index+1:]
+func getXunfeiAuthUrl(modelName string, apiKey string, apiSecret string) (string, string, error) {
+	var domain string
+	var path string
+
+	_, s, ok := strings.Cut(modelName, "-")
+	if !ok {
+		return "", "", errors.New("invalid model name")
 	}
-	return ""
-}
 
-// https://www.xfyun.cn/doc/spark/Web.html#_1-%E6%8E%A5%E5%8F%A3%E8%AF%B4%E6%98%8E
-func apiVersion2domain(apiVersion string) string {
-	switch apiVersion {
-	case "v1.1":
-		return "lite"
-	case "v2.1":
-		return "generalv2"
-	case "v3.1":
-		return "generalv3"
-	case "v3.1-128K":
-		return "pro-128k"
-	case "v3.5":
-		return "generalv3.5"
-	case "v4.0":
-		return "4.0Ultra"
-	}
-	return "general" + apiVersion
-}
-
-func getXunfeiAuthUrl(apiVersion string, apiKey string, apiSecret string) (string, string) {
-	var authUrl string
-	domain := apiVersion2domain(apiVersion)
-	switch apiVersion {
-	case "v3.1-128K":
-		authUrl = buildXunfeiAuthUrl(fmt.Sprintf("wss://spark-api.xf-yun.com/%s/pro-128k", apiVersion), apiKey, apiSecret)
+	switch strings.ToLower(s) {
+	case "lite":
+		domain = "lite"
+		path = "v1.1/chat"
+	case "pro":
+		domain = "generalv3"
+		path = "v3.1/chat"
+	case "pro-128k":
+		domain = "pro-128k"
+		path = "chat/pro-128k"
+	case "max":
+		domain = "generalv3.5"
+		path = "v3.5/chat"
+	case "max-32k":
+		domain = "max-32k"
+		path = "chat/max-32k"
+	case "4.0-ultra":
+		domain = "4.0Ultra"
+		path = "v4.0/chat"
 	default:
-		authUrl = buildXunfeiAuthUrl(fmt.Sprintf("wss://spark-api.xf-yun.com/%s/chat", apiVersion), apiKey, apiSecret)
+		return "", "", errors.New("invalid model name")
 	}
-	return domain, authUrl
+
+	authUrl := buildXunfeiAuthUrl(fmt.Sprintf("wss://spark-api.xf-yun.com/%s", path), apiKey, apiSecret)
+	return domain, authUrl, nil
 }

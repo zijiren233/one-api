@@ -62,14 +62,6 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 	if a.request == nil {
 		return nil, openai.ErrorWrapper(errors.New("request is nil"), "request_is_nil", http.StatusBadRequest)
 	}
-	version := parseAPIVersionByModelName(meta.ActualModelName)
-	if version == "" {
-		version = a.meta.Config.APIVersion
-	}
-	if version == "" {
-		version = "v1.1"
-	}
-	a.meta.Config.APIVersion = version
 	if meta.IsStream {
 		err, usage = StreamHandler(c, meta, *a.request, splits[0], splits[1], splits[2])
 	} else {
