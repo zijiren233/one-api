@@ -14,7 +14,6 @@ import (
 
 type Log struct {
 	CreatedAt        time.Time `gorm:"index" json:"created_at"`
-	Group            *Group    `gorm:"foreignKey:GroupId" json:"-"`
 	TokenName        string    `gorm:"index" json:"token_name"`
 	Endpoint         string    `gorm:"index" json:"endpoint"`
 	Content          string    `gorm:"type:text" json:"content"`

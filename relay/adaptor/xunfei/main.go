@@ -305,7 +305,6 @@ func getXunfeiAuthUrl(apiVersion string, apiKey string, apiSecret string) (strin
 	switch apiVersion {
 	case "v3.1-128K":
 		authUrl = buildXunfeiAuthUrl(fmt.Sprintf("wss://spark-api.xf-yun.com/%s/pro-128k", apiVersion), apiKey, apiSecret)
-		break
 	default:
 		authUrl = buildXunfeiAuthUrl(fmt.Sprintf("wss://spark-api.xf-yun.com/%s/chat", apiVersion), apiKey, apiSecret)
 	}
