@@ -37,11 +37,11 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	textRequest.Model, _ = getMappedModelName(textRequest.Model, meta.ModelMapping)
 	meta.ActualModelName = textRequest.Model
 	// get model price
-	price, ok := billingPrice.GetModelPrice(textRequest.Model, meta.ChannelType)
+	price, ok := billingPrice.GetModelPrice(textRequest.Model, meta.OriginModelName, meta.ChannelType)
 	if !ok {
 		return openai.ErrorWrapper(fmt.Errorf("model price not found: %s", textRequest.Model), "model_price_not_found", http.StatusInternalServerError)
 	}
-	completionPrice, ok := billingPrice.GetCompletionPrice(textRequest.Model, meta.ChannelType)
+	completionPrice, ok := billingPrice.GetCompletionPrice(textRequest.Model, meta.OriginModelName, meta.ChannelType)
 	if !ok {
 		return openai.ErrorWrapper(fmt.Errorf("completion price not found: %s", textRequest.Model), "completion_price_not_found", http.StatusInternalServerError)
 	}

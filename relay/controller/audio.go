@@ -52,7 +52,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 	}
 
-	price, ok := billingprice.GetModelPrice(audioModel, channelType)
+	price, ok := billingprice.GetModelPrice(audioModel, audioModel, channelType)
 	if !ok {
 		return openai.ErrorWrapper(fmt.Errorf("model price not found: %s", audioModel), "model_price_not_found", http.StatusInternalServerError)
 	}

@@ -98,17 +98,14 @@ func postConsumeAmount(ctx context.Context, postGroupConsumer balance.PostGroupC
 		completionAmount := decimal.NewFromInt(int64(completionTokens)).Mul(decimal.NewFromFloat(completionPrice)).Div(decimal.NewFromInt(billingPrice.PriceUnit))
 		amount = promptAmount.Add(completionAmount).InexactFloat64()
 		if amount > 0 {
-			var err error
-			amount, err = postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)
+			_amount, err := postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)
 			if err != nil {
 				logger.Error(ctx, "error consuming token remain amount: "+err.Error())
+			} else {
+				amount = _amount
 			}
 		}
 	}
-	// model.RecordConsumeLog(ctx, meta.Group, code, meta.ChannelId, promptTokens, completionTokens, meta.OriginModelName, meta.TokenId, meta.TokenName, amount, price, completionPrice, endpoint, content)
-	// model.UpdateGroupUsedAmountAndRequestCount(meta.Group, amount, 1)
-	// model.UpdateTokenUsedAmount(meta.TokenId, amount, 1)
-	// model.UpdateChannelUsedAmount(meta.ChannelId, amount, 1)
 	err := model.BatchRecordConsume(ctx, meta.Group, code, meta.ChannelId, promptTokens, completionTokens, meta.OriginModelName, meta.TokenId, meta.TokenName, amount, price, completionPrice, endpoint, content)
 	if err != nil {
 		logger.Error(ctx, "error batch record consume: "+err.Error())

@@ -214,12 +214,12 @@ func (s *SealosPostGroupConsumer) GetBalance(ctx context.Context) (float64, erro
 func (s *SealosPostGroupConsumer) PostGroupConsume(ctx context.Context, tokenName string, usage float64) (float64, error) {
 	amount := s.calculateAmount(usage)
 
-	if err := s.postConsume(ctx, amount.IntPart(), tokenName); err != nil {
-		return 0, err
-	}
-
 	if err := cacheDecreaseGroupBalance(ctx, s.group, amount.IntPart()); err != nil {
 		logger.Errorf(ctx, "decrease group (%s) balance cache failed: %s", s.group, err)
+	}
+
+	if err := s.postConsume(ctx, amount.IntPart(), tokenName); err != nil {
+		return 0, err
 	}
 
 	return amount.Div(decimalBalancePrecision).InexactFloat64(), nil
@@ -254,13 +254,13 @@ func (s *SealosPostGroupConsumer) postConsume(ctx context.Context, amount int64,
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
 	resp, err := sealosHttpClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("post group (%s) consume failed: %w", s.group, err)
 	}
 	defer resp.Body.Close()
 
 	var sealosResp sealosPostGroupConsumeResp
 	if err := json.NewDecoder(resp.Body).Decode(&sealosResp); err != nil {
-		return err
+		return fmt.Errorf("post group (%s) consume failed: %w", s.group, err)
 	}
 
 	if resp.StatusCode != http.StatusOK {

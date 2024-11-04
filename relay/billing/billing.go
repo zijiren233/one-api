@@ -11,17 +11,13 @@ import (
 func PostConsumeAmount(ctx context.Context, postGroupConsumer balance.PostGroupConsumer, code int, tokenId int, amount float64, group string, channelId int, modelPrice float64, modelName string, tokenName string, endpoint string, content string) {
 	if amount > 0 {
 		// amountDelta is remaining amount to be consumed
-		var err error
-		amount, err = postGroupConsumer.PostGroupConsume(ctx, tokenName, amount)
+		_amount, err := postGroupConsumer.PostGroupConsume(ctx, tokenName, amount)
 		if err != nil {
 			logger.SysError("error consuming token remain quota: " + err.Error())
+		} else {
+			amount = _amount
 		}
 	}
-	// totalAmount is total amount consumed
-	// model.RecordConsumeLog(ctx, group, code, channelId, int(amount), 0, modelName, tokenId, tokenName, amount, modelPrice, 0, endpoint, content)
-	// model.UpdateGroupUsedAmountAndRequestCount(group, amount, 1)
-	// model.UpdateTokenUsedAmount(tokenId, amount, 1)
-	// model.UpdateChannelUsedAmount(channelId, amount, 1)
 	err := model.BatchRecordConsume(ctx, group, code, channelId, 0, 0, modelName, tokenId, tokenName, amount, modelPrice, 0, endpoint, content)
 	if err != nil {
 		logger.Error(ctx, "error batch record consume: "+err.Error())

@@ -10,7 +10,6 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common"
-	"github.com/songquanpeng/one-api/common/logger"
 )
 
 type Log struct {
@@ -43,8 +42,7 @@ func (l *Log) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func RecordConsumeLog(ctx context.Context, group string, code int, channelId int, promptTokens int, completionTokens int, modelName string, tokenId int, tokenName string, usedAmount float64, price float64, completionPrice float64, endpoint string, content string) {
-	logger.Info(ctx, fmt.Sprintf("record consume log: group=%s, code=%d, channelId=%d, promptTokens=%d, completionTokens=%d, modelName=%s, tokenId=%d, tokenName=%s, usedAmount=%f, price=%f, completionPrice=%f, endpoint=%s, content=%s", group, code, channelId, promptTokens, completionTokens, modelName, tokenId, tokenName, usedAmount, price, completionPrice, endpoint, content))
+func RecordConsumeLog(ctx context.Context, group string, code int, channelId int, promptTokens int, completionTokens int, modelName string, tokenId int, tokenName string, amount float64, price float64, completionPrice float64, endpoint string, content string) error {
 	log := &Log{
 		GroupId:          group,
 		CreatedAt:        time.Now(),
@@ -54,17 +52,14 @@ func RecordConsumeLog(ctx context.Context, group string, code int, channelId int
 		TokenId:          tokenId,
 		TokenName:        tokenName,
 		Model:            modelName,
-		UsedAmount:       usedAmount,
+		UsedAmount:       amount,
 		Price:            price,
 		CompletionPrice:  completionPrice,
 		ChannelId:        channelId,
 		Endpoint:         endpoint,
 		Content:          content,
 	}
-	err := LOG_DB.Create(log).Error
-	if err != nil {
-		logger.Error(ctx, "failed to record log: "+err.Error())
-	}
+	return LOG_DB.Create(log).Error
 }
 
 func getLogOrder(order string) string {

@@ -274,27 +274,35 @@ func UpdateModelPriceByJSONString(jsonStr string) error {
 	return nil
 }
 
-func GetModelPrice(name string, channelType int) (float64, bool) {
+func GetModelPrice(mapedName string, reqModel string, channelType int) (float64, bool) {
 	if !GetBillingEnabled() {
 		return 0, true
 	}
-	if strings.HasPrefix(name, "qwen-") && strings.HasSuffix(name, "-internet") {
-		name = strings.TrimSuffix(name, "-internet")
+	price, ok := getModelPrice(mapedName, channelType)
+	if !ok && reqModel != "" {
+		price, ok = getModelPrice(reqModel, channelType)
 	}
-	if strings.HasPrefix(name, "command-") && strings.HasSuffix(name, "-internet") {
-		name = strings.TrimSuffix(name, "-internet")
+	return price, ok
+}
+
+func getModelPrice(modelName string, channelType int) (float64, bool) {
+	if strings.HasPrefix(modelName, "qwen-") && strings.HasSuffix(modelName, "-internet") {
+		modelName = strings.TrimSuffix(modelName, "-internet")
 	}
-	model := fmt.Sprintf("%s(%d)", name, channelType)
+	if strings.HasPrefix(modelName, "command-") && strings.HasSuffix(modelName, "-internet") {
+		modelName = strings.TrimSuffix(modelName, "-internet")
+	}
+	model := fmt.Sprintf("%s(%d)", modelName, channelType)
 	if price, ok := ModelPrice[model]; ok {
 		return price, true
 	}
 	if price, ok := DefaultModelPrice[model]; ok {
 		return price, true
 	}
-	if price, ok := ModelPrice[name]; ok {
+	if price, ok := ModelPrice[modelName]; ok {
 		return price, true
 	}
-	if price, ok := DefaultModelPrice[name]; ok {
+	if price, ok := DefaultModelPrice[modelName]; ok {
 		return price, true
 	}
 	return 0, false
@@ -319,10 +327,18 @@ func UpdateCompletionPriceByJSONString(jsonStr string) error {
 	return nil
 }
 
-func GetCompletionPrice(name string, channelType int) (float64, bool) {
+func GetCompletionPrice(name string, reqModel string, channelType int) (float64, bool) {
 	if !GetBillingEnabled() {
 		return 0, true
 	}
+	price, ok := getCompletionPrice(name, channelType)
+	if !ok && reqModel != "" {
+		price, ok = getCompletionPrice(reqModel, channelType)
+	}
+	return price, ok
+}
+
+func getCompletionPrice(name string, channelType int) (float64, bool) {
 	if strings.HasPrefix(name, "qwen-") && strings.HasSuffix(name, "-internet") {
 		name = strings.TrimSuffix(name, "-internet")
 	}
@@ -339,5 +355,5 @@ func GetCompletionPrice(name string, channelType int) (float64, bool) {
 	if price, ok := DefaultCompletionPrice[name]; ok {
 		return price, true
 	}
-	return GetModelPrice(name, channelType)
+	return 0, false
 }
