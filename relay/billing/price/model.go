@@ -2,7 +2,6 @@ package price
 
 import (
 	"fmt"
-	"strings"
 	"sync/atomic"
 
 	json "github.com/json-iterator/go"
@@ -286,12 +285,6 @@ func GetModelPrice(mapedName string, reqModel string, channelType int) (float64,
 }
 
 func getModelPrice(modelName string, channelType int) (float64, bool) {
-	if strings.HasPrefix(modelName, "qwen-") && strings.HasSuffix(modelName, "-internet") {
-		modelName = strings.TrimSuffix(modelName, "-internet")
-	}
-	if strings.HasPrefix(modelName, "command-") && strings.HasSuffix(modelName, "-internet") {
-		modelName = strings.TrimSuffix(modelName, "-internet")
-	}
 	model := fmt.Sprintf("%s(%d)", modelName, channelType)
 	if price, ok := ModelPrice[model]; ok {
 		return price, true
@@ -339,9 +332,6 @@ func GetCompletionPrice(name string, reqModel string, channelType int) (float64,
 }
 
 func getCompletionPrice(name string, channelType int) (float64, bool) {
-	if strings.HasPrefix(name, "qwen-") && strings.HasSuffix(name, "-internet") {
-		name = strings.TrimSuffix(name, "-internet")
-	}
 	model := fmt.Sprintf("%s(%d)", name, channelType)
 	if price, ok := CompletionPrice[model]; ok {
 		return price, true
@@ -355,5 +345,5 @@ func getCompletionPrice(name string, channelType int) (float64, bool) {
 	if price, ok := DefaultCompletionPrice[name]; ok {
 		return price, true
 	}
-	return 0, false
+	return getModelPrice(name, channelType)
 }
