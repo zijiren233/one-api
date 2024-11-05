@@ -170,11 +170,11 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		data := scanner.Text()
 		lines := strings.Split(data, "\n")
 		for i, line := range lines {
-			if len(line) < 5 {
+			if len(line) < 6 {
 				continue
 			}
-			if strings.HasPrefix(line, "data:") {
-				dataSegment := line[5:]
+			if strings.HasPrefix(line, "data: ") {
+				dataSegment := line[6:]
 				if i != len(lines)-1 {
 					dataSegment += "\n"
 				}
@@ -183,8 +183,8 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 				if err != nil {
 					logger.SysError("error marshalling stream response: " + err.Error())
 				}
-			} else if strings.HasPrefix(line, "meta:") {
-				metaSegment := line[5:]
+			} else if strings.HasPrefix(line, "meta: ") {
+				metaSegment := line[6:]
 				var zhipuResponse StreamMetaResponse
 				err := json.Unmarshal(conv.StringToBytes(metaSegment), &zhipuResponse)
 				if err != nil {

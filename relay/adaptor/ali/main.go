@@ -194,10 +194,14 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 
 	for scanner.Scan() {
 		data := scanner.Bytes()
-		if len(data) < 5 || conv.BytesToString(data[:5]) != "data:" {
+		if len(data) < 6 || conv.BytesToString(data[:6]) != "data: " {
 			continue
 		}
-		data = data[5:]
+		data = data[6:]
+
+		if conv.BytesToString(data) == "[DONE]" {
+			break
+		}
 
 		var aliResponse ChatResponse
 		err := json.Unmarshal(data, &aliResponse)

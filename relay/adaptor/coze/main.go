@@ -120,15 +120,19 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 
 	for scanner.Scan() {
 		data := scanner.Bytes()
-		if len(data) < 5 || conv.BytesToString(data[:5]) != "data:" {
+		if len(data) < 6 || conv.BytesToString(data[:6]) != "data: " {
 			continue
 		}
-		data = data[5:]
+		data = data[6:]
+
+		if conv.BytesToString(data) == "[DONE]" {
+			break
+		}
 
 		var cozeResponse StreamResponse
 		err := json.Unmarshal(data, &cozeResponse)
 		if err != nil {
-			logger.SysError("error unmarshalling stream response: " + err.Error())
+			logger.SysErrorf("error unmarshalling stream response: %s, data: %s", err.Error(), conv.BytesToString(data))
 			continue
 		}
 

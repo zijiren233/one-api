@@ -41,10 +41,10 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 
 	for scanner.Scan() {
 		data := scanner.Bytes()
-		if len(data) < 5 || conv.BytesToString(data[:5]) != "data:" {
+		if len(data) < 6 || conv.BytesToString(data[:6]) != "data: " {
 			continue
 		}
-		data = data[5:]
+		data = data[6:]
 
 		if conv.BytesToString(data) == "[DONE]" {
 			break
@@ -53,7 +53,7 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 		var response openai.ChatCompletionsStreamResponse
 		err := json.Unmarshal(data, &response)
 		if err != nil {
-			logger.SysError("error unmarshalling stream response: " + err.Error())
+			logger.SysErrorf("error unmarshalling stream response: %s, data: %s", err.Error(), conv.BytesToString(data))
 			continue
 		}
 		for _, v := range response.Choices {

@@ -33,12 +33,14 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 	responseModel := c.GetString(ctxkey.OriginalModel)
 	var responseText string
 
+	var usage *model.Usage
+
 	for scanner.Scan() {
 		data := scanner.Bytes()
-		if len(data) < 5 || conv.BytesToString(data[:5]) != "data:" {
+		if len(data) < 6 || conv.BytesToString(data[:6]) != "data: " {
 			continue
 		}
-		data = data[5:]
+		data = data[6:]
 
 		if conv.BytesToString(data) == "[DONE]" {
 			break
@@ -47,9 +49,14 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 		var response openai.ChatCompletionsStreamResponse
 		err := json.Unmarshal(data, &response)
 		if err != nil {
-			logger.SysError("error unmarshalling stream response: " + err.Error())
+			logger.SysErrorf("error unmarshalling stream response: %s, data: %s", err.Error(), conv.BytesToString(data))
 			continue
 		}
+
+		if response.Usage != nil {
+			usage = response.Usage
+		}
+
 		for _, v := range response.Choices {
 			v.Delta.Role = "assistant"
 			responseText += v.Delta.StringContent()
@@ -68,7 +75,9 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 
 	render.Done(c)
 
-	usage := openai.ResponseText2Usage(responseText, responseModel, promptTokens)
+	if usage == nil {
+		usage = openai.ResponseText2Usage(responseText, responseModel, promptTokens)
+	}
 	return nil, usage
 }
 
