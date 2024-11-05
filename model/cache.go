@@ -16,7 +16,6 @@ import (
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"
-	"github.com/songquanpeng/one-api/common/random"
 )
 
 const (
@@ -355,29 +354,34 @@ func SyncChannelCache(frequency time.Duration) {
 	}
 }
 
-func CacheGetRandomSatisfiedChannel(model string, ignoreFirstPriority bool) (*Channel, error) {
+func CacheGetRandomSatisfiedChannel(model string) (*Channel, error) {
 	channelSyncLock.RLock()
 	channels := model2channels[model]
 	channelSyncLock.RUnlock()
 	if len(channels) == 0 {
-		return nil, errors.New("channel not found")
+		return nil, errors.New("model not found")
 	}
-	endIdx := len(channels)
-	// choose by priority
-	firstChannel := channels[0]
-	if firstChannel.Priority > 0 {
-		for i := range channels {
-			if channels[i].Priority != firstChannel.Priority {
-				endIdx = i
-				break
-			}
+
+	if len(channels) == 1 {
+		return channels[0], nil
+	}
+
+	var totalWeight int32
+	for _, ch := range channels {
+		totalWeight += ch.Priority
+	}
+
+	if totalWeight == 0 {
+		return channels[rand.Intn(len(channels))], nil
+	}
+
+	r := rand.Int31n(totalWeight)
+	for _, ch := range channels {
+		r -= ch.Priority
+		if r < 0 {
+			return ch, nil
 		}
 	}
-	idx := rand.Intn(endIdx)
-	if ignoreFirstPriority {
-		if endIdx < len(channels) { // which means there are more than one priority
-			idx = random.RandRange(endIdx, len(channels))
-		}
-	}
-	return channels[idx], nil
+
+	return channels[rand.Intn(len(channels))], nil
 }

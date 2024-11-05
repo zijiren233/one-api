@@ -15,11 +15,11 @@ func GetRequestBody(c *gin.Context) ([]byte, error) {
 	if requestBody != nil {
 		return requestBody.([]byte), nil
 	}
+	defer c.Request.Body.Close()
 	requestBody, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		return nil, err
 	}
-	_ = c.Request.Body.Close()
 	c.Set(ctxkey.KeyRequestBody, requestBody)
 	return requestBody.([]byte), nil
 }

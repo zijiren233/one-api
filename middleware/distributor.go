@@ -39,7 +39,7 @@ func Distribute(c *gin.Context) {
 	} else {
 		requestModel = c.GetString(ctxkey.RequestModel)
 		var err error
-		channel, err = model.CacheGetRandomSatisfiedChannel(requestModel, false)
+		channel, err = model.CacheGetRandomSatisfiedChannel(requestModel)
 		if err != nil {
 			message := fmt.Sprintf("当前分组 %s 下对于模型 %s 无可用渠道", group, requestModel)
 			if channel != nil {
