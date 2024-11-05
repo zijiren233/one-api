@@ -6,6 +6,7 @@ import (
 	"time"
 
 	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/conv"
 
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
 	"cloud.google.com/go/iam/credentials/apiv1/credentialspb"
@@ -37,13 +38,13 @@ func getToken(ctx context.Context, channelId int, adcJson string) (string, error
 		return token.(string), nil
 	}
 	adc := &ApplicationDefaultCredentials{}
-	if err := json.Unmarshal([]byte(adcJson), adc); err != nil {
-		return "", fmt.Errorf("Failed to decode credentials file: %w", err)
+	if err := json.Unmarshal(conv.StringToBytes(adcJson), adc); err != nil {
+		return "", fmt.Errorf("failed to decode credentials file: %w", err)
 	}
 
-	c, err := credentials.NewIamCredentialsClient(ctx, option.WithCredentialsJSON([]byte(adcJson)))
+	c, err := credentials.NewIamCredentialsClient(ctx, option.WithCredentialsJSON(conv.StringToBytes(adcJson)))
 	if err != nil {
-		return "", fmt.Errorf("Failed to create client: %w", err)
+		return "", fmt.Errorf("failed to create client: %w", err)
 	}
 	defer c.Close()
 
@@ -54,7 +55,7 @@ func getToken(ctx context.Context, channelId int, adcJson string) (string, error
 	}
 	resp, err := c.GenerateAccessToken(ctx, req)
 	if err != nil {
-		return "", fmt.Errorf("Failed to generate access token: %w", err)
+		return "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 	_ = resp
 

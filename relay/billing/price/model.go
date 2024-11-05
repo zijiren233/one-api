@@ -6,6 +6,7 @@ import (
 
 	json "github.com/json-iterator/go"
 
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/logger"
 )
 
@@ -222,7 +223,7 @@ func init() {
 
 func AddNewMissingPrice(oldPrice string) string {
 	newPrice := make(map[string]float64)
-	err := json.Unmarshal([]byte(oldPrice), &newPrice)
+	err := json.Unmarshal(conv.StringToBytes(oldPrice), &newPrice)
 	if err != nil {
 		logger.SysError("error unmarshalling old price: " + err.Error())
 		return oldPrice
@@ -237,7 +238,7 @@ func AddNewMissingPrice(oldPrice string) string {
 		logger.SysError("error marshalling new price: " + err.Error())
 		return oldPrice
 	}
-	return string(jsonBytes)
+	return conv.BytesToString(jsonBytes)
 }
 
 func ModelPrice2JSONString() string {
@@ -245,7 +246,7 @@ func ModelPrice2JSONString() string {
 	if err != nil {
 		logger.SysError("error marshalling model price: " + err.Error())
 	}
-	return string(jsonBytes)
+	return conv.BytesToString(jsonBytes)
 }
 
 var billingEnabled atomic.Bool
@@ -264,7 +265,7 @@ func SetBillingEnabled(enabled bool) {
 
 func UpdateModelPriceByJSONString(jsonStr string) error {
 	newModelPrice := make(map[string]float64)
-	err := json.Unmarshal([]byte(jsonStr), &newModelPrice)
+	err := json.Unmarshal(conv.StringToBytes(jsonStr), &newModelPrice)
 	if err != nil {
 		logger.SysError("error unmarshalling model price: " + err.Error())
 		return err
@@ -306,12 +307,12 @@ func CompletionPrice2JSONString() string {
 	if err != nil {
 		logger.SysError("error marshalling completion price: " + err.Error())
 	}
-	return string(jsonBytes)
+	return conv.BytesToString(jsonBytes)
 }
 
 func UpdateCompletionPriceByJSONString(jsonStr string) error {
 	newCompletionPrice := make(map[string]float64)
-	err := json.Unmarshal([]byte(jsonStr), &newCompletionPrice)
+	err := json.Unmarshal(conv.StringToBytes(jsonStr), &newCompletionPrice)
 	if err != nil {
 		logger.SysError("error unmarshalling completion price: " + err.Error())
 		return err

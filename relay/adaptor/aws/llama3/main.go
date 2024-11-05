@@ -12,6 +12,7 @@ import (
 
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/random"
+	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -181,7 +182,7 @@ func StreamHandler(c *gin.Context, awsCli *bedrockruntime.Client) (*relaymodel.E
 		switch v := event.(type) {
 		case *types.ResponseStreamMemberChunk:
 			var llamaResp StreamResponse
-			err := json.NewDecoder(bytes.NewReader(v.Value.Bytes)).Decode(&llamaResp)
+			err := json.Unmarshal(v.Value.Bytes, &llamaResp)
 			if err != nil {
 				logger.SysError("error unmarshalling stream response: " + err.Error())
 				return false
@@ -198,12 +199,11 @@ func StreamHandler(c *gin.Context, awsCli *bedrockruntime.Client) (*relaymodel.E
 			response.Id = fmt.Sprintf("chatcmpl-%s", random.GetUUID())
 			response.Model = c.GetString(ctxkey.OriginalModel)
 			response.Created = createdTime
-			jsonStr, err := json.Marshal(response)
+			err = render.ObjectData(c, response)
 			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
+				logger.SysError("error stream response: " + err.Error())
 				return true
 			}
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonStr)})
 			return true
 		case *types.UnknownUnionMember:
 			fmt.Println("unknown tag:", v.Tag)

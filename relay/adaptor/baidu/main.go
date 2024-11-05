@@ -11,6 +11,7 @@ import (
 	"time"
 
 	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/gin-gonic/gin"
@@ -145,14 +146,14 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	common.SetEventStreamHeaders(c)
 
 	for scanner.Scan() {
-		data := scanner.Text()
-		if len(data) < 6 {
+		data := scanner.Bytes()
+		if len(data) < 5 || conv.BytesToString(data[:5]) != "data:" {
 			continue
 		}
-		data = data[6:]
+		data = data[5:]
 
 		var baiduResponse ChatStreamResponse
-		err := json.Unmarshal([]byte(data), &baiduResponse)
+		err := json.Unmarshal(data, &baiduResponse)
 		if err != nil {
 			logger.SysError("error unmarshalling stream response: " + err.Error())
 			continue

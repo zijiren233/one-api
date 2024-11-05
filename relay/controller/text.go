@@ -111,7 +111,7 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 		logger.Debugf(c.Request.Context(), "converted request json_marshal_failed: %s\n", err.Error())
 		return nil, err
 	}
-	logger.Debugf(c.Request.Context(), "converted request: \n%s", string(jsonData))
+	logger.Debugf(c.Request.Context(), "converted request: \n%s", jsonData)
 	requestBody = bytes.NewBuffer(jsonData)
 	return requestBody, nil
 }

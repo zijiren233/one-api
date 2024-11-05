@@ -47,7 +47,7 @@ func Relay(c *gin.Context) {
 	relayMode := relaymode.GetByPath(c.Request.URL.Path)
 	if config.DebugEnabled {
 		requestBody, _ := common.GetRequestBody(c)
-		logger.Debugf(ctx, "request body: %s", string(requestBody))
+		logger.Debugf(ctx, "request body: %s", requestBody)
 	}
 	channelId := c.GetInt(ctxkey.ChannelId)
 	bizErr := relayHelper(c, relayMode)

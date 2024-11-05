@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/songquanpeng/one-api/common"
@@ -221,7 +221,7 @@ func getToolCalls(candidate *ChatCandidate) []model.Tool {
 		Id:   fmt.Sprintf("call_%s", random.GetUUID()),
 		Type: "function",
 		Function: model.Function{
-			Arguments: string(argsBytes),
+			Arguments: conv.BytesToString(argsBytes),
 			Name:      item.FunctionCall.FunctionName,
 		},
 	}
@@ -297,16 +297,14 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	common.SetEventStreamHeaders(c)
 
 	for scanner.Scan() {
-		data := scanner.Text()
-		data = strings.TrimSpace(data)
-		if !strings.HasPrefix(data, "data: ") {
+		data := scanner.Bytes()
+		if len(data) < 5 || conv.BytesToString(data[:5]) != "data:" {
 			continue
 		}
-		data = strings.TrimPrefix(data, "data: ")
-		data = strings.TrimSuffix(data, "\"")
+		data = data[5:]
 
 		var geminiResponse ChatResponse
-		err := json.Unmarshal([]byte(data), &geminiResponse)
+		err := json.Unmarshal(data, &geminiResponse)
 		if err != nil {
 			logger.SysError("error unmarshalling stream response: " + err.Error())
 			continue

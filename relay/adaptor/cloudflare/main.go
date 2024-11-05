@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"io"
 	"net/http"
-	"strings"
 
 	json "github.com/json-iterator/go"
 
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/render"
 
@@ -39,19 +39,18 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 	var responseText string
 
 	for scanner.Scan() {
-		data := scanner.Text()
-		if len(data) < len("data: ") {
+		data := scanner.Bytes()
+		if len(data) < 5 || conv.BytesToString(data[:5]) != "data:" {
 			continue
 		}
-		data = strings.TrimPrefix(data, "data: ")
-		data = strings.TrimSuffix(data, "\r")
+		data = data[5:]
 
-		if data == "[DONE]" {
+		if conv.BytesToString(data) == "[DONE]" {
 			break
 		}
 
 		var response openai.ChatCompletionsStreamResponse
-		err := json.Unmarshal([]byte(data), &response)
+		err := json.Unmarshal(data, &response)
 		if err != nil {
 			logger.SysError("error unmarshalling stream response: " + err.Error())
 			continue

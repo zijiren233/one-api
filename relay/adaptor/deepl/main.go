@@ -8,6 +8,7 @@ import (
 	json "github.com/json-iterator/go"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/helper"
+	"github.com/songquanpeng/one-api/common/render"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/constant"
 	"github.com/songquanpeng/one-api/relay/constant/finishreason"
@@ -67,37 +68,21 @@ func ResponseDeepL2OpenAI(deeplResponse *Response) *openai.TextResponse {
 }
 
 func StreamHandler(c *gin.Context, resp *http.Response, modelName string) *model.ErrorWithStatusCode {
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
-	}
+	defer resp.Body.Close()
 	var deeplResponse Response
-	err = json.Unmarshal(responseBody, &deeplResponse)
+	err := json.NewDecoder(resp.Body).Decode(&deeplResponse)
 	if err != nil {
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError)
 	}
 	fullTextResponse := StreamResponseDeepL2OpenAI(&deeplResponse)
 	fullTextResponse.Model = modelName
 	fullTextResponse.Id = helper.GetResponseID(c)
-	jsonData, err := json.Marshal(fullTextResponse)
-	if err != nil {
-		return openai.ErrorWrapper(err, "marshal_response_body_failed", http.StatusInternalServerError)
-	}
 	common.SetEventStreamHeaders(c)
-	c.Stream(func(w io.Writer) bool {
-		if jsonData != nil {
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonData)})
-			jsonData = nil
-			return true
-		}
-		c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
-		return false
-	})
-	_ = resp.Body.Close()
+	err = render.ObjectData(c, fullTextResponse)
+	if err != nil {
+		return openai.ErrorWrapper(err, "render_response_body_failed", http.StatusInternalServerError)
+	}
+	render.Done(c)
 	return nil
 }
 

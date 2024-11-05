@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/gin-gonic/gin"
@@ -143,7 +144,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		data = strings.TrimSuffix(data, "\r")
 
 		var cohereResponse StreamResponse
-		err := json.Unmarshal([]byte(data), &cohereResponse)
+		err := json.Unmarshal(conv.StringToBytes(data), &cohereResponse)
 		if err != nil {
 			logger.SysError("error unmarshalling stream response: " + err.Error())
 			continue

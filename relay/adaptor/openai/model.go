@@ -8,8 +8,8 @@ type TextContent struct {
 }
 
 type ImageContent struct {
-	Type     string          `json:"type,omitempty"`
 	ImageURL *model.ImageURL `json:"image_url,omitempty"`
+	Type     string          `json:"type,omitempty"`
 }
 
 type ChatRequest struct {
@@ -20,22 +20,21 @@ type ChatRequest struct {
 
 type TextRequest struct {
 	Model     string          `json:"model"`
-	Messages  []model.Message `json:"messages"`
 	Prompt    string          `json:"prompt"`
+	Messages  []model.Message `json:"messages"`
 	MaxTokens int             `json:"max_tokens"`
-	// Stream   bool      `json:"stream"`
 }
 
 // ImageRequest docs: https://platform.openai.com/docs/api-reference/images/create
 type ImageRequest struct {
 	Model          string `json:"model"`
 	Prompt         string `json:"prompt" binding:"required"`
-	N              int    `json:"n,omitempty"`
 	Size           string `json:"size,omitempty"`
 	Quality        string `json:"quality,omitempty"`
 	ResponseFormat string `json:"response_format,omitempty"`
 	Style          string `json:"style,omitempty"`
 	User           string `json:"user,omitempty"`
+	N              int    `json:"n,omitempty"`
 }
 
 type WhisperJSONResponse struct {
@@ -45,18 +44,18 @@ type WhisperJSONResponse struct {
 type WhisperVerboseJSONResponse struct {
 	Task     string    `json:"task,omitempty"`
 	Language string    `json:"language,omitempty"`
-	Duration float64   `json:"duration,omitempty"`
 	Text     string    `json:"text,omitempty"`
 	Segments []Segment `json:"segments,omitempty"`
+	Duration float64   `json:"duration,omitempty"`
 }
 
 type Segment struct {
+	Text             string  `json:"text"`
+	Tokens           []int   `json:"tokens"`
 	Id               int     `json:"id"`
 	Seek             int     `json:"seek"`
 	Start            float64 `json:"start"`
 	End              float64 `json:"end"`
-	Text             string  `json:"text"`
-	Tokens           []int   `json:"tokens"`
 	Temperature      float64 `json:"temperature"`
 	AvgLogprob       float64 `json:"avg_logprob"`
 	CompressionRatio float64 `json:"compression_ratio"`
@@ -67,8 +66,8 @@ type TextToSpeechRequest struct {
 	Model          string  `json:"model" binding:"required"`
 	Input          string  `json:"input" binding:"required"`
 	Voice          string  `json:"voice" binding:"required"`
-	Speed          float64 `json:"speed"`
 	ResponseFormat string  `json:"response_format"`
+	Speed          float64 `json:"speed"`
 }
 
 type UsageOrResponseText struct {
@@ -77,36 +76,36 @@ type UsageOrResponseText struct {
 }
 
 type SlimTextResponse struct {
+	Error       model.Error          `json:"error"`
 	Choices     []TextResponseChoice `json:"choices"`
 	model.Usage `json:"usage"`
-	Error       model.Error `json:"error"`
 }
 
 type TextResponseChoice struct {
-	Index         int `json:"index"`
-	model.Message `json:"message"`
 	FinishReason  string `json:"finish_reason"`
+	model.Message `json:"message"`
+	Index         int `json:"index"`
 }
 
 type TextResponse struct {
 	Id          string               `json:"id"`
 	Model       string               `json:"model,omitempty"`
 	Object      string               `json:"object"`
-	Created     int64                `json:"created"`
 	Choices     []TextResponseChoice `json:"choices"`
 	model.Usage `json:"usage"`
+	Created     int64 `json:"created"`
 }
 
 type EmbeddingResponseItem struct {
 	Object    string    `json:"object"`
-	Index     int       `json:"index"`
 	Embedding []float64 `json:"embedding"`
+	Index     int       `json:"index"`
 }
 
 type EmbeddingResponse struct {
 	Object      string                  `json:"object"`
-	Data        []EmbeddingResponseItem `json:"data"`
 	Model       string                  `json:"model"`
+	Data        []EmbeddingResponseItem `json:"data"`
 	model.Usage `json:"usage"`
 }
 
@@ -117,24 +116,23 @@ type ImageData struct {
 }
 
 type ImageResponse struct {
-	Created int64       `json:"created"`
 	Data    []ImageData `json:"data"`
-	// model.Usage `json:"usage"`
+	Created int64       `json:"created"`
 }
 
 type ChatCompletionsStreamResponseChoice struct {
-	Index        int           `json:"index"`
-	Delta        model.Message `json:"delta"`
 	FinishReason *string       `json:"finish_reason,omitempty"`
+	Delta        model.Message `json:"delta"`
+	Index        int           `json:"index"`
 }
 
 type ChatCompletionsStreamResponse struct {
+	Usage   *model.Usage                          `json:"usage,omitempty"`
 	Id      string                                `json:"id"`
 	Object  string                                `json:"object"`
-	Created int64                                 `json:"created"`
 	Model   string                                `json:"model"`
 	Choices []ChatCompletionsStreamResponseChoice `json:"choices"`
-	Usage   *model.Usage                          `json:"usage,omitempty"`
+	Created int64                                 `json:"created"`
 }
 
 type CompletionsStreamResponse struct {

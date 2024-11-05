@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/songquanpeng/one-api/common/helper"
@@ -109,7 +110,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		if atEOF && len(data) == 0 {
 			return 0, nil, nil
 		}
-		if i := strings.Index(string(data), "}\n"); i >= 0 {
+		if i := strings.Index(conv.BytesToString(data), "}\n"); i >= 0 {
 			return i + 2, data[0 : i+1], nil
 		}
 		if atEOF {
@@ -127,7 +128,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		}
 
 		var ollamaResponse ChatResponse
-		err := json.Unmarshal([]byte(data), &ollamaResponse)
+		err := json.Unmarshal(conv.StringToBytes(data), &ollamaResponse)
 		if err != nil {
 			logger.SysError("error unmarshalling stream response: " + err.Error())
 			continue
@@ -234,7 +235,7 @@ func Handler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *
 	if err != nil {
 		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
 	}
-	logger.Debugf(ctx, "ollama response: %s", string(responseBody))
+	logger.Debugf(ctx, "ollama response: %s", responseBody)
 	err = resp.Body.Close()
 	if err != nil {
 		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil

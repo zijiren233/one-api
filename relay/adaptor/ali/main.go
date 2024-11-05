@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
 	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/render"
 
@@ -178,7 +180,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		if atEOF && len(data) == 0 {
 			return 0, nil, nil
 		}
-		if i := strings.Index(string(data), "\n"); i >= 0 {
+		if i := slices.Index(data, '\n'); i >= 0 {
 			return i + 1, data[0:i], nil
 		}
 		if atEOF {
@@ -190,14 +192,14 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	common.SetEventStreamHeaders(c)
 
 	for scanner.Scan() {
-		data := scanner.Text()
-		if len(data) < 5 || data[:5] != "data:" {
+		data := scanner.Bytes()
+		if len(data) < 5 || conv.BytesToString(data[:5]) != "data:" {
 			continue
 		}
 		data = data[5:]
 
 		var aliResponse ChatResponse
-		err := json.Unmarshal([]byte(data), &aliResponse)
+		err := json.Unmarshal(data, &aliResponse)
 		if err != nil {
 			logger.SysError("error unmarshalling stream response: " + err.Error())
 			continue

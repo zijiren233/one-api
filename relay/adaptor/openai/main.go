@@ -50,7 +50,7 @@ func StreamHandler(c *gin.Context, resp *http.Response, relayMode int) (*model.E
 		switch relayMode {
 		case relaymode.ChatCompletions:
 			var streamResponse ChatCompletionsStreamResponse
-			err := json.Unmarshal([]byte(data[dataPrefixLength:]), &streamResponse)
+			err := json.Unmarshal(conv.StringToBytes(data[dataPrefixLength:]), &streamResponse)
 			if err != nil {
 				logger.SysError("error unmarshalling stream response: " + err.Error())
 				render.StringData(c, data) // if error happened, pass the data to client
@@ -70,7 +70,7 @@ func StreamHandler(c *gin.Context, resp *http.Response, relayMode int) (*model.E
 		case relaymode.Completions:
 			render.StringData(c, data)
 			var streamResponse CompletionsStreamResponse
-			err := json.Unmarshal([]byte(data[dataPrefixLength:]), &streamResponse)
+			err := json.Unmarshal(conv.StringToBytes(data[dataPrefixLength:]), &streamResponse)
 			if err != nil {
 				logger.SysError("error unmarshalling stream response: " + err.Error())
 				continue

@@ -93,7 +93,7 @@ func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIReques
 	if err != nil {
 		return err, nil
 	}
-	logger.SysLog(string(jsonData))
+	logger.SysLogf("testing channel #%d, request: \n%s", channel.Id, jsonData)
 	requestBody := bytes.NewBuffer(jsonData)
 	c.Request.Body = io.NopCloser(requestBody)
 	resp, err := adaptor.DoRequest(c, meta, requestBody)
@@ -117,7 +117,7 @@ func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIReques
 	if err != nil {
 		return err, nil
 	}
-	logger.SysLog(fmt.Sprintf("testing channel #%d, response: \n%s", channel.Id, string(respBody)))
+	logger.SysLogf("testing channel #%d, response: \n%s", channel.Id, respBody)
 	return nil, nil
 }
 

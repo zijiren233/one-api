@@ -37,11 +37,11 @@ func ImageHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCo
 	}
 
 	if aliTaskResponse.Message != "" {
-		logger.SysError("aliAsyncTask err: " + string(responseBody))
+		logger.SysErrorf("aliAsyncTask err: %s", responseBody)
 		return openai.ErrorWrapper(errors.New(aliTaskResponse.Message), "ali_async_task_failed", http.StatusInternalServerError), nil
 	}
 
-	aliResponse, _, err := asyncTaskWait(aliTaskResponse.Output.TaskId, apiKey)
+	aliResponse, err := asyncTaskWait(aliTaskResponse.Output.TaskId, apiKey)
 	if err != nil {
 		return openai.ErrorWrapper(err, "ali_async_task_wait_failed", http.StatusInternalServerError), nil
 	}
@@ -69,14 +69,14 @@ func ImageHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCo
 	return nil, nil
 }
 
-func asyncTask(taskID string, key string) (*TaskResponse, error, []byte) {
+func asyncTask(taskID string, key string) (*TaskResponse, error) {
 	url := fmt.Sprintf("https://dashscope.aliyuncs.com/api/v1/tasks/%s", taskID)
 
 	var aliResponse TaskResponse
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return &aliResponse, err, nil
+		return &aliResponse, err
 	}
 
 	req.Header.Set("Authorization", "Bearer "+key)
@@ -85,40 +85,34 @@ func asyncTask(taskID string, key string) (*TaskResponse, error, []byte) {
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.SysError("aliAsyncTask client.Do err: " + err.Error())
-		return &aliResponse, err, nil
+		return &aliResponse, err
 	}
 	defer resp.Body.Close()
 
-	responseBody, err := io.ReadAll(resp.Body)
-
 	var response TaskResponse
-	err = json.Unmarshal(responseBody, &response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		logger.SysError("aliAsyncTask NewDecoder err: " + err.Error())
-		return &aliResponse, err, nil
+		return &aliResponse, err
 	}
 
-	return &response, nil, responseBody
+	return &response, nil
 }
 
-func asyncTaskWait(taskID string, key string) (*TaskResponse, []byte, error) {
+func asyncTaskWait(taskID string, key string) (*TaskResponse, error) {
 	waitSeconds := 2
 	step := 0
 	maxStep := 20
 
-	var taskResponse TaskResponse
-	var responseBody []byte
-
 	for {
 		step++
-		rsp, err, body := asyncTask(taskID, key)
-		responseBody = body
+		rsp, err := asyncTask(taskID, key)
 		if err != nil {
-			return &taskResponse, responseBody, err
+			return nil, err
 		}
 
 		if rsp.Output.TaskStatus == "" {
-			return &taskResponse, responseBody, nil
+			return rsp, nil
 		}
 
 		switch rsp.Output.TaskStatus {
@@ -129,7 +123,7 @@ func asyncTaskWait(taskID string, key string) (*TaskResponse, []byte, error) {
 		case "SUCCEEDED":
 			fallthrough
 		case "UNKNOWN":
-			return rsp, responseBody, nil
+			return rsp, nil
 		}
 		if step >= maxStep {
 			break
@@ -137,7 +131,7 @@ func asyncTaskWait(taskID string, key string) (*TaskResponse, []byte, error) {
 		time.Sleep(time.Duration(waitSeconds) * time.Second)
 	}
 
-	return nil, nil, fmt.Errorf("aliAsyncTaskWait timeout")
+	return nil, fmt.Errorf("aliAsyncTaskWait timeout")
 }
 
 func responseAli2OpenAIImage(response *TaskResponse, responseFormat string) *openai.ImageResponse {

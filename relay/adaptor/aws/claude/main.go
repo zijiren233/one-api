@@ -2,7 +2,6 @@
 package aws
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,10 +14,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
-	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/logger"
+	"github.com/songquanpeng/one-api/common/render"
 	"github.com/songquanpeng/one-api/relay/adaptor/anthropic"
 	"github.com/songquanpeng/one-api/relay/adaptor/aws/utils"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
@@ -143,20 +142,20 @@ func StreamHandler(c *gin.Context, awsCli *bedrockruntime.Client) (*relaymodel.E
 	c.Stream(func(w io.Writer) bool {
 		event, ok := <-stream.Events()
 		if !ok {
-			c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
+			render.StringData(c, "[DONE]")
 			return false
 		}
 
 		switch v := event.(type) {
 		case *types.ResponseStreamMemberChunk:
-			claudeResp := new(anthropic.StreamResponse)
-			err := json.NewDecoder(bytes.NewReader(v.Value.Bytes)).Decode(claudeResp)
+			claudeResp := anthropic.StreamResponse{}
+			err := json.Unmarshal(v.Value.Bytes, &claudeResp)
 			if err != nil {
 				logger.SysError("error unmarshalling stream response: " + err.Error())
 				return false
 			}
 
-			response, meta := anthropic.StreamResponseClaude2OpenAI(claudeResp)
+			response, meta := anthropic.StreamResponseClaude2OpenAI(&claudeResp)
 			if meta != nil {
 				usage.PromptTokens += meta.Usage.InputTokens
 				usage.CompletionTokens += meta.Usage.OutputTokens
@@ -166,7 +165,7 @@ func StreamHandler(c *gin.Context, awsCli *bedrockruntime.Client) (*relaymodel.E
 				} else { // finish_reason case
 					if len(lastToolCallChoice.Delta.ToolCalls) > 0 {
 						lastArgs := &lastToolCallChoice.Delta.ToolCalls[len(lastToolCallChoice.Delta.ToolCalls)-1].Function
-						if len(lastArgs.Arguments.(string)) == 0 { // compatible with OpenAI sending an empty object `{}` when no arguments.
+						if len(lastArgs.Arguments) == 0 { // compatible with OpenAI sending an empty object `{}` when no arguments.
 							lastArgs.Arguments = "{}"
 							response.Choices[len(response.Choices)-1].Delta.Content = nil
 							response.Choices[len(response.Choices)-1].Delta.ToolCalls = lastToolCallChoice.Delta.ToolCalls
@@ -186,18 +185,17 @@ func StreamHandler(c *gin.Context, awsCli *bedrockruntime.Client) (*relaymodel.E
 					lastToolCallChoice = choice
 				}
 			}
-			jsonStr, err := json.Marshal(response)
+			err = render.ObjectData(c, response)
 			if err != nil {
-				logger.SysError("error marshalling stream response: " + err.Error())
-				return true
+				logger.SysError("error stream response: " + err.Error())
+				return false
 			}
-			c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonStr)})
 			return true
 		case *types.UnknownUnionMember:
-			fmt.Println("unknown tag:", v.Tag)
+			logger.SysErrorf("unknown tag: %s", v.Tag)
 			return false
 		default:
-			fmt.Println("union is nil or unknown type")
+			logger.SysErrorf("union is nil or unknown type: %v", v)
 			return false
 		}
 	})

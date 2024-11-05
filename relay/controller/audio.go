@@ -17,6 +17,7 @@ import (
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/client"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/billing"
@@ -220,7 +221,7 @@ func getTextFromVerboseJSON(body []byte) (string, error) {
 }
 
 func getTextFromSRT(body []byte) (string, error) {
-	scanner := bufio.NewScanner(strings.NewReader(string(body)))
+	scanner := bufio.NewScanner(bytes.NewReader(body))
 	var builder strings.Builder
 	var textLine bool
 	for scanner.Scan() {
@@ -241,7 +242,7 @@ func getTextFromSRT(body []byte) (string, error) {
 }
 
 func getTextFromText(body []byte) (string, error) {
-	return strings.TrimSuffix(string(body), "\n"), nil
+	return strings.TrimSuffix(conv.BytesToString(body), "\n"), nil
 }
 
 func getTextFromJSON(body []byte) (string, error) {

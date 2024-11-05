@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/conv"
 
 	"gorm.io/gorm/schema"
 )
@@ -21,7 +22,7 @@ func (*JSONSerializer) Scan(ctx context.Context, field *schema.Field, dst reflec
 		case []byte:
 			bytes = v
 		case string:
-			bytes = []byte(v)
+			bytes = conv.StringToBytes(v)
 		default:
 			return fmt.Errorf("failed to unmarshal JSONB value: %#v", dbValue)
 		}

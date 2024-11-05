@@ -8,7 +8,7 @@ type Tool struct {
 
 type Function struct {
 	Parameters  any    `json:"parameters,omitempty"`
-	Arguments   any    `json:"arguments,omitempty"`
+	Arguments   string `json:"arguments,omitempty"`
 	Description string `json:"description,omitempty"`
 	Name        string `json:"name,omitempty"`
 }

@@ -8,8 +8,8 @@ type LibraryRequest struct {
 }
 
 type LibraryError struct {
-	ErrCode int    `json:"errCode"`
 	Message string `json:"message"`
+	ErrCode int    `json:"errCode"`
 }
 
 type LibraryDocument struct {
@@ -18,15 +18,15 @@ type LibraryDocument struct {
 }
 
 type LibraryResponse struct {
-	Success   bool              `json:"success"`
+	LibraryError
 	Answer    string            `json:"answer"`
 	Documents []LibraryDocument `json:"documents"`
-	LibraryError
+	Success   bool              `json:"success"`
 }
 
 type LibraryStreamResponse struct {
 	Content   string            `json:"content"`
-	Finish    bool              `json:"finish"`
 	Model     string            `json:"model"`
 	Documents []LibraryDocument `json:"documents"`
+	Finish    bool              `json:"finish"`
 }

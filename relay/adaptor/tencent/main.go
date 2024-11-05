@@ -37,11 +37,11 @@ func ConvertRequest(request model.GeneralOpenAIRequest) *ChatRequest {
 		})
 	}
 	return &ChatRequest{
-		Model:       &request.Model,
-		Stream:      &request.Stream,
+		Model:       request.Model,
+		Stream:      request.Stream,
 		Messages:    messages,
-		TopP:        &request.TopP,
-		Temperature: &request.Temperature,
+		TopP:        request.TopP,
+		Temperature: request.Temperature,
 	}
 }
 
@@ -95,14 +95,14 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	common.SetEventStreamHeaders(c)
 
 	for scanner.Scan() {
-		data := scanner.Text()
-		if len(data) < 5 || !strings.HasPrefix(data, "data:") {
+		data := scanner.Bytes()
+		if len(data) < 5 || conv.BytesToString(data[:5]) != "data:" {
 			continue
 		}
-		data = strings.TrimPrefix(data, "data:")
+		data = data[5:]
 
 		var tencentResponse ChatResponse
-		err := json.Unmarshal([]byte(data), &tencentResponse)
+		err := json.Unmarshal(data, &tencentResponse)
 		if err != nil {
 			logger.SysError("error unmarshalling stream response: " + err.Error())
 			continue
@@ -186,14 +186,14 @@ func ParseConfig(config string) (appId int64, secretId string, secretKey string,
 }
 
 func sha256hex(s string) string {
-	b := sha256.Sum256([]byte(s))
+	b := sha256.Sum256(conv.StringToBytes(s))
 	return hex.EncodeToString(b[:])
 }
 
 func hmacSha256(s, key string) string {
-	hashed := hmac.New(sha256.New, []byte(key))
-	hashed.Write([]byte(s))
-	return string(hashed.Sum(nil))
+	hashed := hmac.New(sha256.New, conv.StringToBytes(key))
+	hashed.Write(conv.StringToBytes(s))
+	return conv.BytesToString(hashed.Sum(nil))
 }
 
 func GetSign(req ChatRequest, adaptor *Adaptor, secId, secKey string) string {
@@ -206,7 +206,7 @@ func GetSign(req ChatRequest, adaptor *Adaptor, secId, secKey string) string {
 		"application/json", host, strings.ToLower(adaptor.Action))
 	signedHeaders := "content-type;host;x-tc-action"
 	payload, _ := json.Marshal(req)
-	hashedRequestPayload := sha256hex(string(payload))
+	hashedRequestPayload := sha256hex(conv.BytesToString(payload))
 	canonicalRequest := fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s",
 		httpRequestMethod,
 		canonicalURI,
@@ -233,7 +233,7 @@ func GetSign(req ChatRequest, adaptor *Adaptor, secId, secKey string) string {
 	secretDate := hmacSha256(date, "TC3"+secKey)
 	secretService := hmacSha256("hunyuan", secretDate)
 	secretKey := hmacSha256("tc3_request", secretService)
-	signature := hex.EncodeToString([]byte(hmacSha256(string2sign, secretKey)))
+	signature := hex.EncodeToString(conv.StringToBytes(hmacSha256(string2sign, secretKey)))
 
 	// build authorization
 	authorization := fmt.Sprintf("%s Credential=%s/%s, SignedHeaders=%s, Signature=%s",

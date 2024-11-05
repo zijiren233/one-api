@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/gin-gonic/gin"
@@ -65,7 +67,7 @@ func GetToken(apikey string) string {
 	token.Header["alg"] = "HS256"
 	token.Header["sign_type"] = "SIGN"
 
-	tokenString, err := token.SignedString([]byte(secret))
+	tokenString, err := token.SignedString(conv.StringToBytes(secret))
 	if err != nil {
 		return ""
 	}
@@ -152,7 +154,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		if atEOF && len(data) == 0 {
 			return 0, nil, nil
 		}
-		if i := strings.Index(string(data), "\n\n"); i >= 0 && strings.Index(string(data), ":") >= 0 {
+		if i := strings.Index(conv.BytesToString(data), "\n\n"); i >= 0 && slices.Contains(data, ':') {
 			return i + 2, data[0:i], nil
 		}
 		if atEOF {
@@ -183,7 +185,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 			} else if strings.HasPrefix(line, "meta:") {
 				metaSegment := line[5:]
 				var zhipuResponse StreamMetaResponse
-				err := json.Unmarshal([]byte(metaSegment), &zhipuResponse)
+				err := json.Unmarshal(conv.StringToBytes(metaSegment), &zhipuResponse)
 				if err != nil {
 					logger.SysError("error unmarshalling stream response: " + err.Error())
 					continue

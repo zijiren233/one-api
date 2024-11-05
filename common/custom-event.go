@@ -5,32 +5,12 @@
 package common
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/songquanpeng/one-api/common/conv"
 )
-
-type stringWriter interface {
-	io.Writer
-	writeString(string) (int, error)
-}
-
-type stringWrapper struct {
-	io.Writer
-}
-
-func (w stringWrapper) writeString(str string) (int, error) {
-	return w.Writer.Write([]byte(str))
-}
-
-func checkWriter(writer io.Writer) stringWriter {
-	if w, ok := writer.(stringWriter); ok {
-		return w
-	} else {
-		return stringWrapper{writer}
-	}
-}
 
 // Server-Sent Events
 // W3C Working Draft 29 October 2009
@@ -41,30 +21,30 @@ var (
 	noCache     = []string{"no-cache"}
 )
 
-var fieldReplacer = strings.NewReplacer(
-	"\n", "\\n",
-	"\r", "\\r")
-
 var dataReplacer = strings.NewReplacer(
 	"\n", "\ndata:",
 	"\r", "\\r")
 
 type CustomEvent struct {
-	Data  interface{}
+	Data  string
 	Event string
 	Id    string
 	Retry uint
 }
 
 func encode(writer io.Writer, event CustomEvent) error {
-	w := checkWriter(writer)
-	return writeData(w, event.Data)
+	return writeData(writer, event.Data)
 }
 
-func writeData(w stringWriter, data interface{}) error {
-	dataReplacer.WriteString(w, fmt.Sprint(data))
-	if strings.HasPrefix(data.(string), "data") {
-		w.writeString("\n\n")
+const nn = "\n\n"
+
+var nnBytes = conv.StringToBytes(nn)
+
+func writeData(w io.Writer, data string) error {
+	dataReplacer.WriteString(w, data)
+	if strings.HasPrefix(data, "data") {
+		_, err := w.Write(nnBytes)
+		return err
 	}
 	return nil
 }

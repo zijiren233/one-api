@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,9 +16,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/common/random"
+	"github.com/songquanpeng/one-api/common/render"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/constant"
 	"github.com/songquanpeng/one-api/relay/meta"
@@ -129,8 +130,8 @@ func streamResponseXunfei2OpenAI(xunfeiResponse *ChatResponse) *openai.ChatCompl
 
 func buildXunfeiAuthUrl(hostUrl string, apiKey, apiSecret string) string {
 	HmacWithShaToBase64 := func(algorithm, data, key string) string {
-		mac := hmac.New(sha256.New, []byte(key))
-		mac.Write([]byte(data))
+		mac := hmac.New(sha256.New, conv.StringToBytes(key))
+		mac.Write(conv.StringToBytes(data))
 		encodeData := mac.Sum(nil)
 		return base64.StdEncoding.EncodeToString(encodeData)
 	}
@@ -144,7 +145,7 @@ func buildXunfeiAuthUrl(hostUrl string, apiKey, apiSecret string) string {
 	sha := HmacWithShaToBase64("hmac-sha256", sign, apiSecret)
 	authUrl := fmt.Sprintf("hmac username=\"%s\", algorithm=\"%s\", headers=\"%s\", signature=\"%s\"", apiKey,
 		"hmac-sha256", "host date request-line", sha)
-	authorization := base64.StdEncoding.EncodeToString([]byte(authUrl))
+	authorization := base64.StdEncoding.EncodeToString(conv.StringToBytes(authUrl))
 	v := url.Values{}
 	v.Add("host", ul.Host)
 	v.Add("date", date)
@@ -158,31 +159,40 @@ func StreamHandler(c *gin.Context, meta *meta.Meta, textRequest model.GeneralOpe
 	if err != nil {
 		return openai.ErrorWrapper(err, "invalid_model_name", http.StatusBadRequest), nil
 	}
-	dataChan, err := xunfeiMakeRequest(textRequest, domain, authUrl, appId)
+	conn, err := xunfeiMakeRequest(textRequest, domain, authUrl, appId)
 	if err != nil {
 		return openai.ErrorWrapper(err, "xunfei_request_failed", http.StatusInternalServerError), nil
 	}
+	defer conn.Close()
 	common.SetEventStreamHeaders(c)
-	var usage model.Usage
-	c.Stream(func(w io.Writer) bool {
-		xunfeiResponse, ok := <-dataChan
-		if !ok {
-			return false
-		}
-		usage.PromptTokens += xunfeiResponse.Payload.Usage.Text.PromptTokens
-		usage.CompletionTokens += xunfeiResponse.Payload.Usage.Text.CompletionTokens
-		usage.TotalTokens += xunfeiResponse.Payload.Usage.Text.TotalTokens
-		response := streamResponseXunfei2OpenAI(&xunfeiResponse)
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			logger.SysError("error marshalling stream response: " + err.Error())
-			return true
-		}
-		c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonResponse)})
-		return true
-	})
 
-	c.Render(-1, common.CustomEvent{Data: "data: [DONE]"})
+	var usage model.Usage
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+		var response ChatResponse
+		err = json.Unmarshal(msg, &response)
+		if err != nil {
+			logger.SysError("error unmarshalling stream response: " + err.Error())
+			break
+		}
+		if response.Header.Status == 2 {
+			return openai.ErrorWrapper(fmt.Errorf("xunfei request failed: %s, code: %d", response.Header.Message, response.Header.Code), fmt.Sprintf("xunfei_request_failed_%d", response.Header.Status), http.StatusInternalServerError), nil
+		}
+		usage.PromptTokens += response.Payload.Usage.Text.PromptTokens
+		usage.CompletionTokens += response.Payload.Usage.Text.CompletionTokens
+		usage.TotalTokens += response.Payload.Usage.Text.TotalTokens
+		openaiResponse := streamResponseXunfei2OpenAI(&response)
+		err = render.ObjectData(c, openaiResponse)
+		if err != nil {
+			logger.SysError("error rendering stream response: " + err.Error())
+			return openai.ErrorWrapper(err, "render_stream_response_failed", http.StatusInternalServerError), nil
+		}
+	}
+
+	render.Done(c)
 
 	return nil, &usage
 }
@@ -192,28 +202,40 @@ func Handler(c *gin.Context, meta *meta.Meta, textRequest model.GeneralOpenAIReq
 	if err != nil {
 		return openai.ErrorWrapper(err, "invalid_model_name", http.StatusBadRequest), nil
 	}
-	dataChan, err := xunfeiMakeRequest(textRequest, domain, authUrl, appId)
+	conn, err := xunfeiMakeRequest(textRequest, domain, authUrl, appId)
 	if err != nil {
 		return openai.ErrorWrapper(err, "xunfei_request_failed", http.StatusInternalServerError), nil
 	}
+	defer conn.Close()
+
 	var usage model.Usage
 	var content string
-	for xunfeiResponse := range dataChan {
-		if xunfeiResponse.Header.Status == 2 {
-			return openai.ErrorWrapper(fmt.Errorf("xunfei request failed: %s, code: %d", xunfeiResponse.Header.Message, xunfeiResponse.Header.Code), fmt.Sprintf("xunfei_request_failed_%d", xunfeiResponse.Header.Status), http.StatusInternalServerError), nil
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+		var response ChatResponse
+		err = json.Unmarshal(msg, &response)
+		if err != nil {
+			logger.SysError("error unmarshalling response: " + err.Error())
+			break
+		}
+		if response.Header.Status == 2 {
+			return openai.ErrorWrapper(fmt.Errorf("xunfei request failed: %s, code: %d", response.Header.Message, response.Header.Code), fmt.Sprintf("xunfei_request_failed_%d", response.Header.Status), http.StatusInternalServerError), nil
 		}
 
-		if len(xunfeiResponse.Payload.Choices.Text) == 0 {
+		if len(response.Payload.Choices.Text) == 0 {
 			return openai.ErrorWrapper(errors.New("xunfei empty response detected"), "xunfei_empty_response_detected", http.StatusInternalServerError), nil
 		}
 
-		content += xunfeiResponse.Payload.Choices.Text[0].Content
-		usage.PromptTokens += xunfeiResponse.Payload.Usage.Text.PromptTokens
-		usage.CompletionTokens += xunfeiResponse.Payload.Usage.Text.CompletionTokens
-		usage.TotalTokens += xunfeiResponse.Payload.Usage.Text.TotalTokens
+		content += response.Payload.Choices.Text[0].Content
+		usage.PromptTokens += response.Payload.Usage.Text.PromptTokens
+		usage.CompletionTokens += response.Payload.Usage.Text.CompletionTokens
+		usage.TotalTokens += response.Payload.Usage.Text.TotalTokens
 
-		response := responseXunfei2OpenAI(&xunfeiResponse)
-		jsonResponse, err := json.Marshal(response)
+		openaiResponse := responseXunfei2OpenAI(&response)
+		jsonResponse, err := json.Marshal(openaiResponse)
 		if err != nil {
 			return openai.ErrorWrapper(err, "marshal_response_body_failed", http.StatusInternalServerError), nil
 		}
@@ -224,7 +246,7 @@ func Handler(c *gin.Context, meta *meta.Meta, textRequest model.GeneralOpenAIReq
 	return nil, &usage
 }
 
-func xunfeiMakeRequest(textRequest model.GeneralOpenAIRequest, domain, authUrl, appId string) (chan ChatResponse, error) {
+func xunfeiMakeRequest(textRequest model.GeneralOpenAIRequest, domain, authUrl, appId string) (*websocket.Conn, error) {
 	d := websocket.Dialer{
 		HandshakeTimeout: 5 * time.Second,
 	}
@@ -239,31 +261,7 @@ func xunfeiMakeRequest(textRequest model.GeneralOpenAIRequest, domain, authUrl, 
 		return nil, err
 	}
 
-	dataChan := make(chan ChatResponse)
-	go func() {
-		defer conn.Close()
-		defer close(dataChan)
-		for {
-			_, msg, err := conn.ReadMessage()
-			if err != nil {
-				logger.SysError("error reading stream response: " + err.Error())
-				break
-			}
-			fmt.Println(string(msg))
-			var response ChatResponse
-			err = json.Unmarshal(msg, &response)
-			if err != nil {
-				logger.SysError("error unmarshalling stream response: " + err.Error())
-				break
-			}
-			dataChan <- response
-			if response.Header.Status == 2 {
-				return
-			}
-		}
-	}()
-
-	return dataChan, nil
+	return conn, nil
 }
 
 func getXunfeiAuthUrl(modelName string, apiKey string, apiSecret string) (string, string, error) {

@@ -112,15 +112,10 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		responseText = palmResponse.Candidates[0].Content
 	}
 
-	jsonResponse, err := json.Marshal(fullTextResponse)
+	err = render.ObjectData(c, fullTextResponse)
 	if err != nil {
-		logger.SysError("error marshalling stream response: " + err.Error())
-		return openai.ErrorWrapper(err, "marshal_response_body_failed", http.StatusInternalServerError), ""
-	}
-
-	err = render.ObjectData(c, string(jsonResponse))
-	if err != nil {
-		logger.SysError(err.Error())
+		logger.SysError("error stream response: " + err.Error())
+		return openai.ErrorWrapper(err, "stream_response_failed", http.StatusInternalServerError), ""
 	}
 
 	render.Done(c)

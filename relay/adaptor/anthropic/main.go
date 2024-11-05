@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
+	"slices"
 
 	json "github.com/json-iterator/go"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/render"
 
 	"github.com/gin-gonic/gin"
@@ -111,7 +112,7 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
 			claudeMessage.Content = append(claudeMessage.Content, content)
 			for i := range message.ToolCalls {
 				inputParam := make(map[string]any)
-				_ = json.Unmarshal([]byte(message.ToolCalls[i].Function.Arguments.(string)), &inputParam)
+				_ = json.Unmarshal(conv.StringToBytes(message.ToolCalls[i].Function.Arguments), &inputParam)
 				claudeMessage.Content = append(claudeMessage.Content, Content{
 					Type:  "tool_use",
 					Id:    message.ToolCalls[i].Id,
@@ -222,7 +223,7 @@ func ResponseClaude2OpenAI(claudeResponse *Response) *openai.TextResponse {
 				Type: "function", // compatible with other OpenAI derivative applications
 				Function: model.Function{
 					Name:      v.Name,
-					Arguments: string(args),
+					Arguments: conv.BytesToString(args),
 				},
 			})
 		}
@@ -254,7 +255,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 		if atEOF && len(data) == 0 {
 			return 0, nil, nil
 		}
-		if i := strings.Index(string(data), "\n"); i >= 0 {
+		if i := slices.Index(data, '\n'); i >= 0 {
 			return i + 1, data[0:i], nil
 		}
 		if atEOF {
@@ -271,15 +272,14 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	var lastToolCallChoice openai.ChatCompletionsStreamResponseChoice
 
 	for scanner.Scan() {
-		data := scanner.Text()
-		if len(data) < 6 || !strings.HasPrefix(data, "data:") {
+		data := scanner.Bytes()
+		if len(data) < 5 || conv.BytesToString(data[:5]) != "data:" {
 			continue
 		}
-		data = strings.TrimPrefix(data, "data:")
-		data = strings.TrimSpace(data)
+		data = data[5:]
 
 		var claudeResponse StreamResponse
-		err := json.Unmarshal([]byte(data), &claudeResponse)
+		err := json.Unmarshal(data, &claudeResponse)
 		if err != nil {
 			logger.SysError("error unmarshalling stream response: " + err.Error())
 			continue
@@ -296,7 +296,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 			} else { // finish_reason case
 				if len(lastToolCallChoice.Delta.ToolCalls) > 0 {
 					lastArgs := &lastToolCallChoice.Delta.ToolCalls[len(lastToolCallChoice.Delta.ToolCalls)-1].Function
-					if len(lastArgs.Arguments.(string)) == 0 { // compatible with OpenAI sending an empty object `{}` when no arguments.
+					if len(lastArgs.Arguments) == 0 { // compatible with OpenAI sending an empty object `{}` when no arguments.
 						lastArgs.Arguments = "{}"
 						response.Choices[len(response.Choices)-1].Delta.Content = nil
 						response.Choices[len(response.Choices)-1].Delta.ToolCalls = lastToolCallChoice.Delta.ToolCalls

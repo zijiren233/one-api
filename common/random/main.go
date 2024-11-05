@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/songquanpeng/one-api/common/conv"
 )
 
 func GetUUID() string {
@@ -31,7 +32,7 @@ func GenerateKey() string {
 		}
 		key[i+16] = c
 	}
-	return string(key)
+	return conv.BytesToString(key)
 }
 
 func GetRandomString(length int) string {
@@ -39,7 +40,7 @@ func GetRandomString(length int) string {
 	for i := 0; i < length; i++ {
 		key[i] = keyChars[rand.Intn(len(keyChars))]
 	}
-	return string(key)
+	return conv.BytesToString(key)
 }
 
 func GetRandomNumberString(length int) string {
@@ -47,7 +48,7 @@ func GetRandomNumberString(length int) string {
 	for i := 0; i < length; i++ {
 		key[i] = keyNumbers[rand.Intn(len(keyNumbers))]
 	}
-	return string(key)
+	return conv.BytesToString(key)
 }
 
 // RandRange returns a random number between min and max (max is not included)
