@@ -2,9 +2,7 @@ package ollama
 
 import (
 	"bufio"
-	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -104,6 +102,8 @@ func streamResponseOllama2OpenAI(ollamaResponse *ChatResponse) *openai.ChatCompl
 }
 
 func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
+	defer resp.Body.Close()
+
 	var usage model.Usage
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
@@ -153,11 +153,6 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 
 	render.Done(c)
 
-	err := resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
-
 	return nil, &usage
 }
 
@@ -176,15 +171,12 @@ func ConvertEmbeddingRequest(request model.GeneralOpenAIRequest) *EmbeddingReque
 }
 
 func EmbeddingHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
+	defer resp.Body.Close()
+
 	var ollamaResponse EmbeddingResponse
 	err := json.NewDecoder(resp.Body).Decode(&ollamaResponse)
 	if err != nil {
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
 	}
 
 	if ollamaResponse.Error != "" {
@@ -229,18 +221,10 @@ func embeddingResponseOllama2OpenAI(response *EmbeddingResponse) *openai.Embeddi
 }
 
 func Handler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
-	ctx := context.TODO()
+	defer resp.Body.Close()
+
 	var ollamaResponse ChatResponse
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
-	}
-	logger.Debugf(ctx, "ollama response: %s", responseBody)
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
-	err = json.Unmarshal(responseBody, &ollamaResponse)
+	err := json.NewDecoder(resp.Body).Decode(&ollamaResponse)
 	if err != nil {
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
 	}

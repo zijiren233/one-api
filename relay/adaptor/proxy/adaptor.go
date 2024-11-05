@@ -9,10 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/songquanpeng/one-api/relay/adaptor"
-	channelhelper "github.com/songquanpeng/one-api/relay/adaptor"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
-	relaymodel "github.com/songquanpeng/one-api/relay/model"
 )
 
 var _ adaptor.Adaptor = new(Adaptor)
@@ -29,6 +27,8 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Meta) (usage *model.Usage, err *model.ErrorWithStatusCode) {
+	defer resp.Body.Close()
+
 	for k, v := range resp.Header {
 		for _, vv := range v {
 			c.Writer.Header().Set(k, vv)
@@ -37,9 +37,9 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 
 	c.Writer.WriteHeader(resp.StatusCode)
 	if _, gerr := io.Copy(c.Writer, resp.Body); gerr != nil {
-		return nil, &relaymodel.ErrorWithStatusCode{
+		return nil, &model.ErrorWithStatusCode{
 			StatusCode: http.StatusInternalServerError,
-			Error: relaymodel.Error{
+			Error: model.Error{
 				Message: gerr.Error(),
 			},
 		}
@@ -84,5 +84,5 @@ func (a *Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) 
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Reader) (*http.Response, error) {
-	return channelhelper.DoRequestHelper(a, c, meta, requestBody)
+	return adaptor.DoRequestHelper(a, c, meta, requestBody)
 }

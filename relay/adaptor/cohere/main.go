@@ -3,7 +3,6 @@ package cohere
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -132,6 +131,8 @@ func ResponseCohere2OpenAI(cohereResponse *Response) *openai.TextResponse {
 }
 
 func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
+	defer resp.Body.Close()
+
 	createdTime := helper.GetTimestamp()
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Split(bufio.ScanLines)
@@ -176,25 +177,14 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 
 	render.Done(c)
 
-	err := resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
-
 	return nil, &usage
 }
 
 func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *model.Usage) {
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
+	defer resp.Body.Close()
+
 	var cohereResponse Response
-	err = json.Unmarshal(responseBody, &cohereResponse)
+	err := json.NewDecoder(resp.Body).Decode(&cohereResponse)
 	if err != nil {
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
 	}

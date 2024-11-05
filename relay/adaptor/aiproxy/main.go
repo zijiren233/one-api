@@ -3,7 +3,6 @@ package aiproxy
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"net/http"
 	"slices"
 	"strconv"
@@ -92,6 +91,8 @@ func streamResponseAIProxyLibrary2OpenAI(response *LibraryStreamResponse) *opena
 }
 
 func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
+	defer resp.Body.Close()
+
 	var usage model.Usage
 	var documents []LibraryDocument
 	scanner := bufio.NewScanner(resp.Body)
@@ -144,25 +145,14 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	}
 	render.Done(c)
 
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
-
 	return nil, &usage
 }
 
 func Handler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
+	defer resp.Body.Close()
+
 	var AIProxyLibraryResponse LibraryResponse
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
-	err = json.Unmarshal(responseBody, &AIProxyLibraryResponse)
+	err := json.NewDecoder(resp.Body).Decode(&AIProxyLibraryResponse)
 	if err != nil {
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
 	}

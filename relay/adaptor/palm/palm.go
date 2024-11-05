@@ -2,7 +2,6 @@ package palm
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 
 	json "github.com/json-iterator/go"
@@ -77,33 +76,20 @@ func streamResponsePaLM2OpenAI(palmResponse *ChatResponse) *openai.ChatCompletio
 }
 
 func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, string) {
+	defer resp.Body.Close()
+
 	responseText := ""
 	responseId := fmt.Sprintf("chatcmpl-%s", random.GetUUID())
 	createdTime := helper.GetTimestamp()
 
-	common.SetEventStreamHeaders(c)
-
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.SysError("error reading stream response: " + err.Error())
-		err = resp.Body.Close()
-		if err != nil {
-			return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), ""
-		}
-		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), ""
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), ""
-	}
-
 	var palmResponse ChatResponse
-	err = json.Unmarshal(responseBody, &palmResponse)
+	err := json.NewDecoder(resp.Body).Decode(&palmResponse)
 	if err != nil {
 		logger.SysError("error unmarshalling stream response: " + err.Error())
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), ""
 	}
+
+	common.SetEventStreamHeaders(c)
 
 	fullTextResponse := streamResponsePaLM2OpenAI(&palmResponse)
 	fullTextResponse.Id = responseId
@@ -124,16 +110,10 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 }
 
 func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *model.Usage) {
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
+	defer resp.Body.Close()
+
 	var palmResponse ChatResponse
-	err = json.Unmarshal(responseBody, &palmResponse)
+	err := json.NewDecoder(resp.Body).Decode(&palmResponse)
 	if err != nil {
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
 	}

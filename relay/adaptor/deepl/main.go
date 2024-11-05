@@ -1,7 +1,6 @@
 package deepl
 
 import (
-	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -69,6 +68,7 @@ func ResponseDeepL2OpenAI(deeplResponse *Response) *openai.TextResponse {
 
 func StreamHandler(c *gin.Context, resp *http.Response, modelName string) *model.ErrorWithStatusCode {
 	defer resp.Body.Close()
+
 	var deeplResponse Response
 	err := json.NewDecoder(resp.Body).Decode(&deeplResponse)
 	if err != nil {
@@ -87,16 +87,10 @@ func StreamHandler(c *gin.Context, resp *http.Response, modelName string) *model
 }
 
 func Handler(c *gin.Context, resp *http.Response, modelName string) *model.ErrorWithStatusCode {
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
-	}
+	defer resp.Body.Close()
+
 	var deeplResponse Response
-	err = json.Unmarshal(responseBody, &deeplResponse)
+	err := json.NewDecoder(resp.Body).Decode(&deeplResponse)
 	if err != nil {
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError)
 	}

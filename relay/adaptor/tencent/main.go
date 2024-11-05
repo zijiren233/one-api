@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -88,6 +87,8 @@ func streamResponseTencent2OpenAI(TencentResponse *ChatResponse) *openai.ChatCom
 }
 
 func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, string) {
+	defer resp.Body.Close()
+
 	var responseText string
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Split(bufio.ScanLines)
@@ -125,40 +126,28 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 
 	render.Done(c)
 
-	err := resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), ""
-	}
-
 	return nil, responseText
 }
 
 func Handler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
-	var TencentResponse ChatResponse
+	defer resp.Body.Close()
+
 	var responseP ChatResponseP
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
-	err = json.Unmarshal(responseBody, &responseP)
+	err := json.NewDecoder(resp.Body).Decode(&responseP)
 	if err != nil {
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
 	}
-	TencentResponse = responseP.Response
-	if TencentResponse.Error.Code != 0 {
+
+	if responseP.Response.Error.Code != 0 {
 		return &model.ErrorWithStatusCode{
 			Error: model.Error{
-				Message: TencentResponse.Error.Message,
-				Code:    TencentResponse.Error.Code,
+				Message: responseP.Response.Error.Message,
+				Code:    responseP.Response.Error.Code,
 			},
 			StatusCode: resp.StatusCode,
 		}, nil
 	}
-	fullTextResponse := responseTencent2OpenAI(&TencentResponse)
+	fullTextResponse := responseTencent2OpenAI(&responseP.Response)
 	fullTextResponse.Model = "hunyuan"
 	jsonResponse, err := json.Marshal(fullTextResponse)
 	if err != nil {
