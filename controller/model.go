@@ -13,6 +13,7 @@ import (
 	relay "github.com/songquanpeng/one-api/relay"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/apitype"
+	billingPrice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
@@ -127,11 +128,66 @@ func BuiltinModels(c *gin.Context) {
 	})
 }
 
+type modelPrice struct {
+	Prompt     float64 `json:"prompt"`
+	Completion float64 `json:"completion"`
+}
+
+func ModelPrice(c *gin.Context) {
+	bill := make(map[string]*modelPrice)
+	for model, price := range billingPrice.GetModelPriceMap() {
+		bill[model] = &modelPrice{
+			Prompt:     price,
+			Completion: price,
+		}
+	}
+	for model, price := range billingPrice.GetCompletionPriceMap() {
+		if _, ok := bill[model]; !ok {
+			continue
+		}
+		bill[model].Completion = price
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    bill,
+	})
+}
+
 func EnabledType2Models(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 		"data":    model.CacheGetType2Models(),
+	})
+}
+
+func EnabledType2ModelsAndPrice(c *gin.Context) {
+	type2Models := model.CacheGetType2Models()
+	result := make(map[int]map[string]*modelPrice)
+
+	modelPriceMap := billingPrice.GetModelPriceMap()
+	completionPriceMap := billingPrice.GetCompletionPriceMap()
+
+	for channelType, models := range type2Models {
+		result[channelType] = make(map[string]*modelPrice)
+		for _, modelName := range models {
+			if price, ok := modelPriceMap[modelName]; ok {
+				result[channelType][modelName] = &modelPrice{
+					Prompt:     price,
+					Completion: price,
+				}
+				if completionPrice, ok := completionPriceMap[modelName]; ok {
+					result[channelType][modelName].Completion = completionPrice
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    result,
 	})
 }
 
@@ -172,6 +228,32 @@ func EnabledModels(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data":    model.CacheGetAllModels(),
+	})
+}
+
+func EnabledModelsAndPrice(c *gin.Context) {
+	enabledModels := model.CacheGetAllModels()
+	result := make(map[string]*modelPrice)
+
+	modelPriceMap := billingPrice.GetModelPriceMap()
+	completionPriceMap := billingPrice.GetCompletionPriceMap()
+
+	for _, modelName := range enabledModels {
+		if price, ok := modelPriceMap[modelName]; ok {
+			result[modelName] = &modelPrice{
+				Prompt:     price,
+				Completion: price,
+			}
+			if completionPrice, ok := completionPriceMap[modelName]; ok {
+				result[modelName].Completion = completionPrice
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    result,
 	})
 }
 

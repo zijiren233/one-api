@@ -18,8 +18,11 @@ func SetApiRouter(router *gin.Engine) {
 	{
 		apiRouter.GET("/status", controller.GetStatus)
 		apiRouter.GET("/models", controller.BuiltinModels)
+		apiRouter.GET("/models/price", controller.ModelPrice)
 		apiRouter.GET("/models/enabled", controller.EnabledModels)
+		apiRouter.GET("/models/enabled/price", controller.EnabledModelsAndPrice)
 		apiRouter.GET("/models/enabled/channel", controller.EnabledType2Models)
+		apiRouter.GET("/models/enabled/channel/price", controller.EnabledType2ModelsAndPrice)
 		apiRouter.GET("/models/enabled/default", controller.ChannelDefaultModels)
 		apiRouter.GET("/models/enabled/default/:type", controller.ChannelDefaultModelsByType)
 
