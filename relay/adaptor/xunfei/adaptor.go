@@ -1,71 +1,62 @@
 package xunfei
 
 import (
-	"errors"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/relay/adaptor"
-	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
 )
 
 type Adaptor struct {
-	request *model.GeneralOpenAIRequest
-	meta    *meta.Meta
+	meta *meta.Meta
 }
 
 func (a *Adaptor) Init(meta *meta.Meta) {
 	a.meta = meta
 }
 
+const reqUrl = "https://spark-api-open.xf-yun.com/v1/chat/completions"
+
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
-	return "", nil
+	return reqUrl, nil
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *meta.Meta) error {
 	adaptor.SetupCommonRequestHeader(c, req, meta)
-	// check DoResponse for auth part
+	req.Header.Set("Authorization", "Bearer "+meta.APIKey)
 	return nil
 }
 
 func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.GeneralOpenAIRequest) (any, error) {
-	if request == nil {
-		return nil, errors.New("request is nil")
+	domain, err := getXunfeiDomain(request.Model)
+	if err != nil {
+		return nil, err
 	}
-	a.request = request
-	return nil, nil
+	request.Model = domain
+	return request, nil
 }
 
 func (a *Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) {
-	if request == nil {
-		return nil, errors.New("request is nil")
+	domain, err := getXunfeiDomain(request.Model)
+	if err != nil {
+		return nil, err
 	}
+	request.Model = domain
 	return request, nil
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Reader) (*http.Response, error) {
-	// xunfei's request is not http request, so we don't need to do anything here
-	dummyResp := &http.Response{}
-	dummyResp.StatusCode = http.StatusOK
-	return dummyResp, nil
+	return adaptor.DoRequestHelper(a, c, meta, requestBody)
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Meta) (usage *model.Usage, err *model.ErrorWithStatusCode) {
-	splits := strings.Split(meta.APIKey, "|")
-	if len(splits) != 3 {
-		return nil, openai.ErrorWrapper(errors.New("invalid auth"), "invalid_auth", http.StatusBadRequest)
-	}
-	if a.request == nil {
-		return nil, openai.ErrorWrapper(errors.New("request is nil"), "request_is_nil", http.StatusBadRequest)
-	}
 	if meta.IsStream {
-		err, usage = StreamHandler(c, meta, *a.request, splits[0], splits[1], splits[2])
+		err, usage = StreamHandler(c, resp, meta.PromptTokens, meta.ActualModelName)
 	} else {
-		err, usage = Handler(c, meta, *a.request, splits[0], splits[1], splits[2])
+		err, usage = Handler(c, resp, meta.PromptTokens, meta.ActualModelName)
 	}
 	return
 }

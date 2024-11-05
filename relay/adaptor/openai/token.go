@@ -21,6 +21,14 @@ var (
 	tokenEncoderLock    sync.RWMutex
 )
 
+func init() {
+	gpt35TokenEncoder, err := tiktoken.EncodingForModel("gpt-3.5-turbo")
+	if err != nil {
+		logger.FatalLog(fmt.Sprintf("failed to get gpt-3.5-turbo token encoder: %s", err.Error()))
+	}
+	defaultTokenEncoder = gpt35TokenEncoder
+}
+
 func getTokenEncoder(model string) *tiktoken.Tiktoken {
 	tokenEncoderLock.RLock()
 	tokenEncoder, ok := tokenEncoderMap[model]

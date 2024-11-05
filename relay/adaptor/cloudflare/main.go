@@ -2,7 +2,6 @@ package cloudflare
 
 import (
 	"bufio"
-	"io"
 	"net/http"
 
 	json "github.com/json-iterator/go"
@@ -30,6 +29,8 @@ func ConvertCompletionsRequest(textRequest model.GeneralOpenAIRequest) *Request 
 }
 
 func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *model.Usage) {
+	defer resp.Body.Close()
+
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Split(bufio.ScanLines)
 
@@ -73,29 +74,19 @@ func StreamHandler(c *gin.Context, resp *http.Response, promptTokens int, modelN
 
 	render.Done(c)
 
-	err := resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
-
 	usage := openai.ResponseText2Usage(responseText, responseModel, promptTokens)
 	return nil, usage
 }
 
 func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *model.Usage) {
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
+	defer resp.Body.Close()
+
 	var response openai.TextResponse
-	err = json.Unmarshal(responseBody, &response)
+	err := json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
 	}
+
 	response.Model = modelName
 	var responseText string
 	for _, v := range response.Choices {
