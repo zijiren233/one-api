@@ -282,3 +282,31 @@ func DeleteHistoryLogs(c *gin.Context) {
 		"data":    count,
 	})
 }
+
+func SearchConsumeError(c *gin.Context) {
+	keyword := c.Query("keyword")
+	group := c.Query("group")
+	tokenName := c.Query("token_name")
+	modelName := c.Query("model_name")
+	content := c.Query("content")
+	tokenId, _ := strconv.Atoi(c.Query("token_id"))
+	usedAmount, _ := strconv.ParseFloat(c.Query("used_amount"), 64)
+	page, _ := strconv.Atoi(c.Query("page"))
+	perPage, _ := strconv.Atoi(c.Query("per_page"))
+	order := c.Query("order")
+	errors, total, err := model.SearchConsumeError(keyword, group, tokenName, modelName, content, usedAmount, tokenId, page, perPage, order)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"errors": errors,
+			"total":  total,
+		},
+	})
+}

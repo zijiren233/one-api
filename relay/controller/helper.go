@@ -101,6 +101,10 @@ func postConsumeAmount(ctx context.Context, postGroupConsumer balance.PostGroupC
 			_amount, err := postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)
 			if err != nil {
 				logger.Error(ctx, "error consuming token remain amount: "+err.Error())
+				err = model.CreateConsumeError(meta.Group, meta.TokenName, meta.OriginModelName, err.Error(), amount, meta.TokenId)
+				if err != nil {
+					logger.Error(ctx, "failed to create consume error: "+err.Error())
+				}
 			} else {
 				amount = _amount
 			}

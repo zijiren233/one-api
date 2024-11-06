@@ -88,6 +88,7 @@ func SetApiRouter(router *gin.Engine) {
 			logsRoute.DELETE("/", controller.DeleteHistoryLogs)
 			logsRoute.GET("/stat", controller.GetLogsStat)
 			logsRoute.GET("/search", controller.SearchLogs)
+			logsRoute.GET("/consume_error", controller.SearchConsumeError)
 		}
 		logRoute := apiRouter.Group("/log")
 		{

@@ -13,7 +13,11 @@ func PostConsumeAmount(ctx context.Context, postGroupConsumer balance.PostGroupC
 		// amountDelta is remaining amount to be consumed
 		_amount, err := postGroupConsumer.PostGroupConsume(ctx, tokenName, amount)
 		if err != nil {
-			logger.SysError("error consuming token remain quota: " + err.Error())
+			logger.Error(ctx, "error consuming token remain quota: "+err.Error())
+			err = model.CreateConsumeError(group, tokenName, modelName, err.Error(), amount, tokenId)
+			if err != nil {
+				logger.Error(ctx, "failed to create consume error: "+err.Error())
+			}
 		} else {
 			amount = _amount
 		}

@@ -169,13 +169,17 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 
 		_amount, err := postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)
 		if err != nil {
-			logger.SysError("error consuming token remain balance: " + err.Error())
+			logger.Error(ctx, "error consuming token remain balance: "+err.Error())
+			err = model.CreateConsumeError(meta.Group, meta.TokenName, imageRequest.Model, err.Error(), amount, meta.TokenId)
+			if err != nil {
+				logger.Error(ctx, "failed to create consume error: "+err.Error())
+			}
 		} else {
 			amount = _amount
 		}
 		err = model.BatchRecordConsume(ctx, meta.Group, resp.StatusCode, meta.ChannelId, imageRequest.N, 0, imageRequest.Model, meta.TokenId, meta.TokenName, amount, imageCostPrice, 0, c.Request.URL.Path, imageRequest.Size)
 		if err != nil {
-			logger.SysError("failed to record consume log: " + err.Error())
+			logger.Error(ctx, "failed to record consume log: "+err.Error())
 		}
 	}(c.Request.Context())
 

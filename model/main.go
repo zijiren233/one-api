@@ -175,7 +175,10 @@ func InitLogDB() {
 
 func migrateLOGDB() error {
 	var err error
-	if err = LOG_DB.AutoMigrate(&Log{}); err != nil {
+	if err = LOG_DB.AutoMigrate(
+		&Log{},
+		&ConsumeError{},
+	); err != nil {
 		return err
 	}
 	return nil
