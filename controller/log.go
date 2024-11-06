@@ -293,8 +293,11 @@ func SearchConsumeError(c *gin.Context) {
 	usedAmount, _ := strconv.ParseFloat(c.Query("used_amount"), 64)
 	page, _ := strconv.Atoi(c.Query("page"))
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
+	if perPage <= 0 {
+		perPage = 10
+	}
 	order := c.Query("order")
-	errors, total, err := model.SearchConsumeError(keyword, group, tokenName, modelName, content, usedAmount, tokenId, page, perPage, order)
+	logs, total, err := model.SearchConsumeError(keyword, group, tokenName, modelName, content, usedAmount, tokenId, page, perPage, order)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -305,8 +308,8 @@ func SearchConsumeError(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"errors": errors,
-			"total":  total,
+			"logs":  logs,
+			"total": total,
 		},
 	})
 }
