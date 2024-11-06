@@ -34,8 +34,6 @@ func relayHelper(c *gin.Context, relayMode int) *model.ErrorWithStatusCode {
 		fallthrough
 	case relaymode.AudioTranscription:
 		err = controller.RelayAudioHelper(c, relayMode)
-	case relaymode.Proxy:
-		err = controller.RelayProxyHelper(c, relayMode)
 	default:
 		err = controller.RelayTextHelper(c)
 	}
@@ -136,7 +134,7 @@ func processChannelRelayError(ctx context.Context, group string, channelId int, 
 func RelayNotImplemented(c *gin.Context) {
 	err := model.Error{
 		Message: "API not implemented",
-		Type:    "one_api_error",
+		Type:    "aiproxy_error",
 		Param:   "",
 		Code:    "api_not_implemented",
 	}

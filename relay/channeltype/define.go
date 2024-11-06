@@ -44,7 +44,6 @@ const (
 	Doubao
 	Novita
 	VertextAI
-	Proxy
 	SiliconFlow
 	Dummy
 )

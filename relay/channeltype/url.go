@@ -1,55 +1,53 @@
 package channeltype
 
-var ChannelBaseURLs = []string{
-	"",                              // 0
-	"https://api.openai.com",        // 1
-	"https://oa.api2d.net",          // 2
-	"",                              // 3
-	"https://api.closeai-proxy.xyz", // 4
-	"https://api.openai-sb.com",     // 5
-	"https://api.openaimax.com",     // 6
-	"https://api.ohmygpt.com",       // 7
-	"",                              // 8
-	"https://api.caipacity.com",     // 9
-	"https://api.aiproxy.io",        // 10
-	"https://generativelanguage.googleapis.com", // 11
-	"https://api.api2gpt.com",                   // 12
-	"https://api.aigc2d.com",                    // 13
-	"https://api.anthropic.com",                 // 14
-	"https://aip.baidubce.com",                  // 15
-	"https://open.bigmodel.cn",                  // 16
-	"https://dashscope.aliyuncs.com",            // 17
-	"https://spark-api-open.xf-yun.com",         // 18
-	"https://ai.360.cn",                         // 19
-	"https://openrouter.ai/api",                 // 20
-	"https://api.aiproxy.io",                    // 21
-	"https://fastgpt.run/api/openapi",           // 22
-	"https://hunyuan.tencentcloudapi.com",       // 23
-	"https://generativelanguage.googleapis.com", // 24
-	"https://api.moonshot.cn",                   // 25
-	"https://api.baichuan-ai.com",               // 26
-	"https://api.minimax.chat",                  // 27
-	"https://api.mistral.ai",                    // 28
-	"https://api.groq.com/openai",               // 29
-	"http://localhost:11434",                    // 30
-	"https://api.lingyiwanwu.com",               // 31
-	"https://api.stepfun.com",                   // 32
-	"",                                          // 33
-	"https://api.coze.com",                      // 34
-	"https://api.cohere.ai",                     // 35
-	"https://api.deepseek.com",                  // 36
-	"https://api.cloudflare.com",                // 37
-	"https://api-free.deepl.com",                // 38
-	"https://api.together.xyz",                  // 39
-	"https://ark.cn-beijing.volces.com",         // 40
-	"https://api.novita.ai/v3/openai",           // 41
-	"",                                          // 42
-	"",                                          // 43
-	"https://api.siliconflow.cn",                // 44
+var ChannelBaseURLs = map[int]string{
+	OpenAI:         "https://api.openai.com",
+	API2D:          "https://oa.api2d.net",
+	Azure:          "",
+	CloseAI:        "https://api.closeai-proxy.xyz",
+	OpenAISB:       "https://api.openai-sb.com",
+	OpenAIMax:      "https://api.openaimax.com",
+	OhMyGPT:        "https://api.ohmygpt.com",
+	Custom:         "",
+	Ails:           "https://api.caipacity.com",
+	AIProxy:        "https://api.aiproxy.io",
+	PaLM:           "https://generativelanguage.googleapis.com",
+	API2GPT:        "https://api.api2gpt.com",
+	AIGC2D:         "https://api.aigc2d.com",
+	Anthropic:      "https://api.anthropic.com",
+	Baidu:          "https://aip.baidubce.com",
+	Zhipu:          "https://open.bigmodel.cn",
+	Ali:            "https://dashscope.aliyuncs.com",
+	Xunfei:         "https://spark-api-open.xf-yun.com",
+	AI360:          "https://ai.360.cn",
+	OpenRouter:     "https://openrouter.ai/api",
+	AIProxyLibrary: "https://api.aiproxy.io",
+	FastGPT:        "https://fastgpt.run/api/openapi",
+	Tencent:        "https://hunyuan.tencentcloudapi.com",
+	Gemini:         "https://generativelanguage.googleapis.com",
+	Moonshot:       "https://api.moonshot.cn",
+	Baichuan:       "https://api.baichuan-ai.com",
+	Minimax:        "https://api.minimax.chat",
+	Mistral:        "https://api.mistral.ai",
+	Groq:           "https://api.groq.com/openai",
+	Ollama:         "http://localhost:11434",
+	LingYiWanWu:    "https://api.lingyiwanwu.com",
+	StepFun:        "https://api.stepfun.com",
+	AwsClaude:      "",
+	Coze:           "https://api.coze.com",
+	Cohere:         "https://api.cohere.ai",
+	DeepSeek:       "https://api.deepseek.com",
+	Cloudflare:     "https://api.cloudflare.com",
+	DeepL:          "https://api-free.deepl.com",
+	TogetherAI:     "https://api.together.xyz",
+	Doubao:         "https://ark.cn-beijing.volces.com",
+	Novita:         "https://api.novita.ai/v3/openai",
+	VertextAI:      "",
+	SiliconFlow:    "https://api.siliconflow.cn",
 }
 
 func init() {
-	if len(ChannelBaseURLs) != Dummy {
+	if len(ChannelBaseURLs) != Dummy-1 {
 		panic("channel base urls length not match")
 	}
 }

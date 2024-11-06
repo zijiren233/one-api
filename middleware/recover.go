@@ -22,7 +22,7 @@ func RelayPanicRecover(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": gin.H{
 					"message": fmt.Sprintf("Panic detected, error: %v.", err),
-					"type":    "one_api_panic",
+					"type":    "aiproxy_panic",
 				},
 			})
 			c.Abort()
