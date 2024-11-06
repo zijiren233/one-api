@@ -86,7 +86,7 @@ type sealosPostGroupConsumeReq struct {
 }
 
 type sealosPostGroupConsumeResp struct {
-	Message string `json:"message"`
+	Error string `json:"error"`
 }
 
 type sealosCache struct {
@@ -265,7 +265,7 @@ func (s *SealosPostGroupConsumer) postConsume(ctx context.Context, amount int64,
 
 	if resp.StatusCode != http.StatusOK {
 		logger.Errorf(ctx, "group (%s) consume failed with status code %d: %s",
-			s.group, resp.StatusCode, sealosResp.Message)
+			s.group, resp.StatusCode, sealosResp.Error)
 		return fmt.Errorf("group (%s) consume failed with status code %d", s.group, resp.StatusCode)
 	}
 
