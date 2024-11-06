@@ -1,7 +1,6 @@
 package adaptor
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,10 +43,5 @@ func DoRequest(c *gin.Context, req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, errors.New("resp is nil")
-	}
-	_ = req.Body.Close()
-	_ = c.Request.Body.Close()
 	return resp, nil
 }

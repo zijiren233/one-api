@@ -2,7 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -53,7 +52,7 @@ func (e GeneralErrorResponse) ToMessage() string {
 	return ""
 }
 
-func RelayErrorHandler(resp *http.Response) (ErrorWithStatusCode *model.ErrorWithStatusCode) {
+func RelayErrorHandler(resp *http.Response) *model.ErrorWithStatusCode {
 	if resp == nil {
 		return &model.ErrorWithStatusCode{
 			StatusCode: 500,
@@ -64,7 +63,9 @@ func RelayErrorHandler(resp *http.Response) (ErrorWithStatusCode *model.ErrorWit
 			},
 		}
 	}
-	ErrorWithStatusCode = &model.ErrorWithStatusCode{
+	defer resp.Body.Close()
+
+	ErrorWithStatusCode := &model.ErrorWithStatusCode{
 		StatusCode: resp.StatusCode,
 		Error: model.Error{
 			Message: "",
@@ -73,21 +74,13 @@ func RelayErrorHandler(resp *http.Response) (ErrorWithStatusCode *model.ErrorWit
 			Param:   strconv.Itoa(resp.StatusCode),
 		},
 	}
-	responseBody, err := io.ReadAll(resp.Body)
+	var errResponse GeneralErrorResponse
+	err := json.NewDecoder(resp.Body).Decode(&errResponse)
 	if err != nil {
-		return
+		return ErrorWithStatusCode
 	}
 	if config.DebugEnabled {
-		logger.SysLogf("error happened, status code: %d, response: \n%s", resp.StatusCode, responseBody)
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return
-	}
-	var errResponse GeneralErrorResponse
-	err = json.Unmarshal(responseBody, &errResponse)
-	if err != nil {
-		return
+		logger.SysLogf("error happened, status code: %d, response: \n%+v", resp.StatusCode, errResponse)
 	}
 	if errResponse.Error.Message != "" {
 		// OpenAI format error, so we override the default one
@@ -98,5 +91,5 @@ func RelayErrorHandler(resp *http.Response) (ErrorWithStatusCode *model.ErrorWit
 	if ErrorWithStatusCode.Error.Message == "" {
 		ErrorWithStatusCode.Error.Message = fmt.Sprintf("bad response status code %d", resp.StatusCode)
 	}
-	return
+	return ErrorWithStatusCode
 }
