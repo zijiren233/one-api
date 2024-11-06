@@ -314,19 +314,19 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 	}
 	switch token.Status {
 	case TokenStatusExhausted:
-		return nil, fmt.Errorf("令牌 (%d) 额度已用尽", token.Id)
+		return nil, fmt.Errorf("令牌 (%s[%d]) 额度已用尽", token.Name, token.Id)
 	case TokenStatusExpired:
-		return nil, fmt.Errorf("令牌 (%d) 已过期", token.Id)
+		return nil, fmt.Errorf("令牌 (%s[%d]) 已过期", token.Name, token.Id)
 	}
 	if token.Status != TokenStatusEnabled {
-		return nil, fmt.Errorf("令牌 (%d) 状态不可用", token.Id)
+		return nil, fmt.Errorf("令牌 (%s[%d]) 状态不可用", token.Name, token.Id)
 	}
 	if !time.Time(token.ExpiredAt).IsZero() && time.Time(token.ExpiredAt).Before(time.Now()) {
 		err := UpdateTokenStatusAndAccessedAt(token.Id, TokenStatusExpired)
 		if err != nil {
 			logger.SysError("failed to update token status" + err.Error())
 		}
-		return nil, fmt.Errorf("令牌 (%d) 已过期", token.Id)
+		return nil, fmt.Errorf("令牌 (%s[%d]) 已过期", token.Name, token.Id)
 	}
 	if token.Quota > 0 && token.UsedAmount >= token.Quota {
 		// in this case, we can make sure the token is exhausted
@@ -334,7 +334,7 @@ func ValidateAndGetToken(key string) (token *TokenCache, err error) {
 		if err != nil {
 			logger.SysError("failed to update token status" + err.Error())
 		}
-		return nil, fmt.Errorf("令牌 (%d) 额度已用尽", token.Id)
+		return nil, fmt.Errorf("令牌 (%s[%d]) 额度已用尽", token.Name, token.Id)
 	}
 	return token, nil
 }
