@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
+	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -80,16 +84,38 @@ func main() {
 	server.Use(gin.Recovery())
 	server.Use(middleware.RequestId())
 	middleware.SetUpLogger(server)
-	// Initialize session store
 
 	router.SetRouter(server)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = strconv.Itoa(*common.Port)
 	}
-	logger.SysLogf("server started on http://localhost:%s", port)
-	err = server.Run(":" + port)
-	if err != nil {
-		logger.FatalLog("failed to start HTTP server: " + err.Error())
+
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: server,
 	}
+
+	// Graceful shutdown setup
+	go func() {
+		logger.SysLogf("server started on http://localhost:%s", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.FatalLog("failed to start HTTP server: " + err.Error())
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	logger.SysLog("shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.SysError("server forced to shutdown: " + err.Error())
+	}
+
+	logger.SysLog("server exiting")
 }
