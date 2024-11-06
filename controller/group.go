@@ -7,7 +7,6 @@ import (
 
 	json "github.com/json-iterator/go"
 
-	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/model"
 
 	"github.com/gin-gonic/gin"
@@ -214,13 +213,6 @@ func CreateGroup(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "无效的参数",
-		})
-		return
-	}
-	if err := common.Validate.Struct(&group); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "输入不合法 " + err.Error(),
 		})
 		return
 	}

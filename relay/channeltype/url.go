@@ -19,7 +19,7 @@ var ChannelBaseURLs = []string{
 	"https://aip.baidubce.com",                  // 15
 	"https://open.bigmodel.cn",                  // 16
 	"https://dashscope.aliyuncs.com",            // 17
-	"",                                          // 18
+	"https://spark-api-open.xf-yun.com",         // 18
 	"https://ai.360.cn",                         // 19
 	"https://openrouter.ai/api",                 // 20
 	"https://api.aiproxy.io",                    // 21

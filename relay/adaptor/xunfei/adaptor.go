@@ -18,10 +18,8 @@ func (a *Adaptor) Init(meta *meta.Meta) {
 	a.meta = meta
 }
 
-const reqUrl = "https://spark-api-open.xf-yun.com/v1/chat/completions"
-
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
-	return reqUrl, nil
+	return meta.BaseURL + "/v1/chat/completions", nil
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *meta.Meta) error {

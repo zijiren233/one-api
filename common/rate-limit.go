@@ -6,16 +6,21 @@ import (
 )
 
 type InMemoryRateLimiter struct {
-	store              map[string]*[]int64
-	mutex              sync.Mutex
+	store              map[string]*RateLimitWindow
+	mutex              sync.RWMutex
 	expirationDuration time.Duration
+}
+
+type RateLimitWindow struct {
+	timestamps []int64
+	lastAccess int64
 }
 
 func (l *InMemoryRateLimiter) Init(expirationDuration time.Duration) {
 	if l.store == nil {
 		l.mutex.Lock()
 		if l.store == nil {
-			l.store = make(map[string]*[]int64)
+			l.store = make(map[string]*RateLimitWindow)
 			l.expirationDuration = expirationDuration
 			if expirationDuration > 0 {
 				go l.clearExpiredItems()
@@ -26,14 +31,14 @@ func (l *InMemoryRateLimiter) Init(expirationDuration time.Duration) {
 }
 
 func (l *InMemoryRateLimiter) clearExpiredItems() {
-	for {
-		time.Sleep(l.expirationDuration)
+	ticker := time.NewTicker(l.expirationDuration)
+	defer ticker.Stop()
+
+	for range ticker.C {
 		l.mutex.Lock()
 		now := time.Now().Unix()
-		for key := range l.store {
-			queue := l.store[key]
-			size := len(*queue)
-			if size == 0 || now-(*queue)[size-1] > int64(l.expirationDuration.Seconds()) {
+		for key, window := range l.store {
+			if now-window.lastAccess > int64(l.expirationDuration.Seconds()) {
 				delete(l.store, key)
 			}
 		}
@@ -43,28 +48,46 @@ func (l *InMemoryRateLimiter) clearExpiredItems() {
 
 // Request parameter duration's unit is seconds
 func (l *InMemoryRateLimiter) Request(key string, maxRequestNum int, duration time.Duration) bool {
+	now := time.Now().Unix()
+	cutoff := now - int64(duration.Seconds())
+
+	l.mutex.RLock()
+	window, exists := l.store[key]
+	l.mutex.RUnlock()
+
+	if !exists {
+		l.mutex.Lock()
+		window = &RateLimitWindow{
+			timestamps: make([]int64, 0, maxRequestNum),
+			lastAccess: now,
+		}
+		l.store[key] = window
+		window.timestamps = append(window.timestamps, now)
+		l.mutex.Unlock()
+		return true
+	}
+
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	// [old <-- new]
-	queue, ok := l.store[key]
-	now := time.Now().Unix()
-	if ok {
-		if len(*queue) < maxRequestNum {
-			*queue = append(*queue, now)
-			return true
-		} else {
-			if now-(*queue)[0] >= int64(duration.Seconds()) {
-				*queue = (*queue)[1:]
-				*queue = append(*queue, now)
-				return true
-			} else {
-				return false
-			}
+
+	// Update last access time
+	window.lastAccess = now
+
+	// Remove expired timestamps
+	idx := 0
+	for i, ts := range window.timestamps {
+		if ts > cutoff {
+			idx = i
+			break
 		}
-	} else {
-		s := make([]int64, 0, maxRequestNum)
-		l.store[key] = &s
-		*(l.store[key]) = append(*(l.store[key]), now)
 	}
-	return true
+	window.timestamps = window.timestamps[idx:]
+
+	// Check if we can add a new request
+	if len(window.timestamps) < maxRequestNum {
+		window.timestamps = append(window.timestamps, now)
+		return true
+	}
+
+	return false
 }

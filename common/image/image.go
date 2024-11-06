@@ -3,14 +3,15 @@ package image
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/songquanpeng/one-api/common/client"
 
@@ -20,27 +21,25 @@ import (
 // Regex to match data URL pattern
 var dataURLPattern = regexp.MustCompile(`data:image/([^;]+);base64,(.*)`)
 
-func IsImageUrl(url string) (bool, error) {
-	resp, err := client.UserContentRequestHTTPClient.Head(url)
-	if err != nil {
-		return false, err
-	}
-	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "image/") {
-		return false, nil
-	}
-	return true, nil
+func IsImageUrl(resp *http.Response) bool {
+	return strings.HasPrefix(resp.Header.Get("Content-Type"), "image/")
 }
 
 func GetImageSizeFromUrl(url string) (width int, height int, err error) {
-	isImage, err := IsImageUrl(url)
-	if !isImage {
-		return
-	}
 	resp, err := client.UserContentRequestHTTPClient.Get(url)
 	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, 0, fmt.Errorf("status code: %d", resp.StatusCode)
+	}
+
+	isImage := IsImageUrl(resp)
+	if !isImage {
+		return
+	}
 	img, _, err := image.DecodeConfig(resp.Body)
 	if err != nil {
 		return
@@ -48,42 +47,38 @@ func GetImageSizeFromUrl(url string) (width int, height int, err error) {
 	return img.Width, img.Height, nil
 }
 
-func GetImageFromUrl(url string) (mimeType string, data string, err error) {
+func GetImageFromUrl(url string) (string, string, error) {
 	// Check if the URL is a data URL
 	matches := dataURLPattern.FindStringSubmatch(url)
 	if len(matches) == 3 {
 		// URL is a data URL
-		mimeType = "image/" + matches[1]
-		data = matches[2]
-		return
+		return "image/" + matches[1], matches[2], nil
 	}
 
-	isImage, err := IsImageUrl(url)
-	if !isImage {
-		return
-	}
-	resp, err := http.Get(url)
+	resp, err := client.UserContentRequestHTTPClient.Get(url)
 	if err != nil {
-		return
+		return "", "", err
 	}
 	defer resp.Body.Close()
-	buffer := bytes.NewBuffer(nil)
-	_, err = buffer.ReadFrom(resp.Body)
-	if err != nil {
-		return
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("status code: %d", resp.StatusCode)
 	}
-	mimeType = resp.Header.Get("Content-Type")
-	data = base64.StdEncoding.EncodeToString(buffer.Bytes())
-	return
+	if resp.ContentLength <= 0 {
+		return "", "", fmt.Errorf("content length is less than 0")
+	}
+	isImage := IsImageUrl(resp)
+	if !isImage {
+		return "", "", fmt.Errorf("not an image")
+	}
+	buf := make([]byte, resp.ContentLength)
+	_, err = io.ReadFull(resp.Body, buf)
+	if err != nil {
+		return "", "", err
+	}
+	return resp.Header.Get("Content-Type"), base64.StdEncoding.EncodeToString(buf), nil
 }
 
 var reg = regexp.MustCompile(`data:image/([^;]+);base64,`)
-
-var readerPool = sync.Pool{
-	New: func() interface{} {
-		return &bytes.Reader{}
-	},
-}
 
 func GetImageSizeFromBase64(encoded string) (width int, height int, err error) {
 	decoded, err := base64.StdEncoding.DecodeString(reg.ReplaceAllString(encoded, ""))
@@ -91,11 +86,7 @@ func GetImageSizeFromBase64(encoded string) (width int, height int, err error) {
 		return 0, 0, err
 	}
 
-	reader := readerPool.Get().(*bytes.Reader)
-	defer readerPool.Put(reader)
-	reader.Reset(decoded)
-
-	img, _, err := image.DecodeConfig(reader)
+	img, _, err := image.DecodeConfig(bytes.NewReader(decoded))
 	if err != nil {
 		return 0, 0, err
 	}

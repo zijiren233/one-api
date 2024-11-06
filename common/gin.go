@@ -2,6 +2,8 @@ package common
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"strings"
 
@@ -16,12 +18,16 @@ func GetRequestBody(c *gin.Context) ([]byte, error) {
 		return requestBody.([]byte), nil
 	}
 	defer c.Request.Body.Close()
-	requestBody, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		return nil, err
+	if c.Request.ContentLength < 0 {
+		return nil, errors.New("request content length is less than 0")
 	}
-	c.Set(ctxkey.KeyRequestBody, requestBody)
-	return requestBody.([]byte), nil
+	buf := make([]byte, c.Request.ContentLength)
+	_, err := io.ReadFull(c.Request.Body, buf)
+	if err != nil {
+		return nil, fmt.Errorf("request body read failed: %w", err)
+	}
+	c.Set(ctxkey.KeyRequestBody, buf)
+	return buf, nil
 }
 
 func UnmarshalBodyReusable(c *gin.Context, v any) error {
