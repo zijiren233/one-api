@@ -29,7 +29,17 @@ var (
 	approximateTokenEnabled uint32 = 0
 	// 重试次数
 	retryTimes int64 = 0
+	// 暂停服务
+	disableServe atomic.Bool
 )
+
+func GetDisableServe() bool {
+	return disableServe.Load()
+}
+
+func SetDisableServe(disabled bool) {
+	disableServe.Store(disabled)
+}
 
 func GetAutomaticDisableChannelEnabled() bool {
 	return atomic.LoadUint32(&automaticDisableChannelEnabled) == 1

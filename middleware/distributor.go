@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/model"
@@ -17,6 +18,10 @@ type ModelRequest struct {
 }
 
 func Distribute(c *gin.Context) {
+	if config.GetDisableServe() {
+		abortWithMessage(c, http.StatusServiceUnavailable, "服务暂停中")
+		return
+	}
 	group := c.GetString(ctxkey.Group)
 	var requestModel string
 	var channel *model.Channel

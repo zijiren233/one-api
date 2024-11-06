@@ -27,6 +27,7 @@ func AllOption() ([]*Option, error) {
 func InitOptionMap() {
 	config.OptionMapRWMutex.Lock()
 	config.OptionMap = make(map[string]string)
+	config.OptionMap["DisableServe"] = strconv.FormatBool(config.GetDisableServe())
 	config.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(config.GetAutomaticDisableChannelEnabled())
 	config.OptionMap["AutomaticEnableChannelWhenTestSucceedEnabled"] = strconv.FormatBool(config.GetAutomaticEnableChannelWhenTestSucceedEnabled())
 	config.OptionMap["ApproximateTokenEnabled"] = strconv.FormatBool(config.GetApproximateTokenEnabled())
@@ -99,6 +100,13 @@ func updateOptionMap(key string, value string) (err error) {
 			config.SetApproximateTokenEnabled(boolValue)
 		case "BillingEnabled":
 			billingprice.SetBillingEnabled(boolValue)
+		}
+	}
+	if strings.HasPrefix(key, "Disable") {
+		boolValue := value == "true"
+		switch key {
+		case "DisableServe":
+			config.SetDisableServe(boolValue)
 		}
 	}
 	switch key {
