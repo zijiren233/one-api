@@ -69,7 +69,7 @@ func RateLimit(ctx context.Context, key string, maxRequestNum int, duration time
 
 func GlobalAPIRateLimit(c *gin.Context) {
 	globalApiRateLimitNum := config.GetGlobalApiRateLimitNum()
-	if globalApiRateLimitNum == 0 {
+	if globalApiRateLimitNum <= 0 {
 		c.Next()
 		return
 	}
@@ -83,6 +83,7 @@ func GlobalAPIRateLimit(c *gin.Context) {
 	if !ok {
 		c.Status(http.StatusTooManyRequests)
 		c.Abort()
+		return
 	}
 	c.Next()
 }

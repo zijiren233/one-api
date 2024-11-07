@@ -130,6 +130,7 @@ func init() {
 	defaultChannelModelMapping.Store(make(map[int]map[string]string))
 }
 
+// 全局qpm，不是根据ip限制，而是所有请求共享一个qpm
 func GetGlobalApiRateLimitNum() int64 {
 	return atomic.LoadInt64(&globalApiRateLimitNum)
 }
@@ -138,6 +139,7 @@ func SetGlobalApiRateLimitNum(num int64) {
 	atomic.StoreInt64(&globalApiRateLimitNum, num)
 }
 
+// group默认qpm，如果group没有设置qpm，则使用该qpm
 func GetDefaultGroupQPM() int64 {
 	return atomic.LoadInt64(&defaultGroupQPM)
 }
