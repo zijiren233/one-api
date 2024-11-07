@@ -22,13 +22,13 @@ var (
 
 var (
 	// 当测试或请求的时候发生错误是否自动禁用渠道
-	automaticDisableChannelEnabled uint32 = 0
+	automaticDisableChannelEnabled atomic.Bool
 	// 当测试成功是否自动启用渠道
-	automaticEnableChannelWhenTestSucceedEnabled uint32 = 0
+	automaticEnableChannelWhenTestSucceedEnabled atomic.Bool
 	// 是否近似计算token
-	approximateTokenEnabled uint32 = 0
+	approximateTokenEnabled atomic.Bool
 	// 重试次数
-	retryTimes int64 = 0
+	retryTimes atomic.Int64
 	// 暂停服务
 	disableServe atomic.Bool
 )
@@ -42,47 +42,35 @@ func SetDisableServe(disabled bool) {
 }
 
 func GetAutomaticDisableChannelEnabled() bool {
-	return atomic.LoadUint32(&automaticDisableChannelEnabled) == 1
+	return automaticDisableChannelEnabled.Load()
 }
 
 func SetAutomaticDisableChannelEnabled(enabled bool) {
-	if enabled {
-		atomic.StoreUint32(&automaticDisableChannelEnabled, 1)
-	} else {
-		atomic.StoreUint32(&automaticDisableChannelEnabled, 0)
-	}
+	automaticDisableChannelEnabled.Store(enabled)
 }
 
 func GetAutomaticEnableChannelWhenTestSucceedEnabled() bool {
-	return atomic.LoadUint32(&automaticEnableChannelWhenTestSucceedEnabled) == 1
+	return automaticEnableChannelWhenTestSucceedEnabled.Load()
 }
 
 func SetAutomaticEnableChannelWhenTestSucceedEnabled(enabled bool) {
-	if enabled {
-		atomic.StoreUint32(&automaticEnableChannelWhenTestSucceedEnabled, 1)
-	} else {
-		atomic.StoreUint32(&automaticEnableChannelWhenTestSucceedEnabled, 0)
-	}
+	automaticEnableChannelWhenTestSucceedEnabled.Store(enabled)
 }
 
 func GetApproximateTokenEnabled() bool {
-	return atomic.LoadUint32(&approximateTokenEnabled) == 1
+	return approximateTokenEnabled.Load()
 }
 
 func SetApproximateTokenEnabled(enabled bool) {
-	if enabled {
-		atomic.StoreUint32(&approximateTokenEnabled, 1)
-	} else {
-		atomic.StoreUint32(&approximateTokenEnabled, 0)
-	}
+	approximateTokenEnabled.Store(enabled)
 }
 
 func GetRetryTimes() int64 {
-	return atomic.LoadInt64(&retryTimes)
+	return retryTimes.Load()
 }
 
 func SetRetryTimes(times int64) {
-	atomic.StoreInt64(&retryTimes, times)
+	retryTimes.Store(times)
 }
 
 var DisableAutoMigrateDB = os.Getenv("DISABLE_AUTO_MIGRATE_DB") == "true"
@@ -118,11 +106,11 @@ var (
 var AdminKey = env.String("ADMIN_KEY", "")
 
 var (
-	globalApiRateLimitNum      int64 = 0
+	globalApiRateLimitNum      atomic.Int64
 	defaultChannelModels       atomic.Value
 	defaultChannelModelMapping atomic.Value
-	defaultGroupQPM            int64 = 0
-	groupMaxTokenNum           int32 = 0
+	defaultGroupQPM            atomic.Int64
+	groupMaxTokenNum           atomic.Int32
 )
 
 func init() {
@@ -132,20 +120,20 @@ func init() {
 
 // 全局qpm，不是根据ip限制，而是所有请求共享一个qpm
 func GetGlobalApiRateLimitNum() int64 {
-	return atomic.LoadInt64(&globalApiRateLimitNum)
+	return globalApiRateLimitNum.Load()
 }
 
 func SetGlobalApiRateLimitNum(num int64) {
-	atomic.StoreInt64(&globalApiRateLimitNum, num)
+	globalApiRateLimitNum.Store(num)
 }
 
 // group默认qpm，如果group没有设置qpm，则使用该qpm
 func GetDefaultGroupQPM() int64 {
-	return atomic.LoadInt64(&defaultGroupQPM)
+	return defaultGroupQPM.Load()
 }
 
 func SetDefaultGroupQPM(qpm int64) {
-	atomic.StoreInt64(&defaultGroupQPM, qpm)
+	defaultGroupQPM.Store(qpm)
 }
 
 func GetDefaultChannelModels() map[int][]string {
@@ -166,11 +154,11 @@ func SetDefaultChannelModelMapping(mapping map[int]map[string]string) {
 
 // 那个group最多可创建的token数量，0表示不限制
 func GetGroupMaxTokenNum() int32 {
-	return atomic.LoadInt32(&groupMaxTokenNum)
+	return groupMaxTokenNum.Load()
 }
 
 func SetGroupMaxTokenNum(num int32) {
-	atomic.StoreInt32(&groupMaxTokenNum, num)
+	groupMaxTokenNum.Store(num)
 }
 
 var (
