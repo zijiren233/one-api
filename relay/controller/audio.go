@@ -76,7 +76,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	var promptTokens int
 	switch relayMode {
 	case relaymode.AudioSpeech:
-		promptTokens = len(ttsRequest.Input)
+		promptTokens = openai.CountTokenText(ttsRequest.Input, meta.ActualModelName)
 		preConsumedAmount = decimal.NewFromInt(int64(promptTokens)).
 			Mul(decimal.NewFromFloat(price)).
 			Div(decimal.NewFromInt(billingprice.PriceUnit)).

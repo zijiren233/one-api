@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/pkoukk/tiktoken-go"
 	"github.com/songquanpeng/one-api/common/config"
@@ -211,6 +212,9 @@ func CountTokenInput(input any, model string) int {
 }
 
 func CountTokenText(text string, model string) int {
+	if strings.HasPrefix(model, "tts") {
+		return utf8.RuneCountInString(text)
+	}
 	tokenEncoder := getTokenEncoder(model)
 	return getTokenNum(tokenEncoder, text)
 }
