@@ -121,7 +121,7 @@ var (
 	globalApiRateLimitNum      int64 = 0
 	defaultChannelModels       atomic.Value
 	defaultChannelModelMapping atomic.Value
-	defaultGroupQPM            int64 = 120
+	defaultGroupQPM            int64 = 0
 	groupMaxTokenNum           int32 = 0
 )
 
@@ -164,6 +164,7 @@ func SetDefaultChannelModelMapping(mapping map[int]map[string]string) {
 	defaultChannelModelMapping.Store(mapping)
 }
 
+// 那个group最多可创建的token数量，0表示不限制
 func GetGroupMaxTokenNum() int32 {
 	return atomic.LoadInt32(&groupMaxTokenNum)
 }
