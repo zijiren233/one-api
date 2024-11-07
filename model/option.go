@@ -7,8 +7,8 @@ import (
 
 	json "github.com/json-iterator/go"
 
-	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/logger"
 	billingprice "github.com/songquanpeng/one-api/relay/billing/price"
 )
@@ -38,9 +38,9 @@ func InitOptionMap() {
 	config.OptionMap["GlobalApiRateLimitNum"] = strconv.FormatInt(config.GetGlobalApiRateLimitNum(), 10)
 	config.OptionMap["DefaultGroupQPM"] = strconv.FormatInt(config.GetDefaultGroupQPM(), 10)
 	defaultChannelModelsJSON, _ := json.Marshal(config.GetDefaultChannelModels())
-	config.OptionMap["DefaultChannelModels"] = common.BytesToString(defaultChannelModelsJSON)
+	config.OptionMap["DefaultChannelModels"] = conv.BytesToString(defaultChannelModelsJSON)
 	defaultChannelModelMappingJSON, _ := json.Marshal(config.GetDefaultChannelModelMapping())
-	config.OptionMap["DefaultChannelModelMapping"] = common.BytesToString(defaultChannelModelMappingJSON)
+	config.OptionMap["DefaultChannelModelMapping"] = conv.BytesToString(defaultChannelModelMappingJSON)
 	config.OptionMap["GeminiSafetySetting"] = config.GetGeminiSafetySetting()
 	config.OptionMap["GeminiVersion"] = config.GetGeminiVersion()
 	config.OptionMap["GroupMaxTokenNum"] = strconv.FormatInt(int64(config.GetGroupMaxTokenNum()), 10)
@@ -134,14 +134,14 @@ func updateOptionMap(key string, value string) (err error) {
 		config.SetDefaultGroupQPM(defaultGroupQPM)
 	case "DefaultChannelModels":
 		var newModules map[int][]string
-		err := json.Unmarshal(common.StringToBytes(value), &newModules)
+		err := json.Unmarshal(conv.StringToBytes(value), &newModules)
 		if err != nil {
 			return err
 		}
 		config.SetDefaultChannelModels(newModules)
 	case "DefaultChannelModelMapping":
 		var newMapping map[int]map[string]string
-		err := json.Unmarshal(common.StringToBytes(value), &newMapping)
+		err := json.Unmarshal(conv.StringToBytes(value), &newMapping)
 		if err != nil {
 			return err
 		}

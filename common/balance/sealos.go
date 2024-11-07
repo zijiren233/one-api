@@ -12,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/shopspring/decimal"
 	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/env"
 	"github.com/songquanpeng/one-api/common/logger"
 )
@@ -68,7 +69,7 @@ func newSealosToken(key string) (string, error) {
 			NotBefore: jwt.NewNumericDate(time.Now()),
 		},
 	}
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(common.StringToBytes(key))
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(conv.StringToBytes(key))
 }
 
 type sealosGetGroupBalanceResp struct {

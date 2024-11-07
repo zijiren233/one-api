@@ -15,6 +15,7 @@ import (
 
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/logger"
 )
 
@@ -32,7 +33,7 @@ var (
 type redisStringSlice []string
 
 func (r *redisStringSlice) ScanRedis(value string) error {
-	return json.Unmarshal(common.StringToBytes(value), r)
+	return json.Unmarshal(conv.StringToBytes(value), r)
 }
 
 func (r redisStringSlice) MarshalBinary() ([]byte, error) {
@@ -42,7 +43,7 @@ func (r redisStringSlice) MarshalBinary() ([]byte, error) {
 type redisTime time.Time
 
 func (t *redisTime) ScanRedis(value string) error {
-	return (*time.Time)(t).UnmarshalBinary(common.StringToBytes(value))
+	return (*time.Time)(t).UnmarshalBinary(conv.StringToBytes(value))
 }
 
 func (t redisTime) MarshalBinary() ([]byte, error) {

@@ -2,8 +2,6 @@ package helper
 
 import (
 	"fmt"
-	"html/template"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/random"
@@ -19,10 +17,6 @@ func Interface2String(inter interface{}) string {
 		return fmt.Sprintf("%f", inter)
 	}
 	return "Not Implemented"
-}
-
-func UnescapeHTML(x string) interface{} {
-	return template.HTML(x)
 }
 
 func GenRequestID() string {
@@ -43,12 +37,4 @@ func AssignOrDefault(value string, defaultValue string) string {
 
 func MessageWithRequestId(message string, id string) string {
 	return fmt.Sprintf("%s (request id: %s)", message, id)
-}
-
-func String2Int(str string) int {
-	num, err := strconv.Atoi(str)
-	if err != nil {
-		return 0
-	}
-	return num
 }
