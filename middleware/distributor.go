@@ -75,10 +75,6 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 			if cfg.APIVersion == "" {
 				cfg.APIVersion = channel.Other
 			}
-		case channeltype.Xunfei:
-			if cfg.APIVersion == "" {
-				cfg.APIVersion = channel.Other
-			}
 		case channeltype.Gemini:
 			if cfg.APIVersion == "" {
 				cfg.APIVersion = channel.Other

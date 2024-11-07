@@ -43,11 +43,7 @@ func UnmarshalBodyReusable(c *gin.Context, v any) error {
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
 		err = c.ShouldBind(&v)
 	}
-	if err != nil {
-		return err
-	}
-	// Reset request body
-	return nil
+	return err
 }
 
 func SetEventStreamHeaders(c *gin.Context) {

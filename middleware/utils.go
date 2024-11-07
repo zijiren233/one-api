@@ -27,25 +27,22 @@ func getRequestModel(c *gin.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("common.UnmarshalBodyReusable failed: %w", err)
 	}
-	if strings.HasPrefix(c.Request.URL.Path, "/v1/moderations") {
-		if modelRequest.Model == "" {
-			modelRequest.Model = "text-moderation-stable"
-		}
+
+	if modelRequest.Model != "" {
+		return modelRequest.Model, nil
 	}
-	if strings.HasSuffix(c.Request.URL.Path, "embeddings") {
-		if modelRequest.Model == "" {
-			modelRequest.Model = c.Param("model")
-		}
+
+	path := c.Request.URL.Path
+	switch {
+	case strings.HasPrefix(path, "/v1/moderations"):
+		modelRequest.Model = "text-moderation-stable"
+	case strings.HasSuffix(path, "embeddings"):
+		modelRequest.Model = c.Param("model")
+	case strings.HasPrefix(path, "/v1/images/generations"):
+		modelRequest.Model = "dall-e-2"
+	case strings.HasPrefix(path, "/v1/audio/transcriptions"), strings.HasPrefix(path, "/v1/audio/translations"):
+		modelRequest.Model = "whisper-1"
 	}
-	if strings.HasPrefix(c.Request.URL.Path, "/v1/images/generations") {
-		if modelRequest.Model == "" {
-			modelRequest.Model = "dall-e-2"
-		}
-	}
-	if strings.HasPrefix(c.Request.URL.Path, "/v1/audio/transcriptions") || strings.HasPrefix(c.Request.URL.Path, "/v1/audio/translations") {
-		if modelRequest.Model == "" {
-			modelRequest.Model = "whisper-1"
-		}
-	}
+
 	return modelRequest.Model, nil
 }

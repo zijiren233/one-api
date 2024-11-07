@@ -45,5 +45,6 @@ const (
 	Novita
 	VertextAI
 	SiliconFlow
+
 	Dummy
 )

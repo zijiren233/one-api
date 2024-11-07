@@ -3,41 +3,40 @@ package channeltype
 import "github.com/songquanpeng/one-api/relay/apitype"
 
 func ToAPIType(channelType int) int {
-	apiType := apitype.OpenAI
 	switch channelType {
 	case Anthropic:
-		apiType = apitype.Anthropic
+		return apitype.Anthropic
 	case Baidu:
-		apiType = apitype.Baidu
+		return apitype.Baidu
 	case PaLM:
-		apiType = apitype.PaLM
+		return apitype.PaLM
 	case Zhipu:
-		apiType = apitype.Zhipu
+		return apitype.Zhipu
 	case Ali:
-		apiType = apitype.Ali
+		return apitype.Ali
 	case Xunfei:
-		apiType = apitype.Xunfei
+		return apitype.Xunfei
 	case AIProxyLibrary:
-		apiType = apitype.AIProxyLibrary
+		return apitype.AIProxyLibrary
 	case Tencent:
-		apiType = apitype.Tencent
+		return apitype.Tencent
 	case Gemini:
-		apiType = apitype.Gemini
+		return apitype.Gemini
 	case Ollama:
-		apiType = apitype.Ollama
+		return apitype.Ollama
 	case AwsClaude:
-		apiType = apitype.AwsClaude
+		return apitype.AwsClaude
 	case Coze:
-		apiType = apitype.Coze
+		return apitype.Coze
 	case Cohere:
-		apiType = apitype.Cohere
+		return apitype.Cohere
 	case Cloudflare:
-		apiType = apitype.Cloudflare
+		return apitype.Cloudflare
 	case DeepL:
-		apiType = apitype.DeepL
+		return apitype.DeepL
 	case VertextAI:
-		apiType = apitype.VertexAI
+		return apitype.VertexAI
+	default:
+		return apitype.OpenAI
 	}
-
-	return apiType
 }
