@@ -91,7 +91,8 @@ func CacheSetToken(token *Token) error {
 	key := fmt.Sprintf(TokenCacheKey, token.Key)
 	pipe := common.RDB.Pipeline()
 	pipe.HSet(context.Background(), key, token.ToTokenCache())
-	pipe.Expire(context.Background(), key, SyncFrequency)
+	expireTime := SyncFrequency + time.Duration(rand.Int63n(60)-30)*time.Second
+	pipe.Expire(context.Background(), key, expireTime)
 	_, err := pipe.Exec(context.Background())
 	return err
 }
@@ -232,7 +233,8 @@ func CacheSetGroup(group *Group) error {
 	key := fmt.Sprintf(GroupCacheKey, group.Id)
 	pipe := common.RDB.Pipeline()
 	pipe.HSet(context.Background(), key, group.ToGroupCache())
-	pipe.Expire(context.Background(), key, SyncFrequency)
+	expireTime := SyncFrequency + time.Duration(rand.Int63n(60)-30)*time.Second
+	pipe.Expire(context.Background(), key, expireTime)
 	_, err := pipe.Exec(context.Background())
 	return err
 }

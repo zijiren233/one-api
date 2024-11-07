@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -32,7 +33,7 @@ var (
 	minConsumeAmount                     = decimal.NewFromInt(1)
 	jwtToken                string
 	sealosRedisCacheEnable  = env.Bool("BALANCE_SEALOS_REDIS_CACHE_ENABLE", true)
-	sealosCacheExpire       = 5 * time.Second
+	sealosCacheExpire       = 15 * time.Second
 )
 
 type Sealos struct {
@@ -104,7 +105,8 @@ func cacheSetGroupBalance(ctx context.Context, group string, balance int64, user
 		Balance: balance,
 		UserUID: userUID,
 	})
-	pipe.Expire(ctx, fmt.Sprintf(sealosGroupBalanceKey, group), sealosCacheExpire)
+	expireTime := sealosCacheExpire + time.Duration(rand.Int63n(10)-5)*time.Second
+	pipe.Expire(ctx, fmt.Sprintf(sealosGroupBalanceKey, group), expireTime)
 	_, err := pipe.Exec(ctx)
 	return err
 }
