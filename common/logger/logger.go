@@ -52,6 +52,18 @@ func SysLogf(format string, a ...any) {
 	SysLog(fmt.Sprintf(format, a...))
 }
 
+func SysDebug(s string) {
+	if config.DebugEnabled {
+		SysLog(s)
+	}
+}
+
+func SysDebugf(format string, a ...any) {
+	if config.DebugEnabled {
+		SysLogf(format, a...)
+	}
+}
+
 func SysError(s string) {
 	t := time.Now()
 	_, _ = fmt.Fprintf(gin.DefaultErrorWriter, "[SYS] %v | %s \n", t.Format("2006/01/02 - 15:04:05"), s)

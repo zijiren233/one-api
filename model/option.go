@@ -59,14 +59,14 @@ func loadOptionsFromDatabase() {
 			logger.SysError("failed to update option map: " + err.Error())
 		}
 	}
-	logger.SysLog("options synced from database")
+	logger.SysDebug("options synced from database")
 }
 
 func SyncOptions(frequency time.Duration) {
 	ticker := time.NewTicker(frequency)
 	defer ticker.Stop()
 	for range ticker.C {
-		logger.SysLog("syncing options from database")
+		logger.SysDebug("syncing options from database")
 		loadOptionsFromDatabase()
 	}
 }

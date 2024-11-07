@@ -345,14 +345,14 @@ func InitChannelCache() {
 	allModels = models
 	type2Models = newType2Models
 	channelSyncLock.Unlock()
-	logger.SysLog("channels synced from database")
+	logger.SysDebug("channels synced from database")
 }
 
 func SyncChannelCache(frequency time.Duration) {
 	ticker := time.NewTicker(frequency)
 	defer ticker.Stop()
 	for range ticker.C {
-		logger.SysLog("syncing channels from database")
+		logger.SysDebug("syncing channels from database")
 		InitChannelCache()
 	}
 }
