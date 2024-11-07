@@ -20,7 +20,6 @@ import (
 	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
-	"github.com/songquanpeng/one-api/relay/billing"
 	billingprice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
@@ -29,33 +28,43 @@ import (
 )
 
 func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatusCode {
-	meta := meta.GetByContext(c)
-	audioModel := "whisper-1"
+	if c.Request.ContentLength <= 0 {
+		return openai.ErrorWrapper(errors.New("request body is empty"), "request_body_empty", http.StatusBadRequest)
+	}
 
-	tokenId := c.GetInt(ctxkey.TokenId)
+	meta := meta.GetByContext(c)
+
 	channelType := c.GetInt(ctxkey.Channel)
-	channelId := c.GetInt(ctxkey.ChannelId)
 	group := c.GetString(ctxkey.Group)
-	tokenName := c.GetString(ctxkey.TokenName)
 
 	var ttsRequest openai.TextToSpeechRequest
-	if relayMode == relaymode.AudioSpeech {
+	switch relayMode {
+	case relaymode.AudioSpeech:
 		// Read JSON
 		err := common.UnmarshalBodyReusable(c, &ttsRequest)
 		// Check if JSON is valid
 		if err != nil {
 			return openai.ErrorWrapper(err, "invalid_json", http.StatusBadRequest)
 		}
-		audioModel = ttsRequest.Model
+		meta.OriginModelName = ttsRequest.Model
 		// Check if text is too long 4096
 		if len(ttsRequest.Input) > 4096 {
 			return openai.ErrorWrapper(errors.New("input is too long (over 4096 characters)"), "text_too_long", http.StatusBadRequest)
 		}
+	default:
+		meta.OriginModelName = "whisper-1"
 	}
 
-	price, ok := billingprice.GetModelPrice(audioModel, audioModel, channelType)
+	// map model name
+	meta.ActualModelName, _ = getMappedModelName(meta.OriginModelName, c.GetStringMapString(ctxkey.ModelMapping))
+
+	price, ok := billingprice.GetModelPrice(meta.OriginModelName, meta.ActualModelName, channelType)
 	if !ok {
-		return openai.ErrorWrapper(fmt.Errorf("model price not found: %s", audioModel), "model_price_not_found", http.StatusInternalServerError)
+		return openai.ErrorWrapper(fmt.Errorf("model price not found: %s", meta.OriginModelName), "model_price_not_found", http.StatusInternalServerError)
+	}
+	completionPrice, ok := billingprice.GetModelPrice(meta.OriginModelName, meta.ActualModelName, channelType)
+	if !ok {
+		return openai.ErrorWrapper(fmt.Errorf("model price not found: %s", meta.OriginModelName), "model_price_not_found", http.StatusInternalServerError)
 	}
 
 	groupRemainBalance, postGroupConsumer, err := balance.Default.GetGroupRemainBalance(c.Request.Context(), group)
@@ -64,24 +73,19 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 
 	var preConsumedAmount float64
+	var promptTokens int
 	switch relayMode {
 	case relaymode.AudioSpeech:
-		preConsumedAmount = decimal.NewFromInt(int64(len(ttsRequest.Input))).
+		promptTokens = len(ttsRequest.Input)
+		preConsumedAmount = decimal.NewFromInt(int64(promptTokens)).
 			Mul(decimal.NewFromFloat(price)).
 			Div(decimal.NewFromInt(billingprice.PriceUnit)).
 			InexactFloat64()
-	default:
 	}
 
 	// Check if group balance is enough
 	if groupRemainBalance < preConsumedAmount {
 		return openai.ErrorWrapper(errors.New("group balance is not enough"), "insufficient_group_balance", http.StatusForbidden)
-	}
-	// map model name
-	modelMapping := c.GetStringMapString(ctxkey.ModelMapping)
-	mappedModelName := audioModel
-	if m, ok := modelMapping[audioModel]; ok && m != "" {
-		mappedModelName = m
 	}
 
 	baseURL := channeltype.ChannelBaseURLs[channelType]
@@ -96,22 +100,22 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		switch relayMode {
 		case relaymode.AudioTranscription:
 			// https://learn.microsoft.com/en-us/azure/ai-services/openai/whisper-quickstart?tabs=command-line#rest-api
-			fullRequestURL = fmt.Sprintf("%s/openai/deployments/%s/audio/transcriptions?api-version=%s", baseURL, mappedModelName, apiVersion)
+			fullRequestURL = fmt.Sprintf("%s/openai/deployments/%s/audio/transcriptions?api-version=%s", baseURL, meta.ActualModelName, apiVersion)
 		case relaymode.AudioSpeech:
 			// https://learn.microsoft.com/en-us/azure/ai-services/openai/text-to-speech-quickstart?tabs=command-line#rest-api
-			fullRequestURL = fmt.Sprintf("%s/openai/deployments/%s/audio/speech?api-version=%s", baseURL, mappedModelName, apiVersion)
+			fullRequestURL = fmt.Sprintf("%s/openai/deployments/%s/audio/speech?api-version=%s", baseURL, meta.ActualModelName, apiVersion)
 		}
 	}
 
-	requestBody := &bytes.Buffer{}
-	_, err = io.Copy(requestBody, c.Request.Body)
+	buf := make([]byte, c.Request.ContentLength)
+	_, err = io.ReadFull(c.Request.Body, buf)
 	if err != nil {
 		return openai.ErrorWrapper(err, "new_request_body_failed", http.StatusInternalServerError)
 	}
-	c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody.Bytes()))
+	c.Request.Body = io.NopCloser(bytes.NewReader(buf))
 	responseFormat := c.DefaultPostForm("response_format", "json")
 
-	req, err := http.NewRequest(c.Request.Method, fullRequestURL, requestBody)
+	req, err := http.NewRequest(c.Request.Method, fullRequestURL, bytes.NewReader(buf))
 	if err != nil {
 		return openai.ErrorWrapper(err, "new_request_failed", http.StatusInternalServerError)
 	}
@@ -133,25 +137,19 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return openai.ErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)
 	}
 
-	err = req.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_request_body_failed", http.StatusInternalServerError)
-	}
-	err = c.Request.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_request_body_failed", http.StatusInternalServerError)
-	}
-
-	var amount float64
-	if relayMode != relaymode.AudioSpeech {
+	var completionTokens int
+	switch relayMode {
+	case relaymode.AudioSpeech:
+		defer resp.Body.Close()
+	default:
 		responseBody, err := io.ReadAll(resp.Body)
 		if err != nil {
+			resp.Body.Close()
 			return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
 		}
-		err = resp.Body.Close()
-		if err != nil {
-			return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
-		}
+		resp.Body.Close()
+
+		resp.Body = io.NopCloser(bytes.NewReader(responseBody))
 
 		var openAIErr openai.SlimTextResponse
 		if err = json.Unmarshal(responseBody, &openAIErr); err == nil {
@@ -178,20 +176,22 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "get_text_from_body_err", http.StatusInternalServerError)
 		}
-		amount = decimal.NewFromInt(int64(openai.CountTokenText(text, mappedModelName))).
-			Mul(decimal.NewFromFloat(price)).
-			Div(decimal.NewFromInt(billingprice.PriceUnit)).
-			InexactFloat64()
-		resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
+		completionTokens = openai.CountTokenText(text, meta.ActualModelName)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		err := RelayErrorHandler(resp)
-		go billing.PostConsumeAmount(context.Background(), postGroupConsumer, resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenName, c.Request.URL.Path, err.Error.Message)
+		go postConsumeAmount(context.Background(), postGroupConsumer, resp.StatusCode, c.Request.URL.Path, &relaymodel.Usage{
+			PromptTokens:     promptTokens,
+			CompletionTokens: completionTokens,
+		}, meta, price, completionPrice, err.Message)
 		return err
 	}
 
-	go billing.PostConsumeAmount(context.Background(), postGroupConsumer, resp.StatusCode, tokenId, amount, group, channelId, price, audioModel, tokenName, c.Request.URL.Path, "")
+	go postConsumeAmount(context.Background(), postGroupConsumer, resp.StatusCode, c.Request.URL.Path, &relaymodel.Usage{
+		PromptTokens:     promptTokens,
+		CompletionTokens: completionTokens,
+	}, meta, price, completionPrice, "")
 
 	for k, v := range resp.Header {
 		c.Writer.Header().Set(k, v[0])
@@ -201,10 +201,6 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	_, err = io.Copy(c.Writer, resp.Body)
 	if err != nil {
 		return openai.ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError)
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
 	}
 	return nil
 }
