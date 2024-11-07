@@ -20,10 +20,10 @@ import (
 	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
-	billingprice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
+	billingprice "github.com/songquanpeng/one-api/relay/price"
 	"github.com/songquanpeng/one-api/relay/relaymode"
 )
 

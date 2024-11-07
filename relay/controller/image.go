@@ -18,10 +18,10 @@ import (
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
-	billingPrice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
+	billingprice "github.com/songquanpeng/one-api/relay/price"
 )
 
 func getImageRequest(c *gin.Context, _ int) (*relaymodel.ImageRequest, error) {
@@ -49,16 +49,16 @@ func validateImageRequest(imageRequest *relaymodel.ImageRequest, _ *meta.Meta) *
 	}
 
 	// model validation
-	if !billingPrice.IsValidImageSize(imageRequest.Model, imageRequest.Size) {
+	if !billingprice.IsValidImageSize(imageRequest.Model, imageRequest.Size) {
 		return openai.ErrorWrapper(errors.New("size not supported for this image model"), "size_not_supported", http.StatusBadRequest)
 	}
 
-	if !billingPrice.IsValidImagePromptLength(imageRequest.Model, len(imageRequest.Prompt)) {
+	if !billingprice.IsValidImagePromptLength(imageRequest.Model, len(imageRequest.Prompt)) {
 		return openai.ErrorWrapper(errors.New("prompt is too long"), "prompt_too_long", http.StatusBadRequest)
 	}
 
 	// Number of generated images validation
-	if !billingPrice.IsWithinRange(imageRequest.Model, imageRequest.N) {
+	if !billingprice.IsWithinRange(imageRequest.Model, imageRequest.N) {
 		return openai.ErrorWrapper(errors.New("invalid value of n"), "n_not_within_range", http.StatusBadRequest)
 	}
 	return nil
@@ -68,7 +68,7 @@ func getImageCostPrice(imageRequest *relaymodel.ImageRequest) (float64, error) {
 	if imageRequest == nil {
 		return 0, errors.New("imageRequest is nil")
 	}
-	imageCostPrice := billingPrice.GetImageSizePrice(imageRequest.Model, imageRequest.Size)
+	imageCostPrice := billingprice.GetImageSizePrice(imageRequest.Model, imageRequest.Size)
 	if imageRequest.Quality == "hd" && imageRequest.Model == "dall-e-3" {
 		if imageRequest.Size == "1024x1024" {
 			imageCostPrice *= 2
@@ -106,7 +106,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 
 	// Convert the original image model
-	imageRequest.Model, _ = getMappedModelName(imageRequest.Model, billingPrice.GetImageOriginModelName())
+	imageRequest.Model, _ = getMappedModelName(imageRequest.Model, billingprice.GetImageOriginModelName())
 	c.Set("response_format", imageRequest.ResponseFormat)
 
 	adaptor := relay.GetAdaptor(meta.APIType)

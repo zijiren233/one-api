@@ -10,7 +10,7 @@ import (
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/logger"
-	billingprice "github.com/songquanpeng/one-api/relay/billing/price"
+	billingprice "github.com/songquanpeng/one-api/relay/price"
 )
 
 type Option struct {

@@ -15,9 +15,9 @@ import (
 	"github.com/songquanpeng/one-api/relay/adaptor"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/apitype"
-	billingPrice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
+	billingprice "github.com/songquanpeng/one-api/relay/price"
 )
 
 func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
@@ -37,11 +37,11 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	meta.ActualModelName = textRequest.Model
 
 	// get model price
-	price, ok := billingPrice.GetModelPrice(meta.OriginModelName, meta.ActualModelName, meta.ChannelType)
+	price, ok := billingprice.GetModelPrice(meta.OriginModelName, meta.ActualModelName, meta.ChannelType)
 	if !ok {
 		return openai.ErrorWrapper(fmt.Errorf("model price not found: %s", meta.OriginModelName), "model_price_not_found", http.StatusInternalServerError)
 	}
-	completionPrice, ok := billingPrice.GetCompletionPrice(meta.OriginModelName, meta.ActualModelName, meta.ChannelType)
+	completionPrice, ok := billingprice.GetCompletionPrice(meta.OriginModelName, meta.ActualModelName, meta.ChannelType)
 	if !ok {
 		return openai.ErrorWrapper(fmt.Errorf("completion price not found: %s", meta.OriginModelName), "completion_price_not_found", http.StatusInternalServerError)
 	}

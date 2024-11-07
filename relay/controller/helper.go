@@ -12,11 +12,11 @@ import (
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
-	billingPrice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/controller/validator"
 	"github.com/songquanpeng/one-api/relay/meta"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
+	billingprice "github.com/songquanpeng/one-api/relay/price"
 	"github.com/songquanpeng/one-api/relay/relaymode"
 )
 
@@ -59,7 +59,7 @@ func getPreConsumedAmount(textRequest *relaymodel.GeneralOpenAIRequest, promptTo
 	return decimal.
 		NewFromInt(int64(preConsumedTokens)).
 		Mul(decimal.NewFromFloat(price)).
-		Div(decimal.NewFromInt(billingPrice.PriceUnit)).
+		Div(decimal.NewFromInt(billingprice.PriceUnit)).
 		InexactFloat64()
 }
 
@@ -90,8 +90,8 @@ func postConsumeAmount(ctx context.Context, postGroupConsumer balance.PostGroupC
 	totalTokens := promptTokens + completionTokens
 	if totalTokens != 0 {
 		// amount = (float64(promptTokens)*price + float64(completionTokens)*completionPrice) / billingPrice.PriceUnit
-		promptAmount := decimal.NewFromInt(int64(promptTokens)).Mul(decimal.NewFromFloat(price)).Div(decimal.NewFromInt(billingPrice.PriceUnit))
-		completionAmount := decimal.NewFromInt(int64(completionTokens)).Mul(decimal.NewFromFloat(completionPrice)).Div(decimal.NewFromInt(billingPrice.PriceUnit))
+		promptAmount := decimal.NewFromInt(int64(promptTokens)).Mul(decimal.NewFromFloat(price)).Div(decimal.NewFromInt(billingprice.PriceUnit))
+		completionAmount := decimal.NewFromInt(int64(completionTokens)).Mul(decimal.NewFromFloat(completionPrice)).Div(decimal.NewFromInt(billingprice.PriceUnit))
 		amount = promptAmount.Add(completionAmount).InexactFloat64()
 		if amount > 0 {
 			_amount, err := postGroupConsumer.PostGroupConsume(ctx, meta.TokenName, amount)

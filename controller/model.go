@@ -13,10 +13,10 @@ import (
 	relay "github.com/songquanpeng/one-api/relay"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/apitype"
-	billingPrice "github.com/songquanpeng/one-api/relay/billing/price"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
+	billingprice "github.com/songquanpeng/one-api/relay/price"
 )
 
 // https://platform.openai.com/docs/api-reference/models/list
@@ -135,13 +135,13 @@ type modelPrice struct {
 
 func ModelPrice(c *gin.Context) {
 	bill := make(map[string]*modelPrice)
-	for model, price := range billingPrice.GetModelPriceMap() {
+	for model, price := range billingprice.GetModelPriceMap() {
 		bill[model] = &modelPrice{
 			Prompt:     price,
 			Completion: price,
 		}
 	}
-	for model, price := range billingPrice.GetCompletionPriceMap() {
+	for model, price := range billingprice.GetCompletionPriceMap() {
 		if _, ok := bill[model]; !ok {
 			continue
 		}
@@ -166,8 +166,8 @@ func EnabledType2ModelsAndPrice(c *gin.Context) {
 	type2Models := model.CacheGetType2Models()
 	result := make(map[int]map[string]*modelPrice)
 
-	modelPriceMap := billingPrice.GetModelPriceMap()
-	completionPriceMap := billingPrice.GetCompletionPriceMap()
+	modelPriceMap := billingprice.GetModelPriceMap()
+	completionPriceMap := billingprice.GetCompletionPriceMap()
 
 	for channelType, models := range type2Models {
 		result[channelType] = make(map[string]*modelPrice)
@@ -235,8 +235,8 @@ func EnabledModelsAndPrice(c *gin.Context) {
 	enabledModels := model.CacheGetAllModels()
 	result := make(map[string]*modelPrice)
 
-	modelPriceMap := billingPrice.GetModelPriceMap()
-	completionPriceMap := billingPrice.GetCompletionPriceMap()
+	modelPriceMap := billingprice.GetModelPriceMap()
+	completionPriceMap := billingprice.GetCompletionPriceMap()
 
 	for _, modelName := range enabledModels {
 		if price, ok := modelPriceMap[modelName]; ok {
