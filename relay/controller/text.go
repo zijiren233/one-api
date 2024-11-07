@@ -16,7 +16,6 @@ import (
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/apitype"
 	billingPrice "github.com/songquanpeng/one-api/relay/billing/price"
-	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
 )
@@ -36,12 +35,13 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	meta.OriginModelName = textRequest.Model
 	textRequest.Model, _ = getMappedModelName(textRequest.Model, meta.ModelMapping)
 	meta.ActualModelName = textRequest.Model
+
 	// get model price
-	price, ok := billingPrice.GetModelPrice(textRequest.Model, meta.OriginModelName, meta.ChannelType)
+	price, ok := billingPrice.GetModelPrice(meta.OriginModelName, meta.ActualModelName, meta.ChannelType)
 	if !ok {
 		return openai.ErrorWrapper(fmt.Errorf("model price not found: %s", meta.OriginModelName), "model_price_not_found", http.StatusInternalServerError)
 	}
-	completionPrice, ok := billingPrice.GetCompletionPrice(textRequest.Model, meta.OriginModelName, meta.ChannelType)
+	completionPrice, ok := billingPrice.GetCompletionPrice(meta.OriginModelName, meta.ActualModelName, meta.ChannelType)
 	if !ok {
 		return openai.ErrorWrapper(fmt.Errorf("completion price not found: %s", meta.OriginModelName), "completion_price_not_found", http.StatusInternalServerError)
 	}
@@ -94,13 +94,12 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 }
 
 func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralOpenAIRequest, adaptor adaptor.Adaptor) (io.Reader, error) {
-	if meta.APIType == apitype.OpenAI && meta.OriginModelName == meta.ActualModelName && meta.ChannelType != channeltype.Baichuan {
+	if meta.APIType == apitype.OpenAI && meta.OriginModelName == meta.ActualModelName {
 		// no need to convert request for openai
 		return c.Request.Body, nil
 	}
 
 	// get request body
-	var requestBody io.Reader
 	convertedRequest, err := adaptor.ConvertRequest(c, meta.Mode, textRequest)
 	if err != nil {
 		logger.Debugf(c.Request.Context(), "converted request failed: %s\n", err.Error())
@@ -112,6 +111,5 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 		return nil, err
 	}
 	logger.Debugf(c.Request.Context(), "converted request: \n%s", jsonData)
-	requestBody = bytes.NewBuffer(jsonData)
-	return requestBody, nil
+	return bytes.NewReader(jsonData), nil
 }

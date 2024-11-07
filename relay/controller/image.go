@@ -109,29 +109,17 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	imageRequest.Model, _ = getMappedModelName(imageRequest.Model, billingPrice.GetImageOriginModelName())
 	c.Set("response_format", imageRequest.ResponseFormat)
 
-	var requestBody io.Reader
-	if isModelMapped || meta.ChannelType == channeltype.Azure { // make Azure channel request body
-		jsonStr, err := json.Marshal(imageRequest)
-		if err != nil {
-			return openai.ErrorWrapper(err, "marshal_image_request_failed", http.StatusInternalServerError)
-		}
-		requestBody = bytes.NewBuffer(jsonStr)
-	} else {
-		requestBody = c.Request.Body
-	}
-
 	adaptor := relay.GetAdaptor(meta.APIType)
 	if adaptor == nil {
 		return openai.ErrorWrapper(fmt.Errorf("invalid api type: %d", meta.APIType), "invalid_api_type", http.StatusBadRequest)
 	}
 	adaptor.Init(meta)
 
+	var requestBody io.Reader
 	switch meta.ChannelType {
-	case channeltype.Ali:
-		fallthrough
-	case channeltype.Baidu:
-		fallthrough
-	case channeltype.Zhipu:
+	case channeltype.Ali,
+		channeltype.Baidu,
+		channeltype.Zhipu:
 		finalRequest, err := adaptor.ConvertImageRequest(imageRequest)
 		if err != nil {
 			return openai.ErrorWrapper(err, "convert_image_request_failed", http.StatusInternalServerError)
@@ -140,7 +128,17 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "marshal_image_request_failed", http.StatusInternalServerError)
 		}
-		requestBody = bytes.NewBuffer(jsonStr)
+		requestBody = bytes.NewReader(jsonStr)
+	default:
+		if isModelMapped || meta.ChannelType == channeltype.Azure { // make Azure channel request body
+			jsonStr, err := json.Marshal(imageRequest)
+			if err != nil {
+				return openai.ErrorWrapper(err, "marshal_image_request_failed", http.StatusInternalServerError)
+			}
+			requestBody = bytes.NewReader(jsonStr)
+		} else {
+			requestBody = c.Request.Body
+		}
 	}
 
 	groupRemainBalance, postGroupConsumer, err := balance.Default.GetGroupRemainBalance(ctx, meta.Group)
