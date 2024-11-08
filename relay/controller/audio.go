@@ -28,10 +28,6 @@ import (
 )
 
 func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatusCode {
-	if c.Request.ContentLength <= 0 {
-		return openai.ErrorWrapper(errors.New("request body is empty"), "request_body_empty", http.StatusBadRequest)
-	}
-
 	meta := meta.GetByContext(c)
 
 	channelType := c.GetInt(ctxkey.Channel)
@@ -107,10 +103,15 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 	}
 
-	buf := make([]byte, c.Request.ContentLength)
-	_, err = io.ReadFull(c.Request.Body, buf)
+	var buf []byte
+	if c.Request.ContentLength <= 0 {
+		buf, err = io.ReadAll(c.Request.Body)
+	} else {
+		buf = make([]byte, c.Request.ContentLength)
+		_, err = io.ReadFull(c.Request.Body, buf)
+	}
 	if err != nil {
-		return openai.ErrorWrapper(err, "new_request_body_failed", http.StatusInternalServerError)
+		return openai.ErrorWrapper(errors.New("request body is empty"), "request_body_empty", http.StatusBadRequest)
 	}
 	c.Request.Body = io.NopCloser(bytes.NewReader(buf))
 	responseFormat := c.DefaultPostForm("response_format", "json")

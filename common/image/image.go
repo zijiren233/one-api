@@ -63,17 +63,19 @@ func GetImageFromUrl(url string) (string, string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", "", fmt.Errorf("status code: %d", resp.StatusCode)
 	}
+	var buf []byte
 	if resp.ContentLength <= 0 {
-		return "", "", fmt.Errorf("content length is less than 0")
+		buf, err = io.ReadAll(resp.Body)
+	} else {
+		buf = make([]byte, resp.ContentLength)
+		_, err = io.ReadFull(resp.Body, buf)
+	}
+	if err != nil {
+		return "", "", err
 	}
 	isImage := IsImageUrl(resp)
 	if !isImage {
 		return "", "", fmt.Errorf("not an image")
-	}
-	buf := make([]byte, resp.ContentLength)
-	_, err = io.ReadFull(resp.Body, buf)
-	if err != nil {
-		return "", "", err
 	}
 	return resp.Header.Get("Content-Type"), base64.StdEncoding.EncodeToString(buf), nil
 }
