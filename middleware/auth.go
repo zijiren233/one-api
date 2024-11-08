@@ -43,17 +43,20 @@ func TokenAuth(c *gin.Context) {
 	}
 	if token.Subnet != "" {
 		if !network.IsIpInSubnets(ctx, c.ClientIP(), token.Subnet) {
-			abortWithMessage(c, http.StatusForbidden, fmt.Sprintf("该令牌只能在指定网段使用：%s，当前 ip：%s", token.Subnet, c.ClientIP()))
+			abortWithMessage(c, http.StatusForbidden,
+				fmt.Sprintf("令牌 (%s[%d]) 只能在指定网段使用：%s，当前 ip：%s",
+					token.Name,
+					token.Id,
+					token.Subnet,
+					c.ClientIP(),
+				),
+			)
 			return
 		}
 	}
 	group, err := model.CacheGetGroup(token.Group)
 	if err != nil {
 		abortWithMessage(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if group.Status != model.GroupStatusEnabled {
-		abortWithMessage(c, http.StatusForbidden, "用户组已被禁用")
 		return
 	}
 	requestModel, err := getRequestModel(c)
@@ -65,13 +68,23 @@ func TokenAuth(c *gin.Context) {
 	if len(token.Models) == 0 {
 		token.Models = model.CacheGetAllModels()
 		if requestModel != "" && len(token.Models) == 0 {
-			abortWithMessage(c, http.StatusForbidden, "该令牌无权使用任何模型")
+			abortWithMessage(c,
+				http.StatusForbidden,
+				fmt.Sprintf("令牌 (%s[%d]) 无权使用任何模型",
+					token.Name, token.Id,
+				),
+			)
 			return
 		}
 	}
 	c.Set(ctxkey.AvailableModels, []string(token.Models))
 	if requestModel != "" && !slices.Contains(token.Models, requestModel) {
-		abortWithMessage(c, http.StatusForbidden, fmt.Sprintf("该令牌无权使用模型：%s", requestModel))
+		abortWithMessage(c,
+			http.StatusForbidden,
+			fmt.Sprintf("令牌 (%s[%d]) 无权使用模型：%s",
+				token.Name, token.Id, requestModel,
+			),
+		)
 		return
 	}
 
@@ -86,7 +99,11 @@ func TokenAuth(c *gin.Context) {
 			return
 		}
 		if !ok {
-			abortWithMessage(c, http.StatusTooManyRequests, "请求过于频繁")
+			abortWithMessage(c, http.StatusTooManyRequests,
+				fmt.Sprintf("%s 请求过于频繁",
+					group.Id,
+				),
+			)
 			return
 		}
 	}
