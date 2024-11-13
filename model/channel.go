@@ -33,7 +33,7 @@ type Channel struct {
 	Config           ChannelConfig     `gorm:"serializer:json;type:text" json:"config"`
 	Other            string            `json:"other"`
 	Key              string            `gorm:"type:text;index" json:"key"`
-	Name             string            `gorm:"uniqueIndex" json:"name"`
+	Name             string            `gorm:"index" json:"name"`
 	BaseURL          string            `gorm:"index" json:"base_url"`
 	Models           []string          `gorm:"serializer:json;type:text" json:"models"`
 	Balance          float64           `json:"balance"`
@@ -267,7 +267,9 @@ func GetChannelById(id int, omitKey bool) (*Channel, error) {
 }
 
 func BatchInsertChannels(channels []*Channel) error {
-	return DB.Create(&channels).Error
+	return DB.Transaction(func(tx *gorm.DB) error {
+		return tx.Create(&channels).Error
+	})
 }
 
 func UpdateChannel(channel *Channel) error {

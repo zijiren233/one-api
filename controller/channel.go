@@ -45,6 +45,65 @@ func GetChannels(c *gin.Context) {
 	})
 }
 
+func GetAllChannels(c *gin.Context) {
+	channels, err := model.GetAllChannels(false, false)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	cs := make([]*AddChannelRequest, 0, len(channels))
+	for _, channel := range channels {
+		cs = append(cs, &AddChannelRequest{
+			Type:         channel.Type,
+			Name:         channel.Name,
+			Key:          channel.Key,
+			BaseURL:      channel.BaseURL,
+			Other:        channel.Other,
+			Models:       channel.Models,
+			ModelMapping: channel.ModelMapping,
+			Priority:     channel.Priority,
+			Config:       channel.Config,
+			Status:       channel.Status,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    cs,
+	})
+}
+
+func AddChannels(c *gin.Context) {
+	channels := make([]*AddChannelRequest, 0)
+	err := c.ShouldBindJSON(&channels)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	_channels := make([]*model.Channel, 0, len(channels))
+	for _, channel := range channels {
+		_channels = append(_channels, channel.ToChannels()...)
+	}
+	err = model.BatchInsertChannels(_channels)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
+}
+
 func SearchChannels(c *gin.Context) {
 	keyword := c.Query("keyword")
 	p, _ := strconv.Atoi(c.Query("p"))
@@ -114,6 +173,7 @@ type AddChannelRequest struct {
 	Models       []string            `json:"models"`
 	Type         int                 `json:"type"`
 	Priority     int32               `json:"priority"`
+	Status       int                 `json:"status"`
 }
 
 func (r *AddChannelRequest) ToChannel() *model.Channel {
@@ -127,7 +187,22 @@ func (r *AddChannelRequest) ToChannel() *model.Channel {
 		ModelMapping: maps.Clone(r.ModelMapping),
 		Config:       r.Config,
 		Priority:     r.Priority,
+		Status:       r.Status,
 	}
+}
+
+func (r *AddChannelRequest) ToChannels() []*model.Channel {
+	keys := strings.Split(r.Key, "\n")
+	channels := make([]*model.Channel, 0, len(keys))
+	for _, key := range keys {
+		if key == "" {
+			continue
+		}
+		c := r.ToChannel()
+		c.Key = key
+		channels = append(channels, c)
+	}
+	return channels
 }
 
 func AddChannel(c *gin.Context) {
@@ -140,17 +215,7 @@ func AddChannel(c *gin.Context) {
 		})
 		return
 	}
-	keys := strings.Split(channel.Key, "\n")
-	channels := make([]*model.Channel, 0, len(keys))
-	for _, key := range keys {
-		if key == "" {
-			continue
-		}
-		localChannel := channel
-		localChannel.Key = key
-		channels = append(channels, localChannel.ToChannel())
-	}
-	err = model.BatchInsertChannels(channels)
+	err = model.BatchInsertChannels(channel.ToChannels())
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

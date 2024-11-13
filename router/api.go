@@ -48,6 +48,8 @@ func SetApiRouter(router *gin.Engine) {
 		channelsRoute := apiRouter.Group("/channels")
 		{
 			channelsRoute.GET("/", controller.GetChannels)
+			channelsRoute.GET("/all", controller.GetAllChannels)
+			channelsRoute.POST("/", controller.AddChannels)
 			channelsRoute.GET("/search", controller.SearchChannels)
 			channelsRoute.GET("/test", controller.TestChannels)
 			channelsRoute.GET("/update_balance", controller.UpdateAllChannelsBalance)

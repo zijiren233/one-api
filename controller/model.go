@@ -136,17 +136,16 @@ type modelPrice struct {
 
 func ModelPrice(c *gin.Context) {
 	bill := make(map[string]*modelPrice)
-	for model, price := range billingprice.GetModelPriceMap() {
+	modelPriceMap := billingprice.GetModelPriceMap()
+	completionPriceMap := billingprice.GetCompletionPriceMap()
+	for model, price := range modelPriceMap {
 		bill[model] = &modelPrice{
 			Prompt:     price,
 			Completion: price,
 		}
-	}
-	for model, price := range billingprice.GetCompletionPriceMap() {
-		if _, ok := bill[model]; !ok {
-			continue
+		if completionPrice, ok := completionPriceMap[model]; ok {
+			bill[model].Completion = completionPrice
 		}
-		bill[model].Completion = price
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
