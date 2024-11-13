@@ -18,7 +18,6 @@ import (
 	"github.com/songquanpeng/one-api/relay"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/meta"
-	"github.com/songquanpeng/one-api/relay/model"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
 	billingprice "github.com/songquanpeng/one-api/relay/price"
 	"github.com/songquanpeng/one-api/relay/relaymode"
@@ -50,7 +49,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	var body io.ReadCloser
 	switch relayMode {
 	case relaymode.AudioSpeech:
-		var ttsRequest model.TextToSpeechRequest
+		var ttsRequest relaymodel.TextToSpeechRequest
 		err := common.UnmarshalBodyReusable(c, &ttsRequest)
 		if err != nil {
 			return openai.ErrorWrapper(err, "invalid_json", http.StatusBadRequest)
