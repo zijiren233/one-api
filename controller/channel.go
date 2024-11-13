@@ -54,25 +54,10 @@ func GetAllChannels(c *gin.Context) {
 		})
 		return
 	}
-	cs := make([]*AddChannelRequest, 0, len(channels))
-	for _, channel := range channels {
-		cs = append(cs, &AddChannelRequest{
-			Type:         channel.Type,
-			Name:         channel.Name,
-			Key:          channel.Key,
-			BaseURL:      channel.BaseURL,
-			Other:        channel.Other,
-			Models:       channel.Models,
-			ModelMapping: channel.ModelMapping,
-			Priority:     channel.Priority,
-			Config:       channel.Config,
-			Status:       channel.Status,
-		})
-	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    cs,
+		"data":    channels,
 	})
 }
 
