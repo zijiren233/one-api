@@ -1,8 +1,8 @@
 package model
 
 import (
+	"errors"
 	"strconv"
-	"strings"
 	"time"
 
 	json "github.com/json-iterator/go"
@@ -72,44 +72,52 @@ func SyncOptions(frequency time.Duration) {
 }
 
 func UpdateOption(key string, value string) error {
+	err := updateOptionMap(key, value)
+	if err != nil {
+		return err
+	}
 	// Save to database first
 	option := Option{
 		Key: key,
 	}
-	// https://gorm.io/docs/update.html#Save-All-Fields
-	err := DB.Assign(Option{Key: key, Value: value}).FirstOrCreate(&option).Error
+	err = DB.Assign(Option{Key: key, Value: value}).FirstOrCreate(&option).Error
 	if err != nil {
 		return err
 	}
-	// Update OptionMap
-	return updateOptionMap(key, value)
+	return nil
 }
+
+func UpdateOptions(options map[string]string) error {
+	errs := make([]error, 0)
+	for key, value := range options {
+		err := updateOptionMap(key, value)
+		if err != nil && err != ErrUnknownOptionKey {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+var ErrUnknownOptionKey = errors.New("unknown option key")
 
 func updateOptionMap(key string, value string) (err error) {
 	config.OptionMapRWMutex.Lock()
 	defer config.OptionMapRWMutex.Unlock()
 	config.OptionMap[key] = value
-	if strings.HasSuffix(key, "Enabled") {
-		boolValue := value == "true"
-		switch key {
-		case "AutomaticDisableChannelEnabled":
-			config.SetAutomaticDisableChannelEnabled(boolValue)
-		case "AutomaticEnableChannelWhenTestSucceedEnabled":
-			config.SetAutomaticEnableChannelWhenTestSucceedEnabled(boolValue)
-		case "ApproximateTokenEnabled":
-			config.SetApproximateTokenEnabled(boolValue)
-		case "BillingEnabled":
-			billingprice.SetBillingEnabled(boolValue)
-		}
-	}
-	if strings.HasPrefix(key, "Disable") {
-		boolValue := value == "true"
-		switch key {
-		case "DisableServe":
-			config.SetDisableServe(boolValue)
-		}
-	}
 	switch key {
+	case "DisableServe":
+		config.SetDisableServe(value == "true")
+	case "AutomaticDisableChannelEnabled":
+		config.SetAutomaticDisableChannelEnabled(value == "true")
+	case "AutomaticEnableChannelWhenTestSucceedEnabled":
+		config.SetAutomaticEnableChannelWhenTestSucceedEnabled(value == "true")
+	case "ApproximateTokenEnabled":
+		config.SetApproximateTokenEnabled(value == "true")
+	case "BillingEnabled":
+		billingprice.SetBillingEnabled(value == "true")
 	case "GroupMaxTokenNum":
 		groupMaxTokenNum, err := strconv.ParseInt(value, 10, 32)
 		if err != nil {
@@ -156,6 +164,8 @@ func updateOptionMap(key string, value string) (err error) {
 		err = billingprice.UpdateModelPriceByJSONString(value)
 	case "CompletionPrice":
 		err = billingprice.UpdateCompletionPriceByJSONString(value)
+	default:
+		return ErrUnknownOptionKey
 	}
 	return err
 }

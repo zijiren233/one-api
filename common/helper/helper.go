@@ -7,18 +7,6 @@ import (
 	"github.com/songquanpeng/one-api/common/random"
 )
 
-func Interface2String(inter interface{}) string {
-	switch inter := inter.(type) {
-	case string:
-		return inter
-	case int:
-		return fmt.Sprintf("%d", inter)
-	case float64:
-		return fmt.Sprintf("%f", inter)
-	}
-	return "Not Implemented"
-}
-
 func GenRequestID() string {
 	return GetTimeString() + random.GetRandomNumberString(8)
 }

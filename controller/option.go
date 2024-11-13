@@ -6,22 +6,18 @@ import (
 	json "github.com/json-iterator/go"
 
 	"github.com/songquanpeng/one-api/common/config"
-	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/model"
 
 	"github.com/gin-gonic/gin"
 )
 
 func GetOptions(c *gin.Context) {
-	var options []*model.Option
-	config.OptionMapRWMutex.Lock()
+	options := make(map[string]string)
+	config.OptionMapRWMutex.RLock()
 	for k, v := range config.OptionMap {
-		options = append(options, &model.Option{
-			Key:   k,
-			Value: helper.Interface2String(v),
-		})
+		options[k] = v
 	}
-	config.OptionMapRWMutex.Unlock()
+	config.OptionMapRWMutex.RUnlock()
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -40,6 +36,30 @@ func UpdateOption(c *gin.Context) {
 		return
 	}
 	err = model.UpdateOption(option.Key, option.Value)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
+}
+
+func UpdateOptions(c *gin.Context) {
+	var options map[string]string
+	err := json.NewDecoder(c.Request.Body).Decode(&options)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的参数",
+		})
+		return
+	}
+	err = model.UpdateOptions(options)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

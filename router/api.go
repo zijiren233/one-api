@@ -43,6 +43,7 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			optionRoute.GET("/", controller.GetOptions)
 			optionRoute.PUT("/", controller.UpdateOption)
+			optionRoute.PUT("/batch", controller.UpdateOptions)
 		}
 		channelsRoute := apiRouter.Group("/channels")
 		{
