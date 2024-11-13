@@ -131,6 +131,7 @@ func BuiltinModels(c *gin.Context) {
 type modelPrice struct {
 	Prompt     float64 `json:"prompt"`
 	Completion float64 `json:"completion"`
+	Unset      bool    `json:"unset,omitempty"`
 }
 
 func ModelPrice(c *gin.Context) {
@@ -170,15 +171,20 @@ func EnabledType2ModelsAndPrice(c *gin.Context) {
 	completionPriceMap := billingprice.GetCompletionPriceMap()
 
 	for channelType, models := range type2Models {
-		result[channelType] = make(map[string]*modelPrice)
+		m := make(map[string]*modelPrice)
+		result[channelType] = m
 		for _, modelName := range models {
 			if price, ok := modelPriceMap[modelName]; ok {
-				result[channelType][modelName] = &modelPrice{
+				m[modelName] = &modelPrice{
 					Prompt:     price,
 					Completion: price,
 				}
 				if completionPrice, ok := completionPriceMap[modelName]; ok {
-					result[channelType][modelName].Completion = completionPrice
+					m[modelName].Completion = completionPrice
+				}
+			} else {
+				m[modelName] = &modelPrice{
+					Unset: true,
 				}
 			}
 		}
@@ -246,6 +252,10 @@ func EnabledModelsAndPrice(c *gin.Context) {
 			}
 			if completionPrice, ok := completionPriceMap[modelName]; ok {
 				result[modelName].Completion = completionPrice
+			}
+		} else {
+			result[modelName] = &modelPrice{
+				Unset: true,
 			}
 		}
 	}
