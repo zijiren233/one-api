@@ -134,13 +134,9 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 }
 
 func ConvertEmbeddingRequest(request model.GeneralOpenAIRequest) (*EmbeddingRequest, error) {
-	inputs := request.ParseInput()
-	if len(inputs) != 1 {
-		return nil, errors.New("invalid input length, zhipu only support one input")
-	}
 	return &EmbeddingRequest{
 		Model: request.Model,
-		Input: inputs[0],
+		Input: request.Input,
 	}, nil
 }
 

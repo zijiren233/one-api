@@ -48,7 +48,7 @@ type tokenData struct {
 
 type EmbeddingRequest struct {
 	Model string `json:"model"`
-	Input string `json:"input"`
+	Input any    `json:"input"`
 }
 
 type EmbeddingResponse struct {
