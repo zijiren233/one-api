@@ -21,6 +21,8 @@ func GetTokens(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	group := c.Query("group")
 	order := c.Query("order")
@@ -52,6 +54,8 @@ func GetGroupTokens(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	group := c.Param("group")
 	order := c.Query("order")
@@ -84,6 +88,8 @@ func SearchTokens(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	order := c.Query("order")
 	name := c.Query("name")
@@ -118,6 +124,8 @@ func SearchGroupTokens(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	group := c.Param("group")
 	order := c.Query("order")

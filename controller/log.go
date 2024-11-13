@@ -19,6 +19,8 @@ func GetLogs(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	code, _ := strconv.Atoi(c.Query("code"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
@@ -68,6 +70,8 @@ func GetGroupLogs(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	code, _ := strconv.Atoi(c.Query("code"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
@@ -114,6 +118,8 @@ func SearchLogs(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	code, _ := strconv.Atoi(c.Query("code"))
 	endpoint := c.Query("endpoint")
@@ -158,6 +164,8 @@ func SearchGroupLogs(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	group := c.Param("group")
 	code, _ := strconv.Atoi(c.Query("code"))
@@ -295,6 +303,8 @@ func SearchConsumeError(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	order := c.Query("order")
 	logs, total, err := model.SearchConsumeError(keyword, group, tokenName, modelName, content, usedAmount, tokenId, page, perPage, order)

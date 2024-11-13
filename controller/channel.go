@@ -20,6 +20,8 @@ func GetChannels(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	id, _ := strconv.Atoi(c.Query("id"))
 	name := c.Query("name")
@@ -99,6 +101,8 @@ func SearchChannels(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	id, _ := strconv.Atoi(c.Query("id"))
 	name := c.Query("name")

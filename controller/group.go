@@ -21,6 +21,8 @@ func GetGroups(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 
 	order := c.DefaultQuery("order", "")
@@ -53,6 +55,8 @@ func SearchGroups(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.Query("per_page"))
 	if perPage <= 0 {
 		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
 	}
 	order := c.DefaultQuery("order", "")
 	status, _ := strconv.Atoi(c.Query("status"))
