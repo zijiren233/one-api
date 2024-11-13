@@ -21,6 +21,14 @@ const channelName = "vertexai"
 
 type Adaptor struct{}
 
+func (a *Adaptor) ConvertSTTRequest(*http.Request) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+func (a *Adaptor) ConvertTTSRequest(*model.TextToSpeechRequest) (any, error) {
+	return nil, nil
+}
+
 func (a *Adaptor) Init(meta *meta.Meta) {
 }
 

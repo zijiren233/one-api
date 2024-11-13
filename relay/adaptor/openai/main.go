@@ -3,6 +3,8 @@ package openai
 import (
 	"bufio"
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -15,6 +17,7 @@ import (
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/conv"
 	"github.com/songquanpeng/one-api/common/logger"
+	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
 	"github.com/songquanpeng/one-api/relay/relaymode"
 )
@@ -134,4 +137,102 @@ func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName st
 
 	_, _ = io.Copy(c.Writer, resp.Body)
 	return nil, &textResponse.Usage
+}
+
+func TTSHandler(c *gin.Context, resp *http.Response, meta *meta.Meta) (*model.ErrorWithStatusCode, *model.Usage) {
+	defer resp.Body.Close()
+	_, _ = io.Copy(c.Writer, resp.Body)
+	return nil, &model.Usage{
+		PromptTokens:     meta.PromptTokens,
+		CompletionTokens: 0,
+		TotalTokens:      meta.PromptTokens,
+	}
+}
+
+func STTHandler(c *gin.Context, resp *http.Response, meta *meta.Meta, responseFormat string) (*model.ErrorWithStatusCode, *model.Usage) {
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		resp.Body.Close()
+		return ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
+	}
+	resp.Body.Close()
+
+	resp.Body = io.NopCloser(bytes.NewReader(responseBody))
+
+	var openAIErr SlimTextResponse
+	if err = json.Unmarshal(responseBody, &openAIErr); err == nil {
+		if openAIErr.Error.Message != "" {
+			return ErrorWrapper(fmt.Errorf("type %s, code %v, message %s", openAIErr.Error.Type, openAIErr.Error.Code, openAIErr.Error.Message), "request_error", http.StatusInternalServerError), nil
+		}
+	}
+
+	var text string
+	switch responseFormat {
+	case "json":
+		text, err = getTextFromJSON(responseBody)
+	case "text":
+		text, err = getTextFromText(responseBody)
+	case "srt":
+		text, err = getTextFromSRT(responseBody)
+	case "verbose_json":
+		text, err = getTextFromVerboseJSON(responseBody)
+	case "vtt":
+		text, err = getTextFromVTT(responseBody)
+	default:
+		return ErrorWrapper(errors.New("unexpected_response_format"), "unexpected_response_format", http.StatusInternalServerError), nil
+	}
+	if err != nil {
+		return ErrorWrapper(err, "get_text_from_body_err", http.StatusInternalServerError), nil
+	}
+	completionTokens := CountTokenText(text, meta.ActualModelName)
+	return nil, &model.Usage{
+		PromptTokens:     0,
+		CompletionTokens: completionTokens,
+		TotalTokens:      completionTokens,
+	}
+}
+
+func getTextFromVTT(body []byte) (string, error) {
+	return getTextFromSRT(body)
+}
+
+func getTextFromVerboseJSON(body []byte) (string, error) {
+	var whisperResponse WhisperVerboseJSONResponse
+	if err := json.Unmarshal(body, &whisperResponse); err != nil {
+		return "", fmt.Errorf("unmarshal_response_body_failed err :%w", err)
+	}
+	return whisperResponse.Text, nil
+}
+
+func getTextFromSRT(body []byte) (string, error) {
+	scanner := bufio.NewScanner(bytes.NewReader(body))
+	var builder strings.Builder
+	var textLine bool
+	for scanner.Scan() {
+		line := scanner.Text()
+		if textLine {
+			builder.WriteString(line)
+			textLine = false
+			continue
+		} else if strings.Contains(line, "-->") {
+			textLine = true
+			continue
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	return builder.String(), nil
+}
+
+func getTextFromText(body []byte) (string, error) {
+	return strings.TrimSuffix(conv.BytesToString(body), "\n"), nil
+}
+
+func getTextFromJSON(body []byte) (string, error) {
+	var whisperResponse WhisperJSONResponse
+	if err := json.Unmarshal(body, &whisperResponse); err != nil {
+		return "", fmt.Errorf("unmarshal_response_body_failed err :%w", err)
+	}
+	return whisperResponse.Text, nil
 }

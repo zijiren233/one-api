@@ -22,27 +22,22 @@ func abortWithMessage(c *gin.Context, statusCode int, message string) {
 }
 
 func getRequestModel(c *gin.Context) (string, error) {
-	var modelRequest ModelRequest
-	err := common.UnmarshalBodyReusable(c, &modelRequest)
-	if err != nil {
-		return "", fmt.Errorf("common.UnmarshalBodyReusable failed: %w", err)
-	}
-
-	if modelRequest.Model != "" {
-		return modelRequest.Model, nil
-	}
-
 	path := c.Request.URL.Path
 	switch {
 	case strings.HasPrefix(path, "/v1/moderations"):
-		modelRequest.Model = "text-moderation-stable"
+		return "text-moderation-stable", nil
 	case strings.HasSuffix(path, "embeddings"):
-		modelRequest.Model = c.Param("model")
+		return c.Param("model"), nil
 	case strings.HasPrefix(path, "/v1/images/generations"):
-		modelRequest.Model = "dall-e-2"
+		return "dall-e-2", nil
 	case strings.HasPrefix(path, "/v1/audio/transcriptions"), strings.HasPrefix(path, "/v1/audio/translations"):
-		modelRequest.Model = "whisper-1"
+		return c.Request.FormValue("model"), nil
+	default:
+		var modelRequest ModelRequest
+		err := common.UnmarshalBodyReusable(c, &modelRequest)
+		if err != nil {
+			return "", fmt.Errorf("get request model failed: %w", err)
+		}
+		return modelRequest.Model, nil
 	}
-
-	return modelRequest.Model, nil
 }

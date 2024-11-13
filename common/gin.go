@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	json "github.com/json-iterator/go"
@@ -12,14 +11,19 @@ import (
 )
 
 func GetRequestBody(c *gin.Context) ([]byte, error) {
-	requestBody, _ := c.Get(ctxkey.KeyRequestBody)
-	if requestBody != nil {
+	requestBody, ok := c.Get(ctxkey.KeyRequestBody)
+	if ok {
 		return requestBody.([]byte), nil
 	}
-	defer c.Request.Body.Close()
 	var buf []byte
 	var err error
-	if c.Request.ContentLength <= 0 {
+	defer func() {
+		c.Request.Body.Close()
+		if err == nil {
+			c.Request.Body = io.NopCloser(bytes.NewBuffer(buf))
+		}
+	}()
+	if c.Request.ContentLength <= 0 || c.Request.Header.Get("Content-Type") != "application/json" {
 		buf, err = io.ReadAll(c.Request.Body)
 	} else {
 		buf = make([]byte, c.Request.ContentLength)
@@ -37,15 +41,7 @@ func UnmarshalBodyReusable(c *gin.Context, v any) error {
 	if err != nil {
 		return err
 	}
-	contentType := c.Request.Header.Get("Content-Type")
-	if strings.HasPrefix(contentType, "application/json") {
-		err = json.Unmarshal(requestBody, &v)
-		c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
-	} else {
-		c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
-		err = c.ShouldBind(&v)
-	}
-	return err
+	return json.Unmarshal(requestBody, &v)
 }
 
 func SetEventStreamHeaders(c *gin.Context) {

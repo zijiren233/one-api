@@ -24,6 +24,14 @@ type Adaptor struct {
 	AwsClient *bedrockruntime.Client
 }
 
+func (a *Adaptor) ConvertSTTRequest(*http.Request) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+func (a *Adaptor) ConvertTTSRequest(*model.TextToSpeechRequest) (any, error) {
+	return nil, nil
+}
+
 func (a *Adaptor) Init(meta *meta.Meta) {
 	a.Meta = meta
 	a.AwsClient = bedrockruntime.New(bedrockruntime.Options{

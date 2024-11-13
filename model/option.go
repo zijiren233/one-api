@@ -90,7 +90,7 @@ func UpdateOption(key string, value string) error {
 func UpdateOptions(options map[string]string) error {
 	errs := make([]error, 0)
 	for key, value := range options {
-		err := updateOptionMap(key, value)
+		err := UpdateOption(key, value)
 		if err != nil && err != ErrUnknownOptionKey {
 			errs = append(errs, err)
 		}

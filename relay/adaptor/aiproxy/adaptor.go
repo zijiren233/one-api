@@ -50,6 +50,14 @@ func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Read
 	return adaptor.DoRequestHelper(a, c, meta, requestBody)
 }
 
+func (a *Adaptor) ConvertSTTRequest(*http.Request) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+func (a *Adaptor) ConvertTTSRequest(*model.TextToSpeechRequest) (any, error) {
+	return nil, nil
+}
+
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Meta) (usage *model.Usage, err *model.ErrorWithStatusCode) {
 	if meta.IsStream {
 		err, usage = StreamHandler(c, resp)

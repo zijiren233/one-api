@@ -1,9 +1,11 @@
 package openai
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strings"
 
@@ -19,21 +21,29 @@ import (
 )
 
 type Adaptor struct {
-	ChannelType int
+	meta           *meta.Meta
+	contentType    string
+	responseFormat string
 }
 
 func (a *Adaptor) Init(meta *meta.Meta) {
-	a.ChannelType = meta.ChannelType
+	a.meta = meta
 }
 
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 	switch meta.ChannelType {
 	case channeltype.Azure:
-		if meta.Mode == relaymode.ImagesGenerations {
+		switch meta.Mode {
+		case relaymode.ImagesGenerations:
 			// https://learn.microsoft.com/en-us/azure/ai-services/openai/dall-e-quickstart?tabs=dalle3%2Ccommand-line&pivots=rest-api
 			// https://{resource_name}.openai.azure.com/openai/deployments/dall-e-3/images/generations?api-version=2024-03-01-preview
-			fullRequestURL := fmt.Sprintf("%s/openai/deployments/%s/images/generations?api-version=%s", meta.BaseURL, meta.ActualModelName, meta.Config.APIVersion)
-			return fullRequestURL, nil
+			return fmt.Sprintf("%s/openai/deployments/%s/images/generations?api-version=%s", meta.BaseURL, meta.ActualModelName, meta.Config.APIVersion), nil
+		case relaymode.AudioTranscription:
+			// https://learn.microsoft.com/en-us/azure/ai-services/openai/whisper-quickstart?tabs=command-line#rest-api
+			return fmt.Sprintf("%s/openai/deployments/%s/audio/transcriptions?api-version=%s", meta.BaseURL, meta.ActualModelName, meta.Config.APIVersion), nil
+		case relaymode.AudioSpeech:
+			// https://learn.microsoft.com/en-us/azure/ai-services/openai/text-to-speech-quickstart?tabs=command-line#rest-api
+			return fmt.Sprintf("%s/openai/deployments/%s/audio/speech?api-version=%s", meta.BaseURL, meta.ActualModelName, meta.Config.APIVersion), nil
 		}
 
 		// https://learn.microsoft.com/en-us/azure/cognitive-services/openai/chatgpt-quickstart?pivots=rest-api&tabs=command-line#rest-api
@@ -63,6 +73,9 @@ func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *me
 		req.Header.Set("api-key", meta.APIKey)
 		return nil
 	}
+	if a.contentType != "" {
+		req.Header.Set("Content-Type", a.contentType)
+	}
 	req.Header.Set("Authorization", "Bearer "+meta.APIKey)
 	if meta.ChannelType == channeltype.OpenRouter {
 		req.Header.Set("HTTP-Referer", "https://github.com/songquanpeng/one-api")
@@ -83,6 +96,46 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 		request.StreamOptions.IncludeUsage = true
 	}
 	return request, nil
+}
+
+func (a *Adaptor) ConvertTTSRequest(request *model.TextToSpeechRequest) (any, error) {
+	if request == nil {
+		return nil, errors.New("request is nil")
+	}
+	if len(request.Input) > 4096 {
+		return nil, errors.New("input is too long (over 4096 characters)")
+	}
+	return request, nil
+}
+
+func (a *Adaptor) ConvertSTTRequest(request *http.Request) (io.ReadCloser, error) {
+	if request == nil {
+		return nil, errors.New("request is nil")
+	}
+	multipartBody := &bytes.Buffer{}
+	multipartWriter := multipart.NewWriter(multipartBody)
+	multipartWriter.WriteField("model", a.meta.ActualModelName)
+	a.responseFormat = request.FormValue("response_format")
+	if a.responseFormat == "" {
+		a.responseFormat = "json"
+	}
+	multipartWriter.WriteField("response_format", a.responseFormat)
+	file, fileHeader, err := request.FormFile("file")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	w, err := multipartWriter.CreateFormFile("file", fileHeader.Filename)
+	if err != nil {
+		return nil, err
+	}
+	_, err = io.Copy(w, file)
+	if err != nil {
+		return nil, err
+	}
+	multipartWriter.Close()
+	a.contentType = multipartWriter.FormDataContentType()
+	return io.NopCloser(multipartBody), nil
 }
 
 func (a *Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) {
@@ -111,6 +164,10 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 		switch meta.Mode {
 		case relaymode.ImagesGenerations:
 			err, _ = ImageHandler(c, resp)
+		case relaymode.AudioTranscription:
+			err, usage = STTHandler(c, resp, meta, a.responseFormat)
+		case relaymode.AudioSpeech:
+			err, usage = TTSHandler(c, resp, meta)
 		default:
 			err, usage = Handler(c, resp, meta.PromptTokens, meta.ActualModelName)
 		}
@@ -119,11 +176,11 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 }
 
 func (a *Adaptor) GetModelList() []string {
-	_, modelList := GetCompatibleChannelMeta(a.ChannelType)
+	_, modelList := GetCompatibleChannelMeta(a.meta.ChannelType)
 	return modelList
 }
 
 func (a *Adaptor) GetChannelName() string {
-	channelName, _ := GetCompatibleChannelMeta(a.ChannelType)
+	channelName, _ := GetCompatibleChannelMeta(a.meta.ChannelType)
 	return channelName
 }
