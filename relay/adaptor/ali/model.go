@@ -5,14 +5,9 @@ import (
 	"github.com/songquanpeng/one-api/relay/model"
 )
 
-type Message struct {
-	Content string `json:"content"`
-	Role    string `json:"role"`
-}
-
 type Input struct {
 	// Prompt   string       `json:"prompt"`
-	Messages []Message `json:"messages"`
+	Messages []model.Message `json:"messages"`
 }
 
 type Parameters struct {

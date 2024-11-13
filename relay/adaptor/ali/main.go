@@ -24,14 +24,6 @@ import (
 const EnableSearchModelSuffix = "-internet"
 
 func ConvertRequest(request model.GeneralOpenAIRequest) *ChatRequest {
-	messages := make([]Message, 0, len(request.Messages))
-	for i := 0; i < len(request.Messages); i++ {
-		message := request.Messages[i]
-		messages = append(messages, Message{
-			Content: message.StringContent(),
-			Role:    strings.ToLower(message.Role),
-		})
-	}
 	enableSearch := false
 	aliModel := request.Model
 	if strings.HasSuffix(aliModel, EnableSearchModelSuffix) {
@@ -44,7 +36,7 @@ func ConvertRequest(request model.GeneralOpenAIRequest) *ChatRequest {
 	return &ChatRequest{
 		Model: aliModel,
 		Input: Input{
-			Messages: messages,
+			Messages: request.Messages,
 		},
 		Parameters: Parameters{
 			EnableSearch:      enableSearch,
