@@ -109,8 +109,11 @@ func TokenAuth(c *gin.Context) {
 	}
 
 	c.Set(ctxkey.Group, token.Group)
+	c.Set(ctxkey.GroupQPM, group.QPM)
 	c.Set(ctxkey.TokenId, token.Id)
 	c.Set(ctxkey.TokenName, token.Name)
+	c.Set(ctxkey.TokenUsedAmount, token.UsedAmount)
+	c.Set(ctxkey.TokenQuota, token.Quota)
 	if len(parts) > 1 {
 		// c.Set(ctxkey.SpecificChannelId, parts[1])
 	}

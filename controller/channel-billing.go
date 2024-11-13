@@ -10,7 +10,9 @@ import (
 
 	json "github.com/json-iterator/go"
 
+	"github.com/songquanpeng/one-api/common/balance"
 	"github.com/songquanpeng/one-api/common/client"
+	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/relay/channeltype"
@@ -120,14 +122,11 @@ func GetResponseBody(method, url string, channel *model.Channel, headers http.He
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("status code: %d", res.StatusCode)
 	}
 	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	err = res.Body.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -383,4 +382,31 @@ func AutomaticallyUpdateChannels(frequency int) {
 		_ = updateAllChannelsBalance()
 		logger.SysLog("channels update done")
 	}
+}
+
+// subscription
+func GetSubscription(c *gin.Context) {
+	group := c.GetString(ctxkey.Group)
+	b, _, err := balance.Default.GetGroupRemainBalance(c, group)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	quota := c.GetFloat64(ctxkey.TokenQuota)
+	if quota <= 0 {
+		quota = b
+	}
+	c.JSON(http.StatusOK, OpenAISubscriptionResponse{
+		HardLimitUSD:       quota / 7,
+		SoftLimitUSD:       b / 7,
+		SystemHardLimitUSD: quota / 7,
+	})
+}
+
+func GetUsage(c *gin.Context) {
+	usedAmount := c.GetFloat64(ctxkey.TokenUsedAmount)
+	c.JSON(http.StatusOK, OpenAIUsageResponse{TotalUsage: usedAmount / 7 * 100})
 }

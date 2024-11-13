@@ -23,7 +23,7 @@ func Distribute(c *gin.Context) {
 		return
 	}
 	group := c.GetString(ctxkey.Group)
-	var requestModel string
+	requestModel := c.GetString(ctxkey.RequestModel)
 	var channel *model.Channel
 	channelId, ok := c.Get(ctxkey.SpecificChannelId)
 	if ok {
@@ -42,7 +42,6 @@ func Distribute(c *gin.Context) {
 			return
 		}
 	} else {
-		requestModel = c.GetString(ctxkey.RequestModel)
 		var err error
 		channel, err = model.CacheGetRandomSatisfiedChannel(requestModel)
 		if err != nil {
