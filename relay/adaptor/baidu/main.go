@@ -35,12 +35,12 @@ type Message struct {
 }
 
 type ChatRequest struct {
+	Temperature     *float64  `json:"temperature,omitempty"`
+	TopP            *float64  `json:"top_p,omitempty"`
+	PenaltyScore    *float64  `json:"penalty_score,omitempty"`
 	System          string    `json:"system,omitempty"`
 	UserId          string    `json:"user_id,omitempty"`
 	Messages        []Message `json:"messages"`
-	Temperature     float64   `json:"temperature,omitempty"`
-	TopP            float64   `json:"top_p,omitempty"`
-	PenaltyScore    float64   `json:"penalty_score,omitempty"`
 	MaxOutputTokens int       `json:"max_output_tokens,omitempty"`
 	Stream          bool      `json:"stream,omitempty"`
 	DisableSearch   bool      `json:"disable_search,omitempty"`

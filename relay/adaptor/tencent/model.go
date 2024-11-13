@@ -6,10 +6,10 @@ type Message struct {
 }
 
 type ChatRequest struct {
+	TopP        *float64   `json:"TopP,omitempty"`
+	Temperature *float64   `json:"Temperature,omitempty"`
 	Model       string     `json:"Model"`
 	Messages    []*Message `json:"Messages"`
-	TopP        float64    `json:"TopP,omitempty"`
-	Temperature float64    `json:"Temperature,omitempty"`
 	Stream      bool       `json:"Stream,omitempty"`
 }
 

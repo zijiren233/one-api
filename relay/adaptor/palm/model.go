@@ -19,11 +19,11 @@ type Prompt struct {
 }
 
 type ChatRequest struct {
-	Prompt         Prompt  `json:"prompt"`
-	Temperature    float64 `json:"temperature,omitempty"`
-	CandidateCount int     `json:"candidateCount,omitempty"`
-	TopP           float64 `json:"topP,omitempty"`
-	TopK           int     `json:"topK,omitempty"`
+	Temperature    *float64 `json:"temperature,omitempty"`
+	TopP           *float64 `json:"topP,omitempty"`
+	Prompt         Prompt   `json:"prompt"`
+	CandidateCount int      `json:"candidateCount,omitempty"`
+	TopK           int      `json:"topK,omitempty"`
 }
 
 type Error struct {

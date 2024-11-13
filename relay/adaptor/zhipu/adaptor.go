@@ -66,12 +66,16 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 		return baiduEmbeddingRequest, err
 	default:
 		// TopP (0.0, 1.0)
-		request.TopP = math.Min(0.99, request.TopP)
-		request.TopP = math.Max(0.01, request.TopP)
+		if request.TopP != nil {
+			*request.TopP = math.Min(0.99, *request.TopP)
+			*request.TopP = math.Max(0.01, *request.TopP)
+		}
 
 		// Temperature (0.0, 1.0)
-		request.Temperature = math.Min(0.99, request.Temperature)
-		request.Temperature = math.Max(0.01, request.Temperature)
+		if request.Temperature != nil {
+			*request.Temperature = math.Min(0.99, *request.Temperature)
+			*request.Temperature = math.Max(0.01, *request.Temperature)
+		}
 		a.SetVersionByModeName(request.Model)
 		if a.APIVersion == "v4" {
 			return request, nil

@@ -1,25 +1,25 @@
 package cohere
 
 type Request struct {
-	ConversationID   string        `json:"conversation_id,omitempty"`
+	P                *float64      `json:"p,omitempty"`
+	Temperature      *float64      `json:"temperature,omitempty"`
+	PresencePenalty  *float64      `json:"presence_penalty,omitempty"`
+	FrequencyPenalty *float64      `json:"frequency_penalty,omitempty"`
 	Model            string        `json:"model,omitempty"`
 	Message          string        `json:"message" required:"true"`
 	Preamble         string        `json:"preamble,omitempty"`
 	PromptTruncation string        `json:"prompt_truncation,omitempty"`
+	ConversationID   string        `json:"conversation_id,omitempty"`
 	StopSequences    []string      `json:"stop_sequences,omitempty"`
-	ChatHistory      []ChatMessage `json:"chat_history,omitempty"`
-	Connectors       []Connector   `json:"connectors,omitempty"`
-	Documents        []Document    `json:"documents,omitempty"`
-	ToolResults      []ToolResult  `json:"tool_results,omitempty"`
 	Tools            []Tool        `json:"tools,omitempty"`
+	ToolResults      []ToolResult  `json:"tool_results,omitempty"`
+	Documents        []Document    `json:"documents,omitempty"`
+	Connectors       []Connector   `json:"connectors,omitempty"`
+	ChatHistory      []ChatMessage `json:"chat_history,omitempty"`
 	K                int           `json:"k,omitempty"`
 	MaxInputTokens   int           `json:"max_input_tokens,omitempty"`
-	P                float64       `json:"p,omitempty"`
 	Seed             int           `json:"seed,omitempty"`
-	FrequencyPenalty float64       `json:"frequency_penalty,omitempty"`
-	PresencePenalty  float64       `json:"presence_penalty,omitempty"`
 	MaxTokens        int           `json:"max_tokens,omitempty"`
-	Temperature      float64       `json:"temperature,omitempty"`
 	Stream           bool          `json:"stream,omitempty"`
 }
 

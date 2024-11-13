@@ -43,14 +43,14 @@ type InputSchema struct {
 
 type Request struct {
 	ToolChoice    any       `json:"tool_choice,omitempty"`
+	Temperature   *float64  `json:"temperature,omitempty"`
+	TopP          *float64  `json:"top_p,omitempty"`
 	Model         string    `json:"model"`
 	System        string    `json:"system,omitempty"`
 	Messages      []Message `json:"messages"`
 	StopSequences []string  `json:"stop_sequences,omitempty"`
 	Tools         []Tool    `json:"tools,omitempty"`
 	MaxTokens     int       `json:"max_tokens,omitempty"`
-	Temperature   float64   `json:"temperature,omitempty"`
-	TopP          float64   `json:"top_p,omitempty"`
 	TopK          int       `json:"top_k,omitempty"`
 	Stream        bool      `json:"stream,omitempty"`
 }

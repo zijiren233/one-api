@@ -7,13 +7,13 @@ import "github.com/songquanpeng/one-api/relay/adaptor/anthropic"
 // https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-anthropic-claude-messages.html
 type Request struct {
 	ToolChoice       any                 `json:"tool_choice,omitempty"`
+	Temperature      *float64            `json:"temperature,omitempty"`
+	TopP             *float64            `json:"top_p,omitempty"`
 	AnthropicVersion string              `json:"anthropic_version"`
 	System           string              `json:"system,omitempty"`
 	Messages         []anthropic.Message `json:"messages"`
 	StopSequences    []string            `json:"stop_sequences,omitempty"`
 	Tools            []anthropic.Tool    `json:"tools,omitempty"`
 	MaxTokens        int                 `json:"max_tokens,omitempty"`
-	Temperature      float64             `json:"temperature,omitempty"`
-	TopP             float64             `json:"top_p,omitempty"`
 	TopK             int                 `json:"top_k,omitempty"`
 }
