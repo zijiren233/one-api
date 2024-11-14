@@ -100,10 +100,10 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 	}
 	switch relayMode {
 	case relaymode.Embeddings:
-		baiduEmbeddingRequest := ConvertEmbeddingRequest(*request)
+		baiduEmbeddingRequest := ConvertEmbeddingRequest(request)
 		return baiduEmbeddingRequest, nil
 	default:
-		baiduRequest := ConvertRequest(*request)
+		baiduRequest := ConvertRequest(request)
 		return baiduRequest, nil
 	}
 }

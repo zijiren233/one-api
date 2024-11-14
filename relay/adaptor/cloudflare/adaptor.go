@@ -70,7 +70,7 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 	}
 	switch relayMode {
 	case relaymode.Completions:
-		return ConvertCompletionsRequest(*request), nil
+		return ConvertCompletionsRequest(request), nil
 	case relaymode.ChatCompletions, relaymode.Embeddings:
 		return request, nil
 	default:

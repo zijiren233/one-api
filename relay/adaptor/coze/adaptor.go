@@ -36,7 +36,7 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 		return nil, errors.New("request is nil")
 	}
 	request.User = a.meta.Config.UserID
-	return ConvertRequest(*request), nil
+	return ConvertRequest(request), nil
 }
 
 func (a *Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) {

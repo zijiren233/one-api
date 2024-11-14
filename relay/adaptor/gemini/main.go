@@ -34,7 +34,7 @@ var mimeTypeMap = map[string]string{
 }
 
 // Setting safety to the lowest possible values since Gemini is already powerless enough
-func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
+func ConvertRequest(textRequest *model.GeneralOpenAIRequest) *ChatRequest {
 	safetySetting := config.GetGeminiSafetySetting()
 	geminiRequest := ChatRequest{
 		Contents: make([]ChatContent, 0, len(textRequest.Messages)),
@@ -150,7 +150,7 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 	return &geminiRequest
 }
 
-func ConvertEmbeddingRequest(request model.GeneralOpenAIRequest) *BatchEmbeddingRequest {
+func ConvertEmbeddingRequest(request *model.GeneralOpenAIRequest) *BatchEmbeddingRequest {
 	inputs := request.ParseInput()
 	requests := make([]EmbeddingRequest, len(inputs))
 	model := fmt.Sprintf("models/%s", request.Model)

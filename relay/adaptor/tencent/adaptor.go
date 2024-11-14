@@ -52,10 +52,9 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 	if err != nil {
 		return nil, err
 	}
-	tencentRequest := ConvertRequest(*request)
 	// we have to calculate the sign here
-	a.Sign = GetSign(*tencentRequest, a, secretId, secretKey)
-	return tencentRequest, nil
+	a.Sign = GetSign(request, a, secretId, secretKey)
+	return request, nil
 }
 
 func (a *Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) {

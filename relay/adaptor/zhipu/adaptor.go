@@ -80,7 +80,7 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 		if a.APIVersion == "v4" {
 			return request, nil
 		}
-		return ConvertRequest(*request), nil
+		return ConvertRequest(request), nil
 	}
 }
 

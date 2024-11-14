@@ -37,7 +37,7 @@ func stopReasonClaude2OpenAI(reason *string) string {
 	}
 }
 
-func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
+func ConvertRequest(textRequest *model.GeneralOpenAIRequest) *Request {
 	claudeTools := make([]Tool, 0, len(textRequest.Tools))
 
 	for _, tool := range textRequest.Tools {

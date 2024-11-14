@@ -32,7 +32,7 @@ func stopReasonCohere2OpenAI(reason *string) string {
 	}
 }
 
-func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
+func ConvertRequest(textRequest *model.GeneralOpenAIRequest) *Request {
 	cohereRequest := Request{
 		Model:            textRequest.Model,
 		Message:          "",

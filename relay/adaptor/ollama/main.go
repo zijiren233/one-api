@@ -22,7 +22,7 @@ import (
 	"github.com/songquanpeng/one-api/relay/model"
 )
 
-func ConvertRequest(request model.GeneralOpenAIRequest) *ChatRequest {
+func ConvertRequest(request *model.GeneralOpenAIRequest) *ChatRequest {
 	ollamaRequest := ChatRequest{
 		Model: request.Model,
 		Options: &Options{
@@ -156,7 +156,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	return nil, &usage
 }
 
-func ConvertEmbeddingRequest(request model.GeneralOpenAIRequest) *EmbeddingRequest {
+func ConvertEmbeddingRequest(request *model.GeneralOpenAIRequest) *EmbeddingRequest {
 	return &EmbeddingRequest{
 		Model: request.Model,
 		Input: request.ParseInput(),

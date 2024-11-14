@@ -18,7 +18,7 @@ import (
 	"github.com/songquanpeng/one-api/relay/model"
 )
 
-func ConvertCompletionsRequest(textRequest model.GeneralOpenAIRequest) *Request {
+func ConvertCompletionsRequest(textRequest *model.GeneralOpenAIRequest) *Request {
 	p, _ := textRequest.Prompt.(string)
 	return &Request{
 		Prompt:      p,

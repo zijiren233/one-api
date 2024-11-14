@@ -54,7 +54,7 @@ type Error struct {
 
 var baiduTokenStore sync.Map
 
-func ConvertRequest(request model.GeneralOpenAIRequest) *ChatRequest {
+func ConvertRequest(request *model.GeneralOpenAIRequest) *ChatRequest {
 	baiduRequest := ChatRequest{
 		Messages:        make([]Message, 0, len(request.Messages)),
 		Temperature:     request.Temperature,
@@ -114,7 +114,7 @@ func streamResponseBaidu2OpenAI(baiduResponse *ChatStreamResponse) *openai.ChatC
 	return &response
 }
 
-func ConvertEmbeddingRequest(request model.GeneralOpenAIRequest) *EmbeddingRequest {
+func ConvertEmbeddingRequest(request *model.GeneralOpenAIRequest) *EmbeddingRequest {
 	return &EmbeddingRequest{
 		Input: request.ParseInput(),
 	}

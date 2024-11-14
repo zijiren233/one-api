@@ -23,7 +23,7 @@ import (
 
 const EnableSearchModelSuffix = "-internet"
 
-func ConvertRequest(request model.GeneralOpenAIRequest) *ChatRequest {
+func ConvertRequest(request *model.GeneralOpenAIRequest) *ChatRequest {
 	enableSearch := false
 	aliModel := request.Model
 	if strings.HasSuffix(aliModel, EnableSearchModelSuffix) {
@@ -52,7 +52,7 @@ func ConvertRequest(request model.GeneralOpenAIRequest) *ChatRequest {
 	}
 }
 
-func ConvertEmbeddingRequest(request model.GeneralOpenAIRequest) *EmbeddingRequest {
+func ConvertEmbeddingRequest(request *model.GeneralOpenAIRequest) *EmbeddingRequest {
 	return &EmbeddingRequest{
 		Model: request.Model,
 		Input: struct {

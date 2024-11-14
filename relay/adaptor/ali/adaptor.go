@@ -60,10 +60,10 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 	}
 	switch relayMode {
 	case relaymode.Embeddings:
-		aliEmbeddingRequest := ConvertEmbeddingRequest(*request)
+		aliEmbeddingRequest := ConvertEmbeddingRequest(request)
 		return aliEmbeddingRequest, nil
 	default:
-		aliRequest := ConvertRequest(*request)
+		aliRequest := ConvertRequest(request)
 		return aliRequest, nil
 	}
 }

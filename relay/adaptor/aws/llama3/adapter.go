@@ -20,7 +20,7 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 		return nil, errors.New("request is nil")
 	}
 
-	llamaReq := ConvertRequest(*request)
+	llamaReq := ConvertRequest(request)
 	c.Set(ctxkey.RequestModel, request.Model)
 	c.Set(ctxkey.ConvertedRequest, llamaReq)
 	return llamaReq, nil

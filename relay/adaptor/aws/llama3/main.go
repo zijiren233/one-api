@@ -57,7 +57,7 @@ func RenderPrompt(messages []relaymodel.Message) string {
 	return buf.String()
 }
 
-func ConvertRequest(textRequest relaymodel.GeneralOpenAIRequest) *Request {
+func ConvertRequest(textRequest *relaymodel.GeneralOpenAIRequest) *Request {
 	llamaRequest := Request{
 		MaxGenLen:   textRequest.MaxTokens,
 		Temperature: textRequest.Temperature,

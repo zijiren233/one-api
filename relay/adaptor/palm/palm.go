@@ -20,7 +20,7 @@ import (
 // https://developers.generativeai.google/api/rest/generativelanguage/models/generateMessage#request-body
 // https://developers.generativeai.google/api/rest/generativelanguage/models/generateMessage#response-body
 
-func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
+func ConvertRequest(textRequest *model.GeneralOpenAIRequest) *ChatRequest {
 	palmRequest := ChatRequest{
 		Prompt: Prompt{
 			Messages: make([]ChatMessage, 0, len(textRequest.Messages)),

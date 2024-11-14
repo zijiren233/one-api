@@ -79,7 +79,7 @@ func GetToken(apikey string) string {
 	return tokenString
 }
 
-func ConvertRequest(request model.GeneralOpenAIRequest) *Request {
+func ConvertRequest(request *model.GeneralOpenAIRequest) *Request {
 	messages := make([]Message, 0, len(request.Messages))
 	for _, message := range request.Messages {
 		messages = append(messages, Message{

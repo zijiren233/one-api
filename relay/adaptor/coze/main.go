@@ -37,7 +37,7 @@ func stopReasonCoze2OpenAI(reason *string) string {
 	}
 }
 
-func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
+func ConvertRequest(textRequest *model.GeneralOpenAIRequest) *Request {
 	cozeRequest := Request{
 		Stream: textRequest.Stream,
 		User:   textRequest.User,

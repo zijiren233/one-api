@@ -26,24 +26,6 @@ import (
 	"github.com/songquanpeng/one-api/relay/model"
 )
 
-func ConvertRequest(request model.GeneralOpenAIRequest) *ChatRequest {
-	messages := make([]*Message, 0, len(request.Messages))
-	for i := 0; i < len(request.Messages); i++ {
-		message := request.Messages[i]
-		messages = append(messages, &Message{
-			Content: message.StringContent(),
-			Role:    message.Role,
-		})
-	}
-	return &ChatRequest{
-		Model:       request.Model,
-		Stream:      request.Stream,
-		Messages:    messages,
-		TopP:        request.TopP,
-		Temperature: request.Temperature,
-	}
-}
-
 func responseTencent2OpenAI(response *ChatResponse) *openai.TextResponse {
 	fullTextResponse := openai.TextResponse{
 		Object:  "chat.completion",
@@ -189,7 +171,7 @@ func hmacSha256(s, key string) string {
 	return conv.BytesToString(hashed.Sum(nil))
 }
 
-func GetSign(req ChatRequest, adaptor *Adaptor, secId, secKey string) string {
+func GetSign(req *model.GeneralOpenAIRequest, adaptor *Adaptor, secId, secKey string) string {
 	// build canonical request string
 	host := "hunyuan.tencentcloudapi.com"
 	httpRequestMethod := "POST"

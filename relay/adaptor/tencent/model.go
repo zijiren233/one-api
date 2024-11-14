@@ -1,17 +1,6 @@
 package tencent
 
-type Message struct {
-	Role    string `json:"Role"`
-	Content string `json:"Content"`
-}
-
-type ChatRequest struct {
-	TopP        *float64   `json:"TopP,omitempty"`
-	Temperature *float64   `json:"Temperature,omitempty"`
-	Model       string     `json:"Model"`
-	Messages    []*Message `json:"Messages"`
-	Stream      bool       `json:"Stream,omitempty"`
-}
+import "github.com/songquanpeng/one-api/relay/model"
 
 type Error struct {
 	Message string `json:"Message"`
@@ -25,9 +14,9 @@ type Usage struct {
 }
 
 type ResponseChoices struct {
-	FinishReason string  `json:"FinishReason,omitempty"` // 流式结束标志位，为 stop 则表示尾包
-	Messages     Message `json:"Message,omitempty"`      // 内容，同步模式返回内容，流模式为 null 输出 content 内容总数最多支持 1024token。
-	Delta        Message `json:"Delta,omitempty"`        // 内容，流模式返回内容，同步模式为 null 输出 content 内容总数最多支持 1024token。
+	FinishReason string        `json:"FinishReason,omitempty"` // 流式结束标志位，为 stop 则表示尾包
+	Messages     model.Message `json:"Message,omitempty"`      // 内容，同步模式返回内容，流模式为 null 输出 content 内容总数最多支持 1024token。
+	Delta        model.Message `json:"Delta,omitempty"`        // 内容，流模式返回内容，同步模式为 null 输出 content 内容总数最多支持 1024token。
 }
 
 type ChatResponse struct {

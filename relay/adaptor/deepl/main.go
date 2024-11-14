@@ -17,7 +17,7 @@ import (
 
 // https://developers.deepl.com/docs/getting-started/your-first-api-request
 
-func ConvertRequest(textRequest model.GeneralOpenAIRequest) (*Request, string) {
+func ConvertRequest(textRequest *model.GeneralOpenAIRequest) (*Request, string) {
 	var text string
 	if len(textRequest.Messages) != 0 {
 		text = textRequest.Messages[len(textRequest.Messages)-1].StringContent()

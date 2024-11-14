@@ -40,10 +40,10 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 	}
 	switch relayMode {
 	case relaymode.Embeddings:
-		ollamaEmbeddingRequest := ConvertEmbeddingRequest(*request)
+		ollamaEmbeddingRequest := ConvertEmbeddingRequest(request)
 		return ollamaEmbeddingRequest, nil
 	default:
-		return ConvertRequest(*request), nil
+		return ConvertRequest(request), nil
 	}
 }
 

@@ -30,7 +30,7 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 		return nil, errors.New("request is nil")
 	}
 
-	claudeReq := anthropic.ConvertRequest(*request)
+	claudeReq := anthropic.ConvertRequest(request)
 	req := Request{
 		AnthropicVersion: anthropicVersion,
 		// Model:            claudeReq.Model,

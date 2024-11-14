@@ -25,7 +25,7 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 		return nil, errors.New("request is nil")
 	}
 
-	geminiRequest := gemini.ConvertRequest(*request)
+	geminiRequest := gemini.ConvertRequest(request)
 	c.Set(ctxkey.RequestModel, request.Model)
 	c.Set(ctxkey.ConvertedRequest, geminiRequest)
 	return geminiRequest, nil
