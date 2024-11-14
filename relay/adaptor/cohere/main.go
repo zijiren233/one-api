@@ -57,11 +57,12 @@ func ConvertRequest(textRequest *model.GeneralOpenAIRequest) *Request {
 			cohereRequest.Message = message.Content.(string)
 		} else {
 			var role string
-			if message.Role == "assistant" {
+			switch message.Role {
+			case "assistant":
 				role = "CHATBOT"
-			} else if message.Role == "system" {
+			case "system":
 				role = "SYSTEM"
-			} else {
+			default:
 				role = "USER"
 			}
 			cohereRequest.ChatHistory = append(cohereRequest.ChatHistory, ChatMessage{

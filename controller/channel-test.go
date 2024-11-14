@@ -46,18 +46,18 @@ func buildTestRequest(model string) *relaymodel.GeneralOpenAIRequest {
 	return testRequest
 }
 
-func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIRequest) (err error, openaiErr *relaymodel.Error) {
+func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIRequest) (openaiErr *relaymodel.Error, err error) {
 	if len(channel.Models) == 0 {
 		channel.Models = config.GetDefaultChannelModels()[channel.Type]
 		if len(channel.Models) == 0 {
-			return errors.New("no models"), nil
+			return nil, errors.New("no models")
 		}
 	}
 	modelName := request.Model
 	if modelName == "" {
 		modelName = channel.Models[0]
 	} else if !slices.Contains(channel.Models, modelName) {
-		return fmt.Errorf("model %s not supported", modelName), nil
+		return nil, fmt.Errorf("model %s not supported", modelName)
 	}
 	if v, ok := channel.ModelMapping[modelName]; ok {
 		modelName = v
@@ -80,42 +80,42 @@ func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIReques
 	apiType := channeltype.ToAPIType(channel.Type)
 	adaptor := relay.GetAdaptor(apiType)
 	if adaptor == nil {
-		return fmt.Errorf("invalid api type: %d, adaptor is nil", apiType), nil
+		return nil, fmt.Errorf("invalid api type: %d, adaptor is nil", apiType)
 	}
 	adaptor.Init(meta)
 	meta.OriginModelName, meta.ActualModelName = request.Model, modelName
 	request.Model = modelName
 	convertedRequest, err := adaptor.ConvertRequest(c, relaymode.ChatCompletions, request)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	jsonData, err := json.Marshal(convertedRequest)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	logger.SysLogf("testing channel #%d, request: \n%s", channel.Id, jsonData)
 	requestBody := bytes.NewBuffer(jsonData)
 	c.Request.Body = io.NopCloser(requestBody)
 	resp, err := adaptor.DoRequest(c, meta, requestBody)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	if resp != nil && resp.StatusCode != http.StatusOK {
 		err := controller.RelayErrorHandler(resp)
-		return fmt.Errorf("status code %d: %s", resp.StatusCode, err.Error.Message), &err.Error
+		return &err.Error, errors.New(err.Error.Message)
 	}
 	usage, respErr := adaptor.DoResponse(c, resp, meta)
 	if respErr != nil {
-		return fmt.Errorf("%s", respErr.Error.Message), &respErr.Error
+		return &respErr.Error, errors.New(respErr.Error.Message)
 	}
 	if usage == nil {
-		return errors.New("usage is nil"), nil
+		return nil, errors.New("usage is nil")
 	}
 	result := w.Result()
 	// print result.Body
 	respBody, err := io.ReadAll(result.Body)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	logger.SysLogf("testing channel #%d, response: \n%s", channel.Id, respBody)
 	return nil, nil
@@ -141,7 +141,7 @@ func TestChannel(c *gin.Context) {
 	model := c.Query("model")
 	testRequest := buildTestRequest(model)
 	tik := time.Now()
-	err, _ = testChannel(channel, testRequest)
+	_, err = testChannel(channel, testRequest)
 	tok := time.Now()
 	milliseconds := tok.Sub(tik).Milliseconds()
 	if err != nil {
@@ -188,7 +188,7 @@ func testChannels(onlyDisabled bool) error {
 			isChannelEnabled := channel.Status == model.ChannelStatusEnabled
 			tik := time.Now()
 			testRequest := buildTestRequest("")
-			err, openaiErr := testChannel(channel, testRequest)
+			openaiErr, err := testChannel(channel, testRequest)
 			tok := time.Now()
 			milliseconds := tok.Sub(tik).Milliseconds()
 			if isChannelEnabled && monitor.ShouldDisableChannel(openaiErr, -1) {

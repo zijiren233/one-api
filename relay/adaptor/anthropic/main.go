@@ -84,9 +84,10 @@ func ConvertRequest(textRequest *model.GeneralOpenAIRequest) *Request {
 		claudeRequest.MaxTokens = 4096
 	}
 	// legacy model name mapping
-	if claudeRequest.Model == "claude-instant-1" {
+	switch claudeRequest.Model {
+	case "claude-instant-1":
 		claudeRequest.Model = "claude-instant-1.1"
-	} else if claudeRequest.Model == "claude-2" {
+	case "claude-2":
 		claudeRequest.Model = "claude-2.1"
 	}
 	for _, message := range textRequest.Messages {
@@ -126,10 +127,11 @@ func ConvertRequest(textRequest *model.GeneralOpenAIRequest) *Request {
 		openaiContent := message.ParseContent()
 		for _, part := range openaiContent {
 			var content Content
-			if part.Type == model.ContentTypeText {
+			switch part.Type {
+			case model.ContentTypeText:
 				content.Type = "text"
 				content.Text = part.Text
-			} else if part.Type == model.ContentTypeImageURL {
+			case model.ContentTypeImageURL:
 				content.Type = "image"
 				content.Source = &ImageSource{
 					Type: "base64",
