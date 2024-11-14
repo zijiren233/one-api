@@ -61,10 +61,10 @@ func Distribute(c *gin.Context) {
 func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, modelName string) {
 	c.Set(ctxkey.Channel, channel.Type)
 	c.Set(ctxkey.ChannelId, channel.Id)
+	c.Set(ctxkey.APIKey, channel.Key)
 	c.Set(ctxkey.ChannelName, channel.Name)
 	c.Set(ctxkey.ModelMapping, channel.ModelMapping)
 	c.Set(ctxkey.OriginalModel, modelName) // for retry
-	c.Request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", channel.Key))
 	c.Set(ctxkey.BaseURL, channel.BaseURL)
 	cfg := channel.Config
 	// this is for backward compatibility

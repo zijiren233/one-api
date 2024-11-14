@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/helper"
@@ -18,6 +17,7 @@ import (
 // https://cloud.tencent.com/document/api/1729/101837
 
 type Adaptor struct {
+	meta      *meta.Meta
 	Sign      string
 	Action    string
 	Version   string
@@ -28,6 +28,7 @@ func (a *Adaptor) Init(meta *meta.Meta) {
 	a.Action = "ChatCompletions"
 	a.Version = "2023-09-01"
 	a.Timestamp = helper.GetTimestamp()
+	a.meta = meta
 }
 
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
@@ -47,9 +48,7 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 	if request == nil {
 		return nil, errors.New("request is nil")
 	}
-	apiKey := c.Request.Header.Get("Authorization")
-	apiKey = strings.TrimPrefix(apiKey, "Bearer ")
-	_, secretId, secretKey, err := ParseConfig(apiKey)
+	_, secretId, secretKey, err := ParseConfig(a.meta.APIKey)
 	if err != nil {
 		return nil, err
 	}

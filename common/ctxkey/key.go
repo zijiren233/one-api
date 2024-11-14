@@ -5,6 +5,7 @@ const (
 	Status            = "status"
 	Channel           = "channel"
 	ChannelId         = "channel_id"
+	APIKey            = "api_key"
 	SpecificChannelId = "specific_channel_id"
 	RequestModel      = "request_model"
 	ConvertedRequest  = "converted_request"

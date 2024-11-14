@@ -1,8 +1,6 @@
 package meta
 
 import (
-	"strings"
-
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/model"
@@ -40,7 +38,7 @@ func GetByContext(c *gin.Context) *Meta {
 		ModelMapping:    c.GetStringMapString(ctxkey.ModelMapping),
 		OriginModelName: c.GetString(ctxkey.RequestModel),
 		BaseURL:         c.GetString(ctxkey.BaseURL),
-		APIKey:          strings.TrimPrefix(c.Request.Header.Get("Authorization"), "Bearer "),
+		APIKey:          c.GetString(ctxkey.APIKey),
 		RequestURLPath:  c.Request.URL.String(),
 	}
 	cfg, ok := c.Get(ctxkey.Config)

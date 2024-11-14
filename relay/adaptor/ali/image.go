@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,9 +16,7 @@ import (
 	"github.com/songquanpeng/one-api/relay/model"
 )
 
-func ImageHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
-	apiKey := c.Request.Header.Get("Authorization")
-	apiKey = strings.TrimPrefix(apiKey, "Bearer ")
+func ImageHandler(c *gin.Context, resp *http.Response, apiKey string) (*model.ErrorWithStatusCode, *model.Usage) {
 	responseFormat := c.GetString("response_format")
 
 	var aliTaskResponse TaskResponse
