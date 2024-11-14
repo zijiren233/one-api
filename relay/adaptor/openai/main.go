@@ -3,7 +3,6 @@ package openai
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -141,6 +140,11 @@ func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName st
 
 func TTSHandler(c *gin.Context, resp *http.Response, meta *meta.Meta) (*model.ErrorWithStatusCode, *model.Usage) {
 	defer resp.Body.Close()
+
+	for k, v := range resp.Header {
+		c.Writer.Header().Set(k, v[0])
+	}
+
 	_, _ = io.Copy(c.Writer, resp.Body)
 	return nil, &model.Usage{
 		PromptTokens:     meta.PromptTokens,
@@ -150,14 +154,12 @@ func TTSHandler(c *gin.Context, resp *http.Response, meta *meta.Meta) (*model.Er
 }
 
 func STTHandler(c *gin.Context, resp *http.Response, meta *meta.Meta, responseFormat string) (*model.ErrorWithStatusCode, *model.Usage) {
+	defer resp.Body.Close()
+
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		resp.Body.Close()
 		return ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
 	}
-	resp.Body.Close()
-
-	resp.Body = io.NopCloser(bytes.NewReader(responseBody))
 
 	var openAIErr SlimTextResponse
 	if err = json.Unmarshal(responseBody, &openAIErr); err == nil {
@@ -168,8 +170,6 @@ func STTHandler(c *gin.Context, resp *http.Response, meta *meta.Meta, responseFo
 
 	var text string
 	switch responseFormat {
-	case "json":
-		text, err = getTextFromJSON(responseBody)
 	case "text":
 		text, err = getTextFromText(responseBody)
 	case "srt":
@@ -178,13 +178,21 @@ func STTHandler(c *gin.Context, resp *http.Response, meta *meta.Meta, responseFo
 		text, err = getTextFromVerboseJSON(responseBody)
 	case "vtt":
 		text, err = getTextFromVTT(responseBody)
+	case "json":
+		fallthrough
 	default:
-		return ErrorWrapper(errors.New("unexpected_response_format"), "unexpected_response_format", http.StatusInternalServerError), nil
+		text, err = getTextFromJSON(responseBody)
 	}
 	if err != nil {
 		return ErrorWrapper(err, "get_text_from_body_err", http.StatusInternalServerError), nil
 	}
 	completionTokens := CountTokenText(text, meta.ActualModelName)
+
+	for k, v := range resp.Header {
+		c.Writer.Header().Set(k, v[0])
+	}
+	_, _ = c.Writer.Write(responseBody)
+
 	return nil, &model.Usage{
 		PromptTokens:     0,
 		CompletionTokens: completionTokens,

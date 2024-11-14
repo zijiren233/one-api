@@ -112,27 +112,47 @@ func (a *Adaptor) ConvertSTTRequest(request *http.Request) (io.ReadCloser, error
 	if request == nil {
 		return nil, errors.New("request is nil")
 	}
+
+	err := request.ParseMultipartForm(1024 * 1024 * 4)
+	if err != nil {
+		return nil, err
+	}
+
 	multipartBody := &bytes.Buffer{}
 	multipartWriter := multipart.NewWriter(multipartBody)
-	multipartWriter.WriteField("model", a.meta.ActualModelName)
-	a.responseFormat = request.FormValue("response_format")
-	if a.responseFormat == "" {
-		a.responseFormat = "json"
+
+	for key, values := range request.MultipartForm.Value {
+		for _, value := range values {
+			if key == "model" {
+				multipartWriter.WriteField(key, a.meta.ActualModelName)
+				continue
+			}
+			if key == "response_format" {
+				a.responseFormat = value
+			}
+			multipartWriter.WriteField(key, value)
+		}
 	}
-	multipartWriter.WriteField("response_format", a.responseFormat)
-	file, fileHeader, err := request.FormFile("file")
-	if err != nil {
-		return nil, err
+
+	for key, files := range request.MultipartForm.File {
+		for _, fileHeader := range files {
+			file, err := fileHeader.Open()
+			if err != nil {
+				return nil, err
+			}
+			w, err := multipartWriter.CreateFormFile(key, fileHeader.Filename)
+			if err != nil {
+				file.Close()
+				return nil, err
+			}
+			_, err = io.Copy(w, file)
+			file.Close()
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
-	defer file.Close()
-	w, err := multipartWriter.CreateFormFile("file", fileHeader.Filename)
-	if err != nil {
-		return nil, err
-	}
-	_, err = io.Copy(w, file)
-	if err != nil {
-		return nil, err
-	}
+
 	multipartWriter.Close()
 	a.contentType = multipartWriter.FormDataContentType()
 	return io.NopCloser(multipartBody), nil
